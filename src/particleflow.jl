@@ -1,8 +1,7 @@
 using DrWatson
 quickactivate(joinpath(@__DIR__,".."))
 include("pflowbase.jl")
-using Plots; pyplot()
-using StatsPlots
+using Makie
 
 
 # Two modes
@@ -16,9 +15,6 @@ p2 = GeneralModel(no_prior,(x,p)->logpdf(d_base,collect(x)),[])
 ##
 mu0 = [0.0,0.0]#zeros(2)
 C = diagm(ones(2))
-# m = mean(x_t,dims=2)
-# f_t = mapslices(f,x_t,dims=1)
-# sum_f(f_t)
 function cb(x,p::GeneralModel,t)
     if iseverylog10(t)
         L = free_energy(x,p)
@@ -37,21 +33,56 @@ function cb(x,p::GeneralModel,t)
         frame(anim)
     end
 end
+## Objects for animations
+titlestring = Node("t=0")
+
 ## Training two modes
 M = 3
-x_init = rand(MvNormal(mu0,0.01*C),M)
+x_init = rand(MvNormal(mu0,C),M)
 x_t1 = copy(x_init)
 X_t = []
 xrange = range(-2.5,7.5,length=100)
 X = Iterators.product(xrange,xrange)
-p_x = zeros(size(X))
+p_x_target = zeros(size(X))
 for (i,x) in enumerate(X)
-    p_x[i] = exp(-p1(x))
+    p_x_target[i] = exp(-p1(x))
 end
-anim = Animation()
-opt_x1 =[Momentum(η=0.01),Momentum(η=0.01)]
-move_particles(x_t1,p1,1000,opt_x1,cb=cb)
-gif(anim,plotsdir("gifs","2modes_M=$M.gif"),fps=8) |> display
+##
+x_p = Node(x_t1)
+m,C = m_and_C(x_t1)
+dist_x = lift(x->MvNormal(m_and_C(x)...),x_p)
+p_X = lift(x->pdf.(Ref(x),collect.(X)),dist_x)
+x_p1  = lift(x->x[1,:],x_p)
+x_p2  = lift(x->x[2,:],x_p)
+normalizer(dist_x.val)
+levels = lift(x->Float32.(normalizer(x)*exp.(-0.5(5:-1:1))),dist_x)
+## MWE
+using Makie, Distributions
+xrange = range(-2.5,7.5,length=100)
+X = Iterators.product(xrange,xrange)
+d1 = MvNormal(zeros(2),I)
+p_x = pdf.(Ref(d1),collect.(X))
+scene = contour(xrange,xrange,p_x,levels=10,fillrange=true,linewidth=0.0)
+d2 = MvNormal([-5,5],I)
+p_x2 = pdf.(Ref(d2),collect.(X))
+levels = inv(det(cov(d2))*2π)*exp.(-0.5(5:-1:1)) # Return levels at 1:5 sigmas
+scene = contour!(scene,xrange,xrange,p_x2,color=:white,levels=levels)
+# AbstractPlotting.inline!(true)
+##
+scene = contour(xrange,xrange,p_x_target,levels=100,fillrange=true,linewidth=0.0)
+scene = contour!(xrange,xrange,p_X,color=:white,levels=levels)
+scene = scatter!(x_p1,x_p2,color=:red,markersize=0.3)
+scene = title(scene,titlestring)
+
+
+T = 100; fps = 10
+opt_x1 =[Momentum(η=0.1),Momentum(η=0.1)]
+
+record(scene,joinpath(plotsdir(),"gifs","2modes_$(M)_particles.gif"),1:T,framerate=fps) do i
+    push!(titlestring,"t=$i")
+    move_particles(x_t1,p1,opt_x1)
+    push!(x_p,x_t1)
+end
 
 ## Training a Gaussian
 M = 3

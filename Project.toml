@@ -1,5 +1,15 @@
 name = "ParticleFlow"
+
+[deps]
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+DrWatson = "634d3b9d-ee7a-5ddf-bec9-22491ea816e1"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+GradDescent = "e1397348-e965-55d8-8fb3-3dd9faf6e4f1"
+KernelFunctions = "ec8451be-7e33-11e9-00cf-bbf324bd1392"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+PDMats = "90014a1f-27ba-587c-ab20-58faa44d9150"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
+
 [compat]
 julia = "1.2.0"
-[deps]
-DrWatson = "634d3b9d-ee7a-5ddf-bec9-22491ea816e1"
