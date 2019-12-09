@@ -1,6 +1,6 @@
 using DrWatson
 quickactivate(joinpath(@__DIR__,".."))
-include("pflowbase.jl")
+include(srcdir("pflowbase.jl"))
 using Makie
 
 

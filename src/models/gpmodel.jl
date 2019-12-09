@@ -30,7 +30,7 @@ expec(x,p::GPModel,params,invK) = mean(phi.(eachcol(x),[p],[params],[invK]))
 _f(x,p::GPModel) = -0.5*∇phi(x,p)
 ∇phi(x,p::GPModel) = -(p.grad_log_likelihood(x,p)+grad_log_gp_prior(x,p.invK))
 function hyper_grad(x,p::GPModel)
-    ForwardDiff.gradient(θ->        expec(x,p,θ,inv(θ[1]*(kernelmatrix(base_kernel(p.kernel)(θ[2:end]),p.X,obsdim=1)+1e-5I))),p.params)
+    ForwardDiff.gradient(θ->expec(x,p,θ,inv(θ[1]*(kernelmatrix(base_kernel(p.kernel)(θ[2:end]),p.X,obsdim=1)+1e-5I))),p.params)
 end
 function update_params!(p::GPModel,x)
     ∇ = hyper_grad(x,p)
