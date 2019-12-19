@@ -10,6 +10,11 @@ abstract type AbstractModel end
 include("models/generalmodel.jl")
 include("models/gpmodel.jl")
 include("models/normflow.jl")
+
+Flux.@functor ScaleTransform
+Flux.@functor ARDTransform
+Flux.@functor SqExponentialKernel
+
 ## General Helper  ###
 @inline sum_f(f) = mean(f,dims=2)
 @inline add_var_f(x,f,m) = (0.5I + sum_var_f(x,f,m))*(x.-m)
@@ -28,26 +33,28 @@ function move_particles(x,p,opt_x;cb=nothing,Xt=nothing,epsilon=1e-3)
     x_new = copy(x)
     m = vec(mean(x,dims=2))
     f_x = mapslices(x->_f(x,p),x,dims=1)
-    ∇f1 = vec(mean(f_x,dims=2))
+    global ∇f1 = vec(mean(f_x,dims=2))
     c_x = x.-m
     ψ = mean(eachcol(f_x).*transpose.(eachcol(c_x)))
     ∇f2 = (ψ+0.5I)*c_x
-    Δ1 = update(opt_x[1],∇f1)
-    Δ2 = update(opt_x[2],∇f2)
+    Δ1 = Flux.Optimise.apply!(opt_x[1],x,∇f1)
+    Δ2 = Flux.Optimise.apply!(opt_x[2],x,∇f2)
     @. x_new = x + Δ1 + Δ2
     L_new = free_energy(x_new,p)
-    α = 0.5
-    while L_new > L+epsilon
-        x_new .= x .+ α*Δ1 .+ α*Δ2
-        L_new = free_energy(x_new,p)
-        α *= 0.1
-        if α < 1e-10
-            @error "α too small, skipping step!"
-            α = 0.0
-            @. x_new = x + α*Δ1 + α*Δ2
-            break
-        end
-    end
+    # α = 0.5
+    # while L_new > L+epsilon
+    #     x_new .= x .+ α*Δ1 .+ α*Δ2
+    #     L_new = free_energy(x_new,p)
+    #     α *= 0.1
+    #     @show α
+    #
+    #     if α < 1e-10
+    #         @error "α too small, skipping step!"
+    #         α = 0.0
+    #         @. x_new = x + α*Δ1 + α*Δ2
+    #         break
+    #     end
+    # end
     x .= x_new
     update_params!(p,x,p.opt)
     L = L_new
