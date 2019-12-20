@@ -9,13 +9,14 @@ mutable struct GPModel <: AbstractModel
     invK
     opt
 end
+jitter = 1e-3
 
 function GPModel(log_likelihood,kernel,variance,X,y;gradll=nothing,opt=Flux.ADAM(0.001),params...)
     if isnothing(gradll)
         gradll = (x,p)->ForwardDiff.gradient(X->p.log_likelihood(X,p.y),x)
     end
-    K = kernelpdmat(kernel,X,obsdim=1)
-    invK = inv(variance*(K+1e-5*mean(diag(K))*I))
+    K = kernelmatrix(kernel,X,obsdim=1)
+    invK = inv(variance*(K+jitter*median(diag(K))*I))
     GPModel(log_likelihood,gradll,kernel,[variance],collect(params),X,y,invK,opt)
 end
 
@@ -25,7 +26,7 @@ grad_log_gp_prior(x,invK) = -(invK*x)
 phi(x,p::GPModel,params,invK) = -p.log_likelihood(x,p.y) - log_gp_prior(x,invK)
 function free_energy(x,p::GPModel)
     C = cov(x,dims=2)
-    -0.5*logdet(C+1e-5*tr(C)/size(C,1)*I) + expec(x,p,p.params,p.invK)
+    -0.5*logdet(C+jitter*tr(C)/size(C,1)*I) + expec(x,p,p.params,p.invK)
 end
 expec(x,p::GPModel,params,invK) = sum(phi(x[:,i],p,params,invK) for i in 1:size(x,2))/size(x,2)
 _f(x,p::GPModel) = -0.5*∇phi(x,p)
@@ -35,14 +36,14 @@ function predic_f(p,x,x_test)
     k_star = first(p.σ)*kernelmatrix(p.kernel,x_test,p.X,obsdim=1)
     μf = k_star*p.invK*μ
     A = p.invK*(I-Σ*p.invK)
-    k_starstar = first(p.σ)*(kerneldiagmatrix(p.kernel,x_test,obsdim=1).+1e-5)
+    k_starstar = first(p.σ)*(kerneldiagmatrix(p.kernel,x_test,obsdim=1).+jitter)
     Σf = k_starstar - AugmentedGaussianProcesses.opt_diag(k_star*A,k_star)
     return μf,Σf
 end
 
 
 function hyper_grad(x,p::GPModel)
-    ForwardDiff.gradient(θ->expec(x,p,θ,inv(θ[1]*(kernelmatrix(base_kernel(p.kernel)(θ[2:end]),p.X,obsdim=1)+1e-5I))),p.params)
+    ForwardDiff.gradient(θ->expec(x,p,θ,inv(θ[1]*(kernelmatrix(base_kernel(p.kernel)(θ[2:end]),p.X,obsdim=1)+jitter*I))),p.params)
 end
 # function update_params!(p::GPModel,x,opt)
 #     ps = Flux.params(p.kernel)
@@ -57,9 +58,9 @@ end
 function update_params!(p::GPModel,x,opt)
     ps = Flux.params(p.kernel)
     push!(ps,p.σ)
-    return ∇ = Zygote.gradient(()->inv(first(p.σ)*(kernelmatrix(p.kernel,p.X,obsdim=1)+1e-5I))|>K->0.5*(dot(x,K*x)/size(x,2)+logdet(K)),ps)
+    return ∇ = Zygote.gradient(()->inv(first(p.σ)*(kernelmatrix(p.kernel,p.X,obsdim=1)+jitter*I))|>K->0.5*(dot(x,K*x)/size(x,2)+logdet(K)),ps)
     for p in ps
         p .= exp.(log.(p).+Flux.Optimise.apply!(opt,p,p.*∇[p]))
     end
-    p.invK = inv(first(p.σ)*(kernelmatrix(p.kernel,p.X,obsdim=1)+1e-5I))
+    p.invK = inv(first(p.σ)*(kernelmatrix(p.kernel,p.X,obsdim=1)+jitter*I))
 end

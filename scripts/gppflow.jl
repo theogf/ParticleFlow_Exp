@@ -68,7 +68,7 @@ plot!(xpred,μgp,linewidth=3.0,color=:red)
 ## Training with Gaussian Noise
 M = 300
 # x_init = rand(MvNormal(xmap.minimizer,1.0),M)
-x_init = rand(MvNormal(zero(y_reg),0.01),M)
+x_init = rand(MvNormal(zero(y_reg),1.0),M)
 x_t = copy(x_init)
 X_t = []
 x_p = Node(x_t)

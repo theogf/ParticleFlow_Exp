@@ -41,20 +41,20 @@ function move_particles(x,p,opt_x;cb=nothing,Xt=nothing,epsilon=1e-3)
     Δ2 = Flux.Optimise.apply!(opt_x[2],x,∇f2)
     @. x_new = x + Δ1 + Δ2
     L_new = free_energy(x_new,p)
-    # α = 0.5
-    # while L_new > L+epsilon
-    #     x_new .= x .+ α*Δ1 .+ α*Δ2
-    #     L_new = free_energy(x_new,p)
-    #     α *= 0.1
-    #     @show α
-    #
-    #     if α < 1e-10
-    #         @error "α too small, skipping step!"
-    #         α = 0.0
-    #         @. x_new = x + α*Δ1 + α*Δ2
-    #         break
-    #     end
-    # end
+    α = 0.5
+    while L_new > L+epsilon
+        x_new .= x .+ α*Δ1 .+ α*Δ2
+        L_new = free_energy(x_new,p)
+        α *= 0.1
+        @show α
+
+        if α < 1e-10
+            @error "α too small, skipping step!"
+            α = 0.0
+            @. x_new = x + α*Δ1 + α*Δ2
+            break
+        end
+    end
     x .= x_new
     update_params!(p,x,p.opt)
     L = L_new
