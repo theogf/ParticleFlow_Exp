@@ -2,10 +2,10 @@ struct GeneralModel <: AbstractModel
     logprior::Function
     loglikelihood::Function
     params::Vector
-    opt::Optimizer
+    opt
 end
 
-function GeneralModel(logprior,loglikelihood,params,opt=Adam(α=0.001))
+function GeneralModel(logprior,loglikelihood,params,opt=Flux.ADAM(0.001))
     GeneralModel(logprior,loglikelihood,params,opt)
 end
 
@@ -22,6 +22,6 @@ hyper_grad(x,p::GeneralModel) = ForwardDiff.gradient(θ->mean(expec.(x,p,θ)),p.
 function update_params!(p::GeneralModel,x)
     if length(p.params) > 0
         ∇ = hyper_grad(x,p)
-        p.params .+= update(p.opt,∇)
+        p.params .+= apply!(p.opt,p.params,∇)
     end
 end
