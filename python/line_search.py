@@ -3,18 +3,24 @@ from typing import Tuple, List
 import numpy as np
 
 from gaussian_particle_flow import particles_step, random_gaussian, GaussianDensity
+from second_order_learning_rate_heuristic import learning_rate_c_heuristic
 
-SMALL_LEARNING_RATE_M = 0.000001
+SMALL_LEARNING_RATE_M = 0
 
 
-def line_search_on_learning_rate_c(gaussian: GaussianDensity, particles: np.ndarray) -> Tuple[float, float]:
+def line_search_on_learning_rate(gaussian: GaussianDensity, particles: np.ndarray,
+                                 tol: float = 0.1, learning_rate: str = 'c') -> Tuple[float, float]:
     """
     Performs line search to find optimal learning rate, assuming zero mean for both gaussians and particles
     :return: optimal step size, and objective value at optimal step size
     """
 
     def objective(step_size: float):
-        new_particles = particles_step(particles, SMALL_LEARNING_RATE_M, step_size, gaussian)
+        if learning_rate == 'c':
+            new_particles = particles_step(particles, SMALL_LEARNING_RATE_M, step_size, gaussian)
+        else:
+            assert learning_rate == 'm', learning_rate
+            new_particles = particles_step(particles, step_size, SMALL_LEARNING_RATE_M, gaussian)
         result = gaussian.approx_free_energy_bound(new_particles)
         if np.isnan(result):
             print('Was NAN!')
@@ -40,7 +46,7 @@ def line_search_on_learning_rate_c(gaussian: GaussianDensity, particles: np.ndar
         if np.isinf(step_sizes[2]):
             return step_sizes[1] * 10.0, 2
 
-        if (step_sizes[2] - step_sizes[0]) / step_sizes[2] < 0.1:
+        if (step_sizes[2] - step_sizes[0]) / step_sizes[2] < tol:
             # convergence condition
             return None, None
 
@@ -84,7 +90,7 @@ def optimize_with_optimal_rate_c(seed: int = 0, n_steps: int = 10, dim: int = 2)
     paths = [particles]
 
     for i in range(n_steps):
-        lr, free_energy = line_search_on_learning_rate_c(gaussian, particles)
+        lr, free_energy = line_search_on_learning_rate(gaussian, particles)
         new_particles = particles_step(particles, SMALL_LEARNING_RATE_M, lr, gaussian)
         new_data = {
             'seed': seed, 'lr': lr, 'num_particles': num_particles,
@@ -102,7 +108,39 @@ def optimize_with_optimal_rate_c(seed: int = 0, n_steps: int = 10, dim: int = 2)
     return data, gaussian, paths
 
 
-def find_optimal_learning_step_sizes_c(seed: int = 0, max_particle_exp: int = 10, dim: int = 2):
+def optimize_with_heuristic(seed: int = 0, n_steps: int = 10, dim: int = 2) \
+        -> Tuple[List[dict], List[np.ndarray]]:
+    rand_state = np.random.RandomState(seed)
+    gaussian = random_gaussian(dim, random_state=rand_state)
+    print(gaussian.meta_data)
+    num_particles = gaussian.dim() + 1
+
+    data = []
+
+    particles = rand_state.randn(num_particles, gaussian.dim())*rand_state.randn()
+    particles -= particles.mean(axis=0)
+    paths = [particles]
+
+    for i in range(n_steps):
+        lr = learning_rate_c_heuristic(gaussian, particles)
+        new_particles = particles_step(particles, SMALL_LEARNING_RATE_M, lr, gaussian)
+        new_data = {
+            'seed': seed, 'lr': lr, 'num_particles': num_particles,
+            'n_step': i, 'free_energy': gaussian.approx_free_energy_bound(particles),
+            'gradient_norm': np.linalg.norm((new_particles-particles).flatten())
+        }
+        if i != 0:
+            data[-1]['free_energy_d'] = new_data['free_energy'] - data[-1]['free_energy']
+        new_data.update(gaussian.meta_data)
+        data.append(new_data)
+        particles = new_particles
+        paths.append(particles)
+
+    data[-1]['free_energy_d'] = data[-2]['free_energy_d']
+    return data, paths
+
+
+def find_optimal_learning_rates_c(seed: int = 0, max_particle_exp: int = 10, dim: int = 2):
     """Finds optimal step size for different number of particles"""
     rand_state = np.random.RandomState(seed)
     gaussian = random_gaussian(dim, random_state=rand_state)
@@ -112,10 +150,12 @@ def find_optimal_learning_step_sizes_c(seed: int = 0, max_particle_exp: int = 10
     for i in range(1, max_particle_exp):
         print(f"computing optimal with {num_particles} particles")
         particles = rand_state.randn(num_particles, gaussian.dim())
-        lr = line_search_on_learning_rate_c(gaussian, particles)
+        lr = line_search_on_learning_rate(gaussian, particles)
         new_data = {'seed': seed, 'lr': lr, 'num_particles': num_particles, 'num_particles_exp': i}
         new_data.update(gaussian.meta_data)
         data.append(new_data)
         num_particles = int((gaussian.dim() + 1) * 2**i)
 
     return data
+
+

@@ -1,7 +1,7 @@
 import numpy as np
 
 from gaussian_particle_flow import GaussianDensity, particles_gradients
-from line_search import line_search_on_learning_rate_c, SMALL_LEARNING_RATE_M
+from line_search import line_search_on_learning_rate, SMALL_LEARNING_RATE_M
 
 
 class Optimizer:
@@ -31,7 +31,7 @@ def move_particle_with_optimizer(gaussian: GaussianDensity, optimizer: Optimizer
     paths = [particles]
 
     # start with optimal learning rate
-    lr, free_energy = line_search_on_learning_rate_c(gaussian, particles)
+    lr, free_energy = line_search_on_learning_rate(gaussian, particles)
 
     optimizer.reset()
     data = []

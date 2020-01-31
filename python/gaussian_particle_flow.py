@@ -82,8 +82,9 @@ def particles_step(x: np.ndarray, learning_rate_m: float, learning_rate_c: float
 
     new_x = []
 
+    C = np.cov(x.T, bias=True)
     for k, x_k in enumerate(x):
-        new_x_k = x_k + learning_rate_m * b + learning_rate_c * A.dot(x_k - mean)
+        new_x_k = x_k + learning_rate_m * b + learning_rate_c * A@(x_k - mean)
         new_x.append(new_x_k)
 
     new_x = np.vstack(new_x)

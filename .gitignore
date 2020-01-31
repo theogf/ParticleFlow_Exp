@@ -1,3 +1,4 @@
 python/data/
 python/plots/
 python/.idea/
+__pycache__
