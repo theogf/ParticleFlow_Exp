@@ -17,8 +17,8 @@ kernel = SqExponentialKernel(10.0)
 K = kernelmatrix(kernel,X,obsdim=1)+1e-5I
 invK = inv(K)
 variance = 1.0
-σ = 0.1
-y_reg = variance*rand(MvNormal(K+σ*I))
+_σ = 0.1
+y_reg = variance*rand(MvNormal(K+_σ*I))
 y_log = sign.(y_reg)
 avoid_inf(x) = max(x,eps(x))
 
@@ -53,26 +53,27 @@ function cb2(x_t,invK,t)
 end
 
 ## Optimizing for Gaussian Noise
-p_reg = GPModel((x,y)->sum(logpdf.(Normal.(y,sqrt(σ)),x)),kernel,variance,X[xsort,:],y_reg[xsort],gradll=(x,p)->gradlogpdf.(Normal.(p.y,sqrt(σ)),x),opt=Descent(0.0))
+p_reg = GPModel((x,y)->sum(logpdf.(Normal.(y,sqrt(_σ)),x)),deepcopy(kernel),variance,X[xsort,:],y_reg[xsort],gradll=(x,p)->gradlogpdf.(Normal.(p.y,sqrt(_σ)),x),opt=ADAM(0.01))
 
 xmap = optimize(p_reg,x->∇phi(x,p_reg),randn(length(y_reg)),LBFGS(),Optim.Options(iterations=100,f_tol=1e-8),inplace=false)
 @info "Optimization done"
-m = GP(collect(xrange)[xsort],y_reg[xsort],kernel,noise=σ,opt_noise=false,variance=variance,optimiser=false)
-train!(m,10)
+m = GP(collect(xrange)[xsort],y_reg[xsort],deepcopy(kernel),noise=_σ,opt_noise=false,variance=variance,optimiser=ADAM(0.001))
+train!(m,1)
 # μgp, siggp = predict_f(m,vec(X)[xsort],covf=true)
 μgp, siggp = predict_f(m,xpred,covf=true)
-##
+
 scatter(sort(xrange),y_reg[xsort],markersize=0.1)
 plot!(sort(xrange),Optim.minimizer(xmap)[xsort],linewidth=3.0,color=:blue)
 fill_between!(xpred,μgp .- 2*sqrt.(siggp),μgp .+ 2*sqrt.(siggp),where=trues(length(xpred)),color=RGBA(colorant"red",0.3))
 plot!(xpred,μgp,linewidth=3.0,color=:black)
-## Training with Gaussian Noise
+# Training with Gaussian Noise
 M = 300
-# x_init = rand(MvNormal(xmap.minimizer,1.0),M)
-x_init = rand(MvNormal(zero(y_reg),1.0),M)
+x_init = rand(MvNormal(xmap.minimizer,1.0),M)
+# x_init = rand(MvNormal(zero(y_reg),1.0),M)
 x_t = copy(x_init)
 X_t = []
-scene, x_p=  set_plotting_scene_GP(x_t,xrange,y_reg,xpred,μgp, siggp)
+∇f1 = zero(y_reg)
+scene, x_p, ∇f_p=  set_plotting_scene_GP(x_t,xrange,y_reg,xpred,μgp, siggp,∇f1)
 
 η=0.01
 opt_0 = [Flux.Descent(0.001),Flux.Descent(0.001)]
@@ -87,6 +88,7 @@ record(scene, plotsdir("gifs","gaussiangp.gif"), 1:100; framerate = 10) do i
         move_particles(x_t,p_reg,opt_x,precond_b=false,precond_A=false)
     end
     push!(x_p,x_t)
+    push!(∇f_p,∇f1)
 end
 
 # move_particles(x_t,p_reg,opt_x)

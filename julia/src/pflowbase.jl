@@ -10,6 +10,7 @@ abstract type AbstractModel end
 include("models/generalmodel.jl")
 include("models/gpmodel.jl")
 include("models/normflow.jl")
+include("models/bnn.jl")
 
 Flux.@functor ScaleTransform
 Flux.@functor ARDTransform
@@ -66,7 +67,7 @@ function move_particles(x,p,opt_x;cb=nothing,Xt=nothing,epsilon=1e-3,precond_b=t
     #     end
     # end
     @. x = x_new
-    # update_params!(p,x,p.opt)
+    update_params!(p,x,p.opt)
     # L = L_new
     if !isnothing(Xt)
         push!(X_t,copy(x_t))
