@@ -14,7 +14,7 @@ p2 = GeneralModel(no_prior,(x,p)->logpdf(d_base,collect(x)),[])
 
 ##
 mu0 = [0.0,0.0]#zeros(2)
-C = diagm(ones(2))
+C0 = diagm(ones(2))
 function cb(x,p::GeneralModel,t)
     if iseverylog10(t)
         L = free_energy(x,p)
@@ -33,12 +33,10 @@ function cb(x,p::GeneralModel,t)
         frame(anim)
     end
 end
-## Objects for animations
-titlestring = Node("t=0")
 
 ## Training two modes
-M = 3
-x_init = rand(MvNormal(mu0,C),M)
+M = 100
+x_init = rand(MvNormal(mu0.+[2.0,0.0],C0),M)
 x_t1 = copy(x_init)
 X_t = []
 xrange = range(-2.5,7.5,length=100)
@@ -47,68 +45,34 @@ p_x_target = zeros(size(X))
 for (i,x) in enumerate(X)
     p_x_target[i] = exp(-p1(x))
 end
-##
-x_p = Node(x_t1)
-m,C = m_and_C(x_t1)
-dist_x = lift(x->MvNormal(m_and_C(x)...),x_p)
-p_X = lift(x->pdf.(Ref(x),collect.(X)),dist_x)
-x_p1  = lift(x->x[1,:],x_p)
-x_p2  = lift(x->x[2,:],x_p)
-normalizer(dist_x.val)
-levels = lift(x->Float32.(normalizer(x)*exp.(-0.5(5:-1:1))),dist_x)
-## MWE
-using Makie, Distributions
 xrange = range(-2.5,7.5,length=100)
-X = Iterators.product(xrange,xrange)
-d1 = MvNormal(zeros(2),I)
-p_x = pdf.(Ref(d1),collect.(X))
-scene = contour(xrange,xrange,p_x,levels=10,fillrange=true,linewidth=0.0)
-d2 = MvNormal([-5,5],I)
-p_x2 = pdf.(Ref(d2),collect.(X))
-levels = inv(det(cov(d2))*2π)*exp.(-0.5(5:-1:1)) # Return levels at 1:5 sigmas
-scene = contour!(scene,xrange,xrange,p_x2,color=:white,levels=levels)
-# AbstractPlotting.inline!(true)
-##
-scene = contour(xrange,xrange,p_x_target,levels=100,fillrange=true,linewidth=0.0)
-scene = contour!(xrange,xrange,p_X,color=:white,levels=levels)
-scene = scatter!(x_p1,x_p2,color=:red,markersize=0.3)
-scene = title(scene,titlestring)
-
-
+scene,x_p,tstring = set_plotting_scene_2D(x_t1,xrange,xrange)
 T = 100; fps = 10
-opt_x1 =[Momentum(η=0.1),Momentum(η=0.1)]
+opt_x1 =[Descent(0.1),Descent(0.1)]
 
 record(scene,joinpath(plotsdir(),"gifs","2modes_$(M)_particles.gif"),1:T,framerate=fps) do i
-    push!(titlestring,"t=$i")
-    move_particles(x_t1,p1,opt_x1)
+    push!(tstring,"t=$i")
+    move_particles(x_t1,p1,opt_x1,precond_b=true,precond_A=true)
     push!(x_p,x_t1)
 end
 
 ## Training a Gaussian
 M = 3
-x_init = rand(MvNormal(mu0,0.01*C),M)
+x_init = rand(MvNormal(mu0,0.01*C0),M)
 x_t2 = copy(x_init)
 X_t = []
 xrange = range(-4.0,4.0,length=100)
 X = Iterators.product(xrange,xrange)
-p_x = zeros(size(X))
+p_x_target = zeros(size(X))
 for (i,x) in enumerate(X)
-    p_x[i] = exp(-p2(x))
+    p_x_target[i] = exp(-p2(x))
 end
-p_base = contourf(xrange,xrange,p_x',levels=100,lw=0.0,title="",cbar=false,grid=:none,axis=:none)
-anim = Animation()
-opt_x2 =[Momentum(η=0.01),Momentum(η=0.01)]
-p_x
-move_particles(x_t2,p2,1000,opt_x2,cb=cb)
-gif(anim,plotsdir("gifs","gaussian_M=$M.gif"),fps=8) |> display
+opt_x2 =[Descent(0.0),Descent(1.0)]
+scene,x_p,tstring = set_plotting_scene_2D(x_t2,xrange,xrange,p_x_target)
+T = 100; fps = 10
 
-
-# function multi_contour()
-xrange = range(-4.0,4.0,length=100)
-X1 = xrange*xrange'
-X2 = 1e10*sin.(-xrange*xrange')
-contourf(xrange,xrange,X1',levels=100,colorbar=false)
-twinx()
-contour!(xrange,xrange,X2',color=:white,levels=[-1e10,0,1e-10],colorbar=false)
-# end
-multi_contour()
+record(scene,joinpath(plotsdir(),"gifs","2modes_$(M)_particles.gif"),1:T,framerate=fps) do i
+    push!(tstring,"t=$i")
+    move_particles(x_t2,p2,opt_x2,precond_A=true)
+    push!(x_p,x_t2)
+end

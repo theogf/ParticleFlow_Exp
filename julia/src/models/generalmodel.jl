@@ -1,12 +1,14 @@
-struct GeneralModel <: AbstractModel
+mutable struct GeneralModel <: AbstractModel
     logprior::Function
     loglikelihood::Function
     params::Vector
+    m::Vector
+    C::Matrix
     opt
 end
 
 function GeneralModel(logprior,loglikelihood,params,opt=Flux.ADAM(0.001))
-    GeneralModel(logprior,loglikelihood,params,opt)
+    GeneralModel(logprior,loglikelihood,params,[],Matrix{Float64}(undef,0,0),opt)
 end
 
 (p::GeneralModel)(x) = phi(x,p,p.params)

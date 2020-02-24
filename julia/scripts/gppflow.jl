@@ -56,15 +56,15 @@ p_reg = GPModel((x,y)->sum(logpdf.(Normal.(y,sqrt(σ)),x)),kernel,variance,X[xso
 
 xmap = optimize(p_reg,x->∇phi(x,p_reg),randn(length(y_reg)),LBFGS(),Optim.Options(iterations=100,f_tol=1e-8),inplace=false)
 @info "Optimization done"
-m = GP(collect(xrange)[xsort],y_reg[xsort],kernel,noise=σ,opt_noise=false,variance=variance,optimizer=false)
-train!(m,100)
+m = GP(collect(xrange)[xsort],y_reg[xsort],kernel,noise=σ,opt_noise=false,variance=variance,optimiser=false)
+train!(m,10)
 # μgp, siggp = predict_f(m,vec(X)[xsort],covf=true)
 μgp, siggp = predict_f(m,xpred,covf=true)
 ##
 scatter(sort(xrange),y_reg[xsort],markersize=0.1)
 plot!(sort(xrange),Optim.minimizer(xmap)[xsort],linewidth=3.0,color=:blue)
-fill_between!(xpred,μgp .- 2*sqrt.(siggp),μgp .+ 2*sqrt.(siggp),where=trues(length(xpred)),color=:red,alpha=0.2)
-plot!(xpred,μgp,linewidth=3.0,color=:red)
+fill_between!(xpred,μgp .- 2*sqrt.(siggp),μgp .+ 2*sqrt.(siggp),where=trues(length(xpred)),color=RGBA(colorant"red",0.3))
+plot!(xpred,μgp,linewidth=3.0,color=:black)
 ## Training with Gaussian Noise
 M = 300
 x_init = rand(MvNormal(xmap.minimizer,1.0),M)
@@ -79,23 +79,29 @@ mfplus = lift(x->x[1].+sqrt.(max.(0.0,x[2])),m_and_sig)
 mfminus = lift(x->x[1].-sqrt.(max.(0.0,x[2])),m_and_sig)
 scene = Makie.scatter(sort(xrange),y_reg[xsort],markersize=0.1)
 Makie.plot!(xpred,mf,color=:blue,linewidth=2.0)
-Makie.fill_between!(xpred,mfminus,mfplus,color=:green)
+Makie.plot!(xpred,mf,color=:blue,linewidth=2.0)
+Makie.fill_between!(xpred,mfminus,mfplus,color=RGBA(colorant"green",0.3))
+# x_pi = [lift(x->predic_f(p_reg,x[:,i],reshape(xpred,:,1)),x_p) for i in 1:M]
+# Makie.plot!.([sort(xpred)],x_pi,alpha=0.001,color=RGBA(0.0,0.0,0.0,0.1))
+# scene
+
 η=0.01
-opt_0 = [Flux.Descent(0.01),Flux.Descent(0.01)]
+opt_0 = [Flux.Descent(0.001),Flux.Descent(0.001)]
 opt_x=[Flux.Descent(η),Flux.Descent(η)]
+glob_m = mean(x_t,dims=2)[:]
 # @progress for i in 1:100
 record(scene, plotsdir("gifs","gaussiangp.gif"), 1:100; framerate = 10) do i
     @info i
     if i < 50
-        move_particles(x_t,p_reg,opt_0)
+        move_particles(x_t,p_reg,opt_0,precond_b=false,precond_A=false)
     else
-        move_particles(x_t,p_reg,opt_x)
+        move_particles(x_t,p_reg,opt_x,precond_b=false,precond_A=false)
     end
     push!(x_p,x_t)
 end
 plot!(xrange,∇f1)
 
-move_particles(x_t,p_reg,opt_x)
+# move_particles(x_t,p_reg,opt_x)
 ##
 μp,sigp = m_and_diagC(x_t)
 μf, σf = predic_f(p_reg,x_t,reshape(xpred,:,1))

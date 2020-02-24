@@ -6,11 +6,13 @@ mutable struct NormFlowModel <: AbstractModel
     loglikelihood::Function
     bijector::Bijector
     params::Vector
+    m::Vector
+    C::Matrix
     opt
 end
 
 function NormFlowModel(logprior,loglikelihood,bijector,params,opt=Flux.ADAM())
-    NormFlowModel(logprior,loglikelihood,bijector,params,opt)
+    NormFlowModel(logprior,loglikelihood,bijector,params,Vector{Float64}(undef,0),Matrix{Float64}(undef,0,0),opt)
 end
 
 (p::NormFlowModel)(x) = phi(collect(x),p,p.params,p.bijector)
