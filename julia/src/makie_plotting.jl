@@ -25,3 +25,23 @@ function set_plotting_scene_2D(x,xrange,yrange,p_x_target)
     scene = title(scene,titlestring)
     return scene, x_p, tstring
 end
+
+
+function set_plotting_scene_GP(x,xrange,y,xpred,μgp,siggp,∇f)
+    xsort= sortperm(xrange)
+    scene = Makie.scatter(sort(xrange),y[xsort],markersize=0.1)
+    plot!(xpred,μgp)
+    plot!(xpred,μgp.+sqrt.(max.(0.0,siggp)),linestyle=:dash)
+    plot!(xpred,μgp.-sqrt.(max.(0.0,siggp)),linestyle=:dash)
+    x_p = Node(x)
+    m_and_sig = lift(x->predic_f(p_reg,x,reshape(xpred,:,1)),x_p)
+    mf = lift(x->x[1],m_and_sig)
+    sigf = lift(x->sqrt.(max.(0.0,x[2])),m_and_sig)
+    mfplus = lift(x->x[1].+sqrt.(max.(0.0,x[2])),m_and_sig)
+    mfminus = lift(x->x[1].-sqrt.(max.(0.0,x[2])),m_and_sig)
+    Makie.plot!(xpred,mf,color=:blue,linewidth=2.0)
+    Makie.fill_between!(xpred,mfminus,mfplus,color=RGBA(colorant"green",0.3))
+    ∇f_p = Node(∇f)
+    arrows!(xrange,zero(xrange),zero(xrange),∇f_p,arrowsize=0.1)
+    return scene, x_p,∇f_p
+end
