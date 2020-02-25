@@ -22,7 +22,7 @@ function set_plotting_scene_2D(x,xrange,yrange,p_x_target)
     scene = contour(xrange,xrange,p_x_target,levels=100,fillrange=true,linewidth=0.0)
     scene = contour!(xrange,xrange,p_X,color=:white,levels=levels)
     scene = scatter!(x_p1,x_p2,color=:red,markersize=0.3)
-    scene = title(scene,titlestring)
+    scene = title(scene,tstring)
     return scene, x_p, tstring
 end
 

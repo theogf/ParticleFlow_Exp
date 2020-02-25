@@ -1,6 +1,7 @@
 using DrWatson
 quickactivate(joinpath(@__DIR__,".."))
 include(srcdir("pflowbase.jl"))
+include(srcdir("makie_plotting.jl"))
 using Makie
 
 
@@ -46,7 +47,7 @@ for (i,x) in enumerate(X)
     p_x_target[i] = exp(-p1(x))
 end
 xrange = range(-2.5,7.5,length=100)
-scene,x_p,tstring = set_plotting_scene_2D(x_t1,xrange,xrange)
+scene,x_p,tstring = set_plotting_scene_2D(x_t1,xrange,xrange,p_x_target)
 T = 100; fps = 10
 opt_x1 =[Descent(0.1),Descent(0.1)]
 
