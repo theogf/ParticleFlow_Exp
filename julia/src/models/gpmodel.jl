@@ -11,7 +11,7 @@ mutable struct GPModel <: AbstractModel
     K
     opt
 end
-jitter = 1e-3
+jitter = 1e-2
 
 function GPModel(log_likelihood,kernel,variance,X,y;gradll=nothing,opt=Flux.ADAM(0.001),params...)
     if isnothing(gradll)

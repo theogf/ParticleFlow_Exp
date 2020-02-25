@@ -41,6 +41,7 @@ function move_particles(x,p,opt_x;cb=nothing,Xt=nothing,epsilon=1e-3,precond_b=t
             vec(mean(f_x,dims=2))
         end
     c_x = x.-p.m
+    # global ∇f1 = vec(mean(f_x,dims=2)) -0.5* p.K\p.m
     ψ = mean(eachcol(f_x).*transpose.(eachcol(c_x)))
     global A = ψ+0.5I
     global ∇f2 = if precond_A

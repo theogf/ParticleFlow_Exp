@@ -126,7 +126,7 @@ x_init = rand(MvNormal(zero(y_reg),1.0),M)
 x_t = copy(x_init)
 X_t = []
 ∇f1 = zero(y_reg)
-scene, x_p, ∇f_p=  set_plotting_scene_GP(x_t,xrange,y_reg,xpred,μgp, siggp,∇f1)
+scene, x_p, ∇f_p=  set_plotting_scene_GP(x_t,p_stu,xrange,y_reg,xpred,μgp, siggp,∇f1)
 
 η=0.001
 opt_0 = [Flux.ADAM(0.1),Flux.ADAM(0.1)]
@@ -158,12 +158,16 @@ fill_between!(xpred,μgp .- 2*sqrt.(max.(0.0,siggp)),μgp .+ 2*sqrt.(max.(0.0,si
 plot!(xpred,μgp,lw=3.0,color=:red)
 ## Training with Classification
 M = 300
-x_init = rand(MvNormal(xmap.minimizer,1.0),M)
-# x_init = rand(MvNormal(zero(y_reg),1.0),M)
+# x_init = rand(MvNormal(xmap.minimizer,1.0),M)
+x_init = rand(MvNormal(zero(y_reg),0.1),M)
 x_t = copy(x_init)
 X_t = []
 ∇f1 = zero(y_reg)
-scene, x_p, ∇f_p =  set_plotting_scene_GP(x_t,xrange,y_log,xpred,μgp, siggp,∇f1)
+scene, x_p, ∇f_p =  set_plotting_scene_GP(x_t,p_log,xrange,y_log,xpred,μgp, siggp,∇f1)
+grad_prior = lift(x->mean(grad_log_gp_prior(x,p_log.K),dims=2)[:],x_p)
+arrows!(xrange,zero(xrange),zero(xrange),grad_prior,arrowsize=0.1,arrowcolor=:blue)
+grad_expec = lift(x->mean(p_log.grad_log_likelihood(x,p_log),dims=2)[:],x_p)
+arrows!(xrange,zero(xrange),zero(xrange),grad_expec,arrowsize=0.1,arrowcolor=colorant"red")
 
 η=0.001
 opt_0 = [Flux.ADAM(0.1),Flux.ADAM(0.1)]
@@ -172,9 +176,9 @@ opt_x= opt_0#[Flux.Descent(η),Flux.Descent(η)]
 record(scene, plotsdir("gifs","gaussiangp_classification.gif"), 1:400; framerate = 10) do i
     @info i
     if i < 50
-        move_particles(x_t,p_log,opt_0,precond_b=false,precond_A=false)
+        move_particles(x_t,p_log,opt_0,precond_b=true,precond_A=false)
     else
-        move_particles(x_t,p_log,opt_x,precond_b=false,precond_A=false)
+        move_particles(x_t,p_log,opt_x,precond_b=true,precond_A=false)
     end
     push!(x_p,x_t)
     push!(∇f_p,∇f1)
