@@ -8,7 +8,7 @@ mutable struct GPModel <: AbstractModel
     y::Vector
     m::Vector
     C::Matrix
-    invK
+    K
     opt
 end
 jitter = 1e-3
@@ -17,27 +17,26 @@ function GPModel(log_likelihood,kernel,variance,X,y;gradll=nothing,opt=Flux.ADAM
     if isnothing(gradll)
         gradll = (x,p)->ForwardDiff.gradient(X->p.log_likelihood(X,p.y),x)
     end
-    K = kernelmatrix(kernel,X,obsdim=1)
-    invK = inv(variance*(K+jitter*median(diag(K))*I))
-    GPModel(log_likelihood,gradll,kernel,[variance],collect(params),X,y,similar(y),Matrix(undef,length(y),length(y)),invK,opt)
+    K = kernelmatrix(kernel,X,obsdim=1)+jitter*I
+    GPModel(log_likelihood,gradll,kernel,[variance],collect(params),X,y,similar(y),Matrix(undef,length(y),length(y)),K,opt)
 end
 
-log_gp_prior(x,invK) = -0.5*(dot(x,invK*x)+length(x)*log(2π)-logdet(invK))
-(p::GPModel)(x) = phi(x,p,p.params,p.invK)
-grad_log_gp_prior(x,invK) = -(invK*x)
-phi(x,p::GPModel,params,invK) = -p.log_likelihood(x,p.y) - log_gp_prior(x,invK)
+log_gp_prior(x,K) = -0.5*(dot(x,K\x)+length(x)*log(2π)+logdet(K))
+(p::GPModel)(x) = phi(x,p,p.params,p.K)
+grad_log_gp_prior(x,K) = -(K\x)
+phi(x,p::GPModel,params,K) = -p.log_likelihood(x,p.y) - log_gp_prior(x,K)
 function free_energy(x,p::GPModel)
     C = cov(x,dims=2)
-    -0.5*logdet(C+jitter*tr(C)/size(C,1)*I) + expec(x,p,p.params,p.invK)
+    -0.5*logdet(C+jitter*tr(C)/size(C,1)*I) + expec(x,p,p.params,p.K)
 end
-expec(x,p::GPModel,params,invK) = sum(phi(x[:,i],p,params,invK) for i in 1:size(x,2))/size(x,2)
+expec(x,p::GPModel,params,K) = sum(phi(x[:,i],p,params,K) for i in 1:size(x,2))/size(x,2)
 _f(x,p::GPModel) = -0.5*∇phi(x,p)
-∇phi(x,p::GPModel) = -(p.grad_log_likelihood(x,p)+grad_log_gp_prior(x,p.invK))
+∇phi(x,p::GPModel) = -(p.grad_log_likelihood(x,p)+grad_log_gp_prior(x,p.K))
 function predic_f(p,x::Matrix,x_test)
     p.m, p.C = m_and_C(x)
     k_star = first(p.σ)*kernelmatrix(p.kernel,x_test,p.X,obsdim=1)
-    μf = k_star*p.invK*p.m
-    A = p.invK*(I-p.C*p.invK)
+    μf = k_star*(p.K\p.m)
+    A = p.K\(I-p.C/p.K)
     k_starstar = first(p.σ)*(kerneldiagmatrix(p.kernel,x_test,obsdim=1).+jitter)
     Σf = k_starstar - AugmentedGaussianProcesses.opt_diag(k_star*A,k_star)
     return μf,Σf
@@ -45,12 +44,12 @@ end
 
 function predic_f(p,x::Vector,x_test)
     k_star = first(p.σ)*kernelmatrix(p.kernel,x_test,p.X,obsdim=1)
-    return k_star*p.invK*x
+    return k_star*(p.K\x)
 end
 
 
 function hyper_grad(x,p::GPModel)
-    ForwardDiff.gradient(θ->expec(x,p,θ,inv(θ[1]*(kernelmatrix(base_kernel(p.kernel)(θ[2:end]),p.X,obsdim=1)+jitter*I))),p.params)
+    ForwardDiff.gradient(θ->expec(x,p,θ,θ[1]*(kernelmatrix(base_kernel(p.kernel)(θ[2:end]),p.X,obsdim=1)+jitter*I)),p.params)
 end
 # function update_params!(p::GPModel,x,opt)
 #     ps = Flux.params(p.kernel)

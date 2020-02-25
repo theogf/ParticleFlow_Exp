@@ -27,14 +27,14 @@ function set_plotting_scene_2D(x,xrange,yrange,p_x_target)
 end
 
 
-function set_plotting_scene_GP(x,xrange,y,xpred,μgp,siggp,∇f)
+function set_plotting_scene_GP(x,p,xrange,y,xpred,μgp,siggp,∇f)
     xsort= sortperm(xrange)
-    scene = Makie.scatter(sort(xrange),y[xsort],markersize=0.2)
-    # plot!(xpred,μgp)
-    # plot!(xpred,μgp.+sqrt.(max.(0.0,siggp)),linestyle=:dash)
-    # plot!(xpred,μgp.-sqrt.(max.(0.0,siggp)),linestyle=:dash)
+    scene = Makie.scatter(sort(xrange),y[xsort],markersize=0.1)
+    plot!(xpred,μgp)
+    plot!(xpred,μgp.+sqrt.(max.(0.0,siggp)),linestyle=:dash)
+    plot!(xpred,μgp.-sqrt.(max.(0.0,siggp)),linestyle=:dash)
     x_p = Node(x)
-    m_and_sig = lift(x->predic_f(p_reg,x,reshape(xpred,:,1)),x_p)
+    m_and_sig = lift(x->predic_f(p,x,reshape(xpred,:,1)),x_p)
     mf = lift(x->x[1],m_and_sig)
     sigf = lift(x->sqrt.(max.(0.0,x[2])),m_and_sig)
     mfplus = lift(x->x[1].+sqrt.(max.(0.0,x[2])),m_and_sig)
@@ -43,5 +43,7 @@ function set_plotting_scene_GP(x,xrange,y,xpred,μgp,siggp,∇f)
     Makie.fill_between!(xpred,mfminus,mfplus,color=RGBA(colorant"green",0.3))
     ∇f_p = Node(∇f)
     arrows!(xrange,zero(xrange),zero(xrange),∇f_p,arrowsize=0.1)
+    # particles = [lift(x->predic_f(p,x[:,i],reshape(xpred,:,1)),x_p) for i in 1:size(x,2)]
+    # plot!.([xpred],particles,color=RGBA(0.0,0.0,0.0,0.1))
     return scene, x_p,∇f_p
 end

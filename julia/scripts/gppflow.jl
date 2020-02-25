@@ -53,7 +53,7 @@ function cb2(x_t,invK,t)
 end
 
 ## Optimizing for Gaussian Noise
-p_reg = GPModel((x,y)->sum(logpdf.(Normal.(y,sqrt(_σ)),x)),deepcopy(kernel),variance,X[xsort,:],y_reg[xsort],gradll=(x,p)->gradlogpdf.(Normal.(p.y,sqrt(_σ)),x),opt=ADAM(0.01))
+p_reg = GPModel((x,y)->sum(logpdf.(Normal.(y,sqrt(_σ)),x)),deepcopy(kernel),variance,X[xsort,:],y_reg[xsort],gradll=(x,p)->gradlogpdf.(Normal.(p.y,sqrt(_σ)),x),opt=ADAM(0.00))
 
 xmap = optimize(p_reg,x->∇phi(x,p_reg),randn(length(y_reg)),LBFGS(),Optim.Options(iterations=100,f_tol=1e-8),inplace=false)
 @info "Optimization done"
@@ -67,28 +67,31 @@ plot!(sort(xrange),Optim.minimizer(xmap)[xsort],linewidth=3.0,color=:blue)
 fill_between!(xpred,μgp .- 2*sqrt.(siggp),μgp .+ 2*sqrt.(siggp),where=trues(length(xpred)),color=RGBA(colorant"red",0.3))
 plot!(xpred,μgp,linewidth=3.0,color=:black)
 # Training with Gaussian Noise
-M = 300
-x_init = rand(MvNormal(xmap.minimizer,1.0),M)
-# x_init = rand(MvNormal(zero(y_reg),1.0),M)
+M = 50
+# x_init = rand(MvNormal(xmap.minimizer,0.01),M)
+x_init = rand(MvNormal(zero(y_reg),0.01),M)
 x_t = copy(x_init)
 X_t = []
 ∇f1 = zero(y_reg)
-scene, x_p, ∇f_p=  set_plotting_scene_GP(x_t,xrange,y_reg,xpred,μgp, siggp,∇f1)
+scene, x_p, ∇f_p=  set_plotting_scene_GP(x_t,p_reg,xrange,y_reg,xpred,μgp, siggp,∇f1)
 
-η=0.01
-opt_0 = [Flux.Descent(0.001),Flux.Descent(0.001)]
+η=0.1
+opt_0 = [Flux.Descent(η),Flux.Descent(η)]
 opt_x=[Flux.Descent(η),Flux.Descent(η)]
 glob_m = mean(x_t,dims=2)[:]
 # @progress for i in 1:100
-record(scene, plotsdir("gifs","gaussiangp.gif"), 1:100; framerate = 10) do i
+record(scene, plotsdir("gifs","gaussiangp.gif"), 1:91 ; framerate = 10) do i
+# for i in 1:92
     @info i
     if i < 50
-        move_particles(x_t,p_reg,opt_0,precond_b=false,precond_A=false)
+        move_particles(x_t,p_reg,opt_0,precond_b=true,precond_A=false)
     else
-        move_particles(x_t,p_reg,opt_x,precond_b=false,precond_A=false)
+        move_particles(x_t,p_reg,opt_x,precond_b=true,precond_A=false)
     end
+    norm(∇f1) |> display
     push!(x_p,x_t)
     push!(∇f_p,∇f1)
+    # scene |> display
 end
 
 # move_particles(x_t,p_reg,opt_x)
