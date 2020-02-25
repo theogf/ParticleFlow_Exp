@@ -13,27 +13,16 @@ p1 = GeneralModel(no_prior,(x,p)->-0.5*(x[1]^2*x[2]^2+x[1]^2+x[2]^2-8x[1]-8x[2])
 d_base = MvNormal(μ,Σ)
 p2 = GeneralModel(no_prior,(x,p)->logpdf(d_base,collect(x)),[])
 
+# Neal's Funnel
+
+dz = Normal(0,3)
+dx(z) = Normal(0,exp(z/2))
+p3 = GeneralModel(no_prior,(x,p)->logpdf(dz,x[2])+logpdf(dx(x[2]),x[1]),[])
+
+
 ##
 mu0 = [0.0,0.0]#zeros(2)
 C0 = diagm(ones(2))
-function cb(x,p::GeneralModel,t)
-    if iseverylog10(t)
-        L = free_energy(x,p)
-        m,S = mu_and_sig(x)
-        σs = 4:-1:1
-        pl = contourf!(xrange,xrange,p_x',levels=100,lw=0.0,title="t=$t, L=$L",cbar=false)
-        levels = inv((2π)*det(S))*exp.(-0.5*σs)
-        d = MvNormal(m,S)
-        p_q = zeros(size(X))
-        for (i,x) in enumerate(X)
-            p_q[i] = pdf(d,collect(x))
-        end
-        scatter!(pl,eachrow(x)...,lab="")
-        contour!(pl,xrange,xrange,p_q',levels=levels,clabels=["$(i)σ" for i in σs],
-        lab="",color=:white)
-        frame(anim)
-    end
-end
 
 ## Training two modes
 M = 100
@@ -76,4 +65,27 @@ record(scene,joinpath(plotsdir(),"gifs","2modes_$(M)_particles.gif"),1:T,framera
     push!(tstring,"t=$i")
     move_particles(x_t2,p2,opt_x2,precond_A=true)
     push!(x_p,x_t2)
+end
+
+## Training on funnel
+
+M = 10
+x_init = rand(MvNormal(zeros(2)),M)
+x_t3 = copy(x_init)
+X_t = []
+xrange = range(-4.0,4.0,length=100)
+X = Iterators.product(xrange,xrange)
+p_x_target = zeros(size(X))
+for (i,x) in enumerate(X)
+    p_x_target[i] = exp(-p3(x))
+end
+opt_x3 =[Descent(0.1),Descent(0.1)]
+scene,x_p,tstring = set_plotting_scene_2D(x_t3,xrange,xrange,p_x_target)
+T = 100; fps = 10
+
+record(scene,joinpath(plotsdir(),"gifs","2modes_$(M)_particles.gif"),1:T,framerate=fps) do i
+# for i in 1:T
+    push!(tstring,"t=$i")
+    move_particles(x_t2,p3,opt_x3,precond_A=false,precond_b=false)
+    push!(x_p,x_t3)
 end
