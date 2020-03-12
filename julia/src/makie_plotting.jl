@@ -17,14 +17,14 @@ function set_plotting_scene_2D(x,xrange,yrange,p_x_target)
     # AbstractPlotting.inline!(true)
 
     scene = contour(xrange,xrange,p_x_target,levels=100,fillrange=true,linewidth=0.0)
-    # scene = contour!(xrange,xrange,p_X,color=:white,levels=levels)
+    scene = contour!(xrange,xrange,p_X,color=:white,levels=levels)
     scene = scatter!(x_p1,x_p2,color=:red,markersize=0.2)
     scene = title(scene,tstring)
     return scene, x_p, tstring
 end
 
 
-function set_plotting_scene_GP(x,p,xrange,y,xpred,μgp,siggp,∇f)
+function set_plotting_scene_GP(x,p,xrange,y,xpred,μgp,siggp,∇f;check_params=false)
     xsort= sortperm(xrange)
     scene = Makie.scatter(sort(xrange),y[xsort],markersize=0.1)
     plot!(xpred,μgp)
@@ -39,7 +39,18 @@ function set_plotting_scene_GP(x,p,xrange,y,xpred,μgp,siggp,∇f)
     Makie.plot!(xpred,mf,color=:blue,linewidth=2.0)
     Makie.fill_between!(xpred,mfminus,mfplus,color=RGBA(colorant"green",0.3))
     ∇f_p = Node(∇f)
-    arrows!(xrange,zero(xrange),zero(xrange),∇f_p,arrowsize=0.1)
+    # arrows!(xrange,zero(xrange),zero(xrange),∇f_p,arrowsize=0.1)
+    if check_params
+        global fs = [Point(0.0,free_energy(x,p))]
+        F = lift(x->push!(fs,Point(length(fs),free_energy(x,p))),x_p)
+        global ls = [Point(0.0,first(p.kernel.transform.s))]
+        l = lift(x->push!(ls,Point(length(ls),first(p.kernel.transform.s))),x_p)
+        scene2 = lines(F)
+        ylabel!(scene2,"Free Energy")
+        scene3 = lines(l)
+        ylabel!(scene3,"Inv. Lengths.")
+        scene = vbox(scene,hbox(scene2,scene3))
+    end
     # particles = [lift(x->predic_f(p,x[:,i],reshape(xpred,:,1)),x_p) for i in 1:size(x,2)]
     # plot!.([xpred],particles,color=RGBA(0.0,0.0,0.0,0.1))
     return scene, x_p,∇f_p

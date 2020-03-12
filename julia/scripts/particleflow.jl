@@ -2,8 +2,6 @@ using DrWatson
 quickactivate(joinpath(@__DIR__,".."))
 include(srcdir("pflowbase.jl"))
 include(srcdir("makie_plotting.jl"))
-using Makie
-
 
 # Two modes
 p1 = GeneralModel(no_prior,(x,p)->-0.5*(x[1]^2*x[2]^2+x[1]^2+x[2]^2-8x[1]-8x[2]),[])
@@ -70,7 +68,7 @@ end
 
 ## Training on funnel
 
-M = 1000
+M = 3
 x_init = rand(MvNormal(zeros(2),I),M)
 x_t3 = copy(x_init)
 X_t = []
@@ -80,11 +78,11 @@ p_x_target = zeros(size(X))
 for (i,x) in enumerate(X)
     p_x_target[i] = exp(-p3(x))
 end
-opt_x3 =[ADAM(1.0),ADAM(1.0)]
+opt_x3 =[ADAM(0.1),ADAM(0.1)]
 scene,x_p,tstring = set_plotting_scene_2D(x_t3,xrange,xrange,p_x_target)
 T = 100; fps = 10
-# record(scene,joinpath(plotsdir(),"gifs","2modes_$(M)_particles.gif"),1:T,framerate=fps) do i
-for i in 1:T
+record(scene,joinpath(plotsdir(),"gifs","2modes_$(M)_particles.gif"),1:T,framerate=fps) do i
+# for i in 1:T
     push!(tstring,"t=$i")
     move_particles(x_t3,p3,opt_x3,precond_A=!false,precond_b=!false)
     push!(x_p,x_t3)

@@ -18,12 +18,15 @@ function free_energy(x,p::GeneralModel)
     -0.5*logdet(C+1e-5I*tr(C)/size(C,1)) + expec(x,p,p.params)
 end
 expec(x,p::GeneralModel,params) = mean(phi.(eachcol(x),[p],[params]))
-_f(x,p::GeneralModel) = -0.5*∇phi(x,p)
+g(x,p::GeneralModel) = ∇phi(x,p)
 ∇phi(x,p::GeneralModel) = ForwardDiff.gradient(x->p(x),x)
 hyper_grad(x,p::GeneralModel) = ForwardDiff.gradient(θ->mean(expec.(x,p,θ)),p.params)
-function update_params!(p::GeneralModel,x,opt)
-    if length(p.params) > 0
-        ∇ = hyper_grad(x,p)
-        p.params .+= apply!(p.opt,p.params,∇)
+function update_params!(m::GeneralModel,x,opt)
+    if length(m.params) > 0
+        ps = params(m.params)
+        ∇ = gradient(()->m(x),ps)
+        for p in ps
+            p .-= apply!(p.opt,p,∇)
+        end
     end
 end

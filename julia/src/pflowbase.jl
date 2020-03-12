@@ -15,6 +15,7 @@ include("models/bnn.jl")
 Flux.@functor ScaleTransform
 Flux.@functor ARDTransform
 Flux.@functor SqExponentialKernel
+Flux.@functor TransformedKernel
 
 ## General Helper  ###
 @inline sum_f(f) = mean(f,dims=2)
@@ -34,24 +35,23 @@ function move_particles(x,p,opt_x;cb=nothing,Xt=nothing,epsilon=1e-3,precond_b=t
     # L_new = Inf
     x_new = copy(x)
     p.m = vec(mean(x,dims=2))
-    global f_x = mapslices(x->_f(x,p),x,dims=1)
-    global ∇f1 = if precond_b
-            _C(x)*vec(mean(f_x,dims=2))
+    g_x = mapslices(x->g(x,p),x,dims=1)
+    global ∇₁ = if precond_b
+            _C(x)*vec(mean(g_x,dims=2))
         else
-            vec(mean(f_x,dims=2))
+            vec(mean(g_x,dims=2))
         end
     c_x = x.-p.m
-    # global ∇f1 = vec(mean(f_x,dims=2)) -0.5* p.K\p.m
-    ψ = mean(eachcol(f_x).*transpose.(eachcol(c_x)))
-    global A = ψ+0.5I
-    global ∇f2 = if precond_A
+    ψ = mean(eachcol(g_x).*transpose.(eachcol(c_x)))
+    A = ψ-I
+    ∇₂ = if precond_A
             2*tr(A'*A)/(tr(A^2)+tr(A'*inv(_C(x))*A*_C(x)))*A*c_x
         else
             A*c_x
         end
-    Δ1 = Flux.Optimise.apply!(opt_x[1],p.m,∇f1)
-    Δ2 = Flux.Optimise.apply!(opt_x[2],x,∇f2)
-    @. x_new = x + Δ1 + Δ2
+    global Δ₁ = Flux.Optimise.apply!(opt_x[1],p.m,∇₁) # Apply learning rate
+    global Δ₂ = Flux.Optimise.apply!(opt_x[2],x,∇₂) # Apply learning rate
+    @. x_new = x - Δ₁ - Δ₂ # Update particle positions
     # L_new = free_energy(x_new,p)
     α = 0.5
     # while L_new > L+epsilon
