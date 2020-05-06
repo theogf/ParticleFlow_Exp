@@ -85,26 +85,11 @@ end
 function _unnormalized_logposterior(bnn_arch::BNNArchitecture, D::Data, θ::Parameters)
     _unnormalized_loglikelihood(bnn_arch, D, θ) + logpdf(bnn_arch.prior, θ)
 end
-
-
-function _grad_logposterior(bnn_arch::BNNArchitecture, D::Data, θ::Parameters)
-    gradient(x -> _unnormalized_logposterior(bnn_arch, D, x), θ)
-end
-
-
-# bnn_arch = BNNArchitecture([4])
-# θ = rand(bnn_arch.prior)
-# nn = _build_nn(bnn_arch, θ)
-# X = [-20:20;] ./ 10
-# y = nn.(eachrow(X))
-# y = vcat(y...)
-# D = Data(X, y)
 #
-# logpdf(bnn_arch.prior, θ)
 #
-# gradient(x -> logpdf(bnn_arch.prior, x), θ)
-#
-# _grad_logposterior(bnn_arch, D, θ)
+# function _grad_logposterior(bnn_arch::BNNArchitecture, D::Data, θ::Parameters)
+#     gradient(x -> _unnormalized_logposterior(bnn_arch, D, x), θ)
+# end
 
 
 ##
@@ -137,7 +122,8 @@ function set_plotting_scene_bnn(bnn_arch::BNNArchitecture, X, y, θ, θ_t)
     scene, θ_t_node
 end
 
-##
+## Build BNN model
+
 bnn_arch = BNNArchitecture([4])
 # groud truth
 θ = rand(bnn_arch.prior)
@@ -149,50 +135,14 @@ X = rand(Float16, num_inputs) .* (max_val-min_val) .+ min_val
 y = [nn([x])[1] for x in X]
 y += noise
 
+D = Data(X, y)
+
 n_points = 20
 θ_t = rand(bnn_arch.prior, n_points)
 scene, θ_t_node = set_plotting_scene_bnn(bnn_arch, X, y, θ, θ_t)
+
+
 ##
-# Integration with pflowbase
-#
-# struct BNN <: AbstractModel
-#     D::Data
-#     bnn_arch::BNNArchitecture
-# end
-#
-# function _f(x, p::BNN)
-#     length(x) == p.bnn_arch.num_parameters || error("Invalid number of params")
-#
-# end
-
-# function create_model(bnn_arch::BNNArchitecture, D::Data)
-#     GeneralModel(
-#         (θ, params) -> logpdf(params[1].prior, θ),  # log prior
-#         (θ, params) -> _unnormalized_loglikelihood(params[1], params[2], θ), # log likelihood
-#         [bnn_arch, D]  # params
-#     )
-# end
-#
-# model = create_model(bnn_arch, Data(X, y))
-#
-# η = 1.0
-# opt0 = [Flux.ADAGrad(η), Flux.ADAGrad(0.0)]
-# opt1 = [Flux.ADAGrad(η), Flux.ADAGrad(η)]
-#
-# record(scene, plotsdir("gifs", "bnn_toy.gif"), 1:400; framerate = 10) do i
-#     @info i
-#     if i < 50
-#         move_particles(θ_t_node[], model, opt0, Xt=θ_t_node[], precond_b=true, precond_A=false)
-#     else
-#         move_particles(θ_t_node[], model, opt1, Xt=θ_t_node[], precond_b=true, precond_A=false)
-#     end
-#     #x_p[] = x_t
-#     Makie.update!(scene)
-#     # ∇f_p[] = ∇f1
-# end
-##
-
-
 using Turing
 using Distributions, DistributionsAD
 using AdvancedVI; const AVI = AdvancedVI
@@ -200,34 +150,25 @@ using Makie, StatsMakie, Colors, MakieLayout
 using KernelFunctions, Flux, KernelDensity
 
 max_iters = 2
-# advi = AVI.ADVI(n_points, max_iters)
-# adq = AVI.transformed(TuringDiagMvNormal([mu_init],[sig_init]),AVI.Bijectors.Identity{1}())
-#
-# quadvi = AVI.ADQuadVI(n_points, max_iters)
-# θ_init = [mu_init,sig_init]
-# quadq = AVI.transformed(TuringDiagMvNormal([mu_init],[sig_init]),AVI.Bijectors.Identity{1}())
-#
-# steinvi = AVI.SteinVI(max_iters, transform(SqExponentialKernel(), 1.0))
-# steinq =
-#     AVI.SteinDistribution(rand(Normal(mu_init, sqrt(sig_init)), 1, nParticles))
 
 gaussvi = AVI.PFlowVI(max_iters, false, true)
 gaussq = SamplesMvNormal(copy(θ_t))
-# gaussq = AVI.transformed(SamplesMvNormal(rand(Normal(mu_init, sqrt(sig_init)),1,nParticles)),AVI.Bijectors.Identity{1}())
 
 using ReverseDiff
 setadbackend(:reversediff)
-logπ_base(x) = _unnormalized_logposterior(bnn_arch, D, θ)#log(1/3*pdf(d1,first(x)) + 2/3*pdf(d2,first(x)))
+logπ_base(x) = _unnormalized_logposterior(bnn_arch, D, x)#log(1/3*pdf(d1,first(x)) + 2/3*pdf(d2,first(x)))
 
-#α =  0.01
-#optgauss = ADAGrad(α)
+α =  0.1
+optgauss = ADAGrad(α)
 
-α = 0.001
-optgauss = ADAM(α)
+# α = 0.001
+# optgauss = ADAM(α)
 
 t = Node(0)
 
-pdfgauss = lift(t) do _
+# should probably just be an event somehow
+# updates θ_t_node, everytime t changes
+lift(t) do _
     if gaussq.Σ[1,1] > 0
         gaussqn = Normal(gaussq.μ[1], sqrt(gaussq.Σ[1,1]))
         pdfgauss = pdf.(Ref(gaussqn), xrange)
@@ -241,13 +182,13 @@ pdfgauss = lift(t) do _
 end
 
 record(scene, joinpath(plotsdir(),"gifs","bnn_toy.gif"),framerate=25) do io
-    for i in 1:500
+    for i in 1:100
         #global adq = AVI.vi(logπ_base, advi, adq, θ_init, optimizer = optad)
         # the following doesn't seem to compile
         #global quadq = AVI.vi(logπ_base, quadvi, quadq, θ_init, optimizer = optquad)
         #AVI.vi(logπ_base, steinvi, steinq, optimizer = optstein)
         AVI.vi(logπ_base, gaussvi, gaussq, optimizer = optgauss)
-        if i % 10 == 0
+        if i % 5 == 0
             t[] = i
         end
         recordframe!(io)
