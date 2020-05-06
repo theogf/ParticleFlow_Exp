@@ -110,10 +110,11 @@ end
 ##
 
 min_val, max_val = -2.0, 2.0
+xrange = [range(min_val, max_val; length=100);]
 
 function params_to_line(bnn_arch::BNNArchitecture, θ::Parameters)
     nn = _build_nn(bnn_arch, θ)
-    x = [range(min_val, max_val; length=100);]
+    x = xrange
     y = [nn([x])[1] for x in x]
     x, y
 end
@@ -228,8 +229,8 @@ t = Node(0)
 
 pdfgauss = lift(t) do _
     if gaussq.Σ[1,1] > 0
-        gaussqn = Normal(gaussq.μ[1],sqrt(gaussq.Σ[1,1]))
-        pdfgauss = pdf.(Ref(gaussqn),xrange)
+        gaussqn = Normal(gaussq.μ[1], sqrt(gaussq.Σ[1,1]))
+        pdfgauss = pdf.(Ref(gaussqn), xrange)
         #push!(θ_t_node, gaussq.x[:])
         θ_t_node[] = gaussq.x
         #gaussvi.
