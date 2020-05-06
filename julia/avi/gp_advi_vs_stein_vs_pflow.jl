@@ -1,3 +1,6 @@
+using DrWatson
+@quickactivate
+
 using AdvancedVI; const AVI = AdvancedVI
 using Turing
 using LinearAlgebra

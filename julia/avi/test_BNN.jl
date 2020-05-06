@@ -1,4 +1,7 @@
 # Based on https://turing.ml/dev/tutorials/3-bayesnn/
+using DrWatson
+@quickactivate
+
 
 using Turing, Flux, Plots, Random;
 using AdvancedVI, Bijectors
@@ -105,7 +108,7 @@ y_range = collect(range(-6,stop=6,length=25))
 
 anim = Animation()
 @progress for i in 1:200
-    AVI.vi(logπ, gvi, q, optimizer = opt)
+    AdvancedVI.vi(logπ, gvi, q, optimizer = opt)
     Z = [nn_forward([x, y], q.μ)[1] for x=x_range, y=y_range]
     p = Plots.contourf(x_range, y_range, Z, title="i = $(i*n_iters)",clims=(0,1))
     Plots.scatter!(eachrow(hcat(xs...))..., zcolor = ts,lab="")
