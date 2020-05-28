@@ -1,5 +1,5 @@
-using DrWatson
-@quickactivate
+# using DrWatson
+# @quickactivate
 
 using AdvancedVI; const AVI = AdvancedVI
 using Turing
@@ -11,7 +11,7 @@ using KernelFunctions, Flux, KernelDensity
 N = 50
 x = range(0, 1, length = N)
 θ = log.([1.0, 10.0, 1e-3])
-k = exp(θ[1]) * transform(SEKernel(), exp(θ[2]))
+k = exp(θ[1]) * transform(SqExponentialKernel(), exp(θ[2]))
 K = kernelmatrix(k, x) + 1e-5I
 f = rand(MvNormal(K))
 y = f + randn(N) * exp(θ[3])
@@ -28,7 +28,7 @@ n_sig = 2
 
 setadbackend(:reverse_diff)
 function meta_logπ(θ)
-    k = exp(θ[1]) * transform(SEKernel(), exp(θ[2]))
+    k = exp(θ[1]) * transform(SqExponentialKernel(), exp(θ[2]))
     K = kernelmatrix(k, x) + 1e-5I
     d = TuringDenseMvNormal(zeros(length(x)), K)
     return z -> sum(logpdf.(Normal.(y, exp(θ[3])), z)) + logpdf(d, z)
@@ -124,7 +124,7 @@ leg = layout[1,1] = LLegend(scene,ls,
                     "Stein VI",
                     "Gaussian Particles",
                     ],
-                    width=Auto(false),height=Auto(false),
+                    tellwidth=false, tellheight=false,
                     halign = :left, valign = :top, margin = (10,10,10,10))
 scene
 
