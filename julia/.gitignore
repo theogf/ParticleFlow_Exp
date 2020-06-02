@@ -88,6 +88,8 @@ Backup of *.doc*
 # *.ps
 # *.eps
 # *.pdf
+*.gif
+*.png
 
 ## Generated if empty string given at "Please type another file name for output:"
 .pdf
