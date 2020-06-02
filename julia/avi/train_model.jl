@@ -97,6 +97,21 @@ function train_model(X, y, logπ, general_p, gflow_p, advi_p, stein_p)
     return gflow_h, advi_h, stein_h
 end
 
+
+function save_histories(gflow_h, advi_h, stein_h, general_p)
+    names = ("gauss", "advi", "stein")
+    for (h, name) in zip((gflow_h, advi_h, stein_h), names)
+        if length(keys(h)) != 0
+            @info "Saving histories of algorithm $name"
+            save_results(h, name, general_p)
+        end
+    end
+end
+
+function save_results(h, name, general_p)
+
+end
+
 function init_gflow(gflow_p, general_p)
     n_dim = general_p[:n_dim]
     gflow_vi = if gflow_p[:run]

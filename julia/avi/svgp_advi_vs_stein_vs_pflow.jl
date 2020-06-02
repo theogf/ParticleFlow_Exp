@@ -4,11 +4,9 @@ using AdvancedVI; const AVI = AdvancedVI
 using Turing
 using LinearAlgebra
 using Distributions, DistributionsAD
-using Makie, StatsMakie, Colors, MakieLayout, CairoMakie
-CairoMakie.activate!()
+using Makie, StatsMakie, Colors, MakieLayout
 using KernelFunctions, Flux, KernelDensity
 @info "Packages Loaded!"
-
 N = 1000
 M = 25
 x = range(0, 1, length = N)
@@ -64,7 +62,7 @@ L_init = Matrix(cholesky(D).L)
 advi = AVI.ADVI(nParticles, max_iters)
 θ_init = vcat(mu_init, L_init[:])
 adq = AVI.transformed(TuringDenseMvNormal(mu_init, L_init*L_init'), AVI.Bijectors.Identity{1}())
-θ_ad = θ .- 1
+θ_ad = θ #.- 1
 
 quadvi = AVI.ADQuadVI(nParticles, max_iters)
 # θ_init = vcat(mu_init, L_init[:])
@@ -73,11 +71,11 @@ quadq = AVI.transformed(TuringDenseMvNormal(mu_init, L_init*L_init'), AVI.Biject
 steinvi = AVI.SteinVI(max_iters, transform(SqExponentialKernel(), 1.0))
 steinq =
     AVI.SteinDistribution(rand(MvNormal(mu_init, sig_init), nParticles))
-θ_stein = θ .- 1
+θ_stein = θ #.- 1
 
 gaussvi = AVI.PFlowVI(max_iters, false, true)
 gaussq = SamplesMvNormal(rand(MvNormal(mu_init, sig_init), nParticles))
-θ_gauss = θ .- 1
+θ_gauss = θ #.- 1
 
 # gaussq = AVI.transformed(SamplesMvNormal(rand(Normal(mu_init, sqrt(sig_init)),1,nParticles)),AVI.Bijectors.Identity{1}())
 
