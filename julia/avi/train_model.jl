@@ -7,6 +7,8 @@ using Parameters
 using LinearAlgebra
 using Plots
 
+AVI.setadbackend(:forwarddiff)
+
 function wrap_cb(h::MVHistory)
     return function(i, q, hp)
         if !isnothing(hp)

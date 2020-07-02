@@ -5,7 +5,7 @@ n_iters = 10
 
 ## Create some toy data
 N = 200
-B = 20
+B = 30
 M = 20
 x = range(0, 1, length = N)
 Z = range(0, 1, length = M)
@@ -23,16 +23,24 @@ function meta_logπ(θ)
     Kf = kerneldiagmatrix(k, x) .+ 1e-5
     Kfu = kernelmatrix(k, x, Z)
     P = Kfu / Ku
-    d = TuringDenseMvNormal(zeros(length(x)), Ku)
+    d = TuringDenseMvNormal(zeros(length(Z)), Ku)
     return function(z)
         S = sample(1:length(x), B, replace=false)
-        length(x) / B * sum(logpdf.(Normal.(y, exp(θ[3]) .+ Kf[S] - P[S, :] * Kfu[S,:]'), P[S, :] * z)) + logpdf(d, z)
+        length(x) / B * sum(logpdf.(Normal.(y[S], exp(θ[3]) .+ Kf[S] - diag(P[S, :] * Kfu[S,:]')), P[S, :] * z)) + logpdf(d, z)
     end
 end
-
+k = exp(θ[1]) * transform(SqExponentialKernel(), exp(θ[2]))
+Ku = kernelmatrix(k, Z) + 1e-5I
+Kf = kerneldiagmatrix(k, x) .+ 1e-5
+Kfu = kernelmatrix(k, x, Z)
+P = Kfu / Ku
+S = sample(1:length(x), B, replace=false)
+exp(θ[3]) .+ Kf[S] - diag(P[S, :] * Kfu[S,:]')
+P[S, :] * rand(M)
 logπ_reduce = meta_logπ(θ)
-AVI.setadbackend(:reversediff)
-##
+logπ_reduce(rand(M))
+# AVI.setadbackend(:reversediff)
+## Start experiment
 hp_init = θ .- 1
 
 opt = ADAGrad(1.0)
