@@ -1,35 +1,39 @@
 include("train_model.jl")
 
 n_samples = 60
-n_iters = 10
-
+n_iters = 50
+# AVI.setadbackend(:forwarddiff)
+AVI.setadbackend(:reversediff)
 ## Create some toy data
 N = 50
 x = range(0, 1, length = N)
 θ = log.([1.0, 10.0, 1e-3])
 k = exp(θ[1]) * transform(SqExponentialKernel(), exp(θ[2]))
-K = kernelmatrix(k, x) + 1e-5I
+K = kernelmatrix(k, x) + 1e-3I
 f = rand(MvNormal(K))
-y = f + randn(N) * exp(θ[3])
-plot(x, y)
+likelihood(f, θ) = Normal(f, sqrt(exp(θ[3])))
+likelihood(f, θ) = Bernoulli(exp(logsigmoid(f)))
+y = (sign.(f) .+ 1) .÷ 2 #rand.(likelihood.(f, Ref(θ)))
+scatter(x, y)
 
 ## Create the model
 function meta_logπ(θ)
     k = exp(θ[1]) * transform(SqExponentialKernel(), exp(θ[2]))
     K = kernelmatrix(k, x) + 1e-5I
     d = TuringDenseMvNormal(zeros(length(x)), K)
-    return z -> sum(logpdf.(Normal.(y, exp(θ[3])), z)) + logpdf(d, z)
+    return z -> sum(logpdf.(likelihood.(z, Ref(θ)), y)) + logpdf(d, z)
 end
 
 logπ_reduce = meta_logπ(θ)
-AVI.setadbackend(:reversediff)
+logπ_reduce(mus_g[end])
+
 ##
 hp_init = θ .- 1
 
 opt = ADAGrad(1.0)
 
 general_p =
-    Dict(:hyper_params => hp_init, :hp_optimizer => ADAGrad(0.1), :n_dim => N)
+    Dict(:hyper_params => nothing, :hp_optimizer => ADAGrad(0.1), :n_dim => N)
 gflow_p = Dict(
     :run => true,
     :n_particles => 60,
@@ -41,7 +45,7 @@ gflow_p = Dict(
     :init => nothing,
 )
 advi_p = Dict(
-    :run => true,
+    :run => !true,
     :n_samples => n_samples,
     :max_iters => n_iters,
     :opt => deepcopy(opt),
@@ -49,7 +53,7 @@ advi_p = Dict(
     :init => nothing,
 )
 stein_p = Dict(
-    :run => true,
+    :run => !true,
     :n_particles => n_samples,
     :max_iters => n_iters,
     :kernel => transform(SqExponentialKernel(), 1.0),
@@ -60,26 +64,29 @@ stein_p = Dict(
 
 
 g_h, a_h, s_h =
-    # train_model(x, y, logπ_reduce, general_p, gflow_p, advi_p, stein_p)
-    train_model(x, y, meta_logπ, general_p, gflow_p, advi_p, stein_p)
+    train_model(x, y, logπ_reduce, general_p, gflow_p, advi_p, stein_p)
+    # train_model(x, y, meta_logπ, general_p, gflow_p, advi_p, stein_p)
 
 ## Plotting
 
 iters, mus_g = get(g_h, :mu)
-iters, mus_a = get(a_h, :mu)
-iters, mus_s = get(s_h, :mu)
+# iters, mus_a = get(a_h, :mu)
+# iters, mus_s = get(s_h, :mu)
 
-@gif for (i, mu_g, mu_a, mu_s) in zip(iters, mus_g, mus_a, mus_s)
-    plot(x, f, label = "Truth",title = "i = $i")
-    plot!(x, mu_g, label = "Gauss",)
-    plot!(x, mu_a, label = "ADVI")
-    plot!(x, mu_s, label = "Stein")
+g = @gif for (i, mu_g, mu_a, mu_s) in zip(iters, mus_g, mus_a, mus_s)
+    plot(x, f, label = "Truth",title = "i = $i", color=colors[4])
+    scatter!(x, y, label = "Data", color=colors[4])
+    plot!(x, mu_g, label = "Gauss", color=colors[1])
+    # plot!(x, mu_s, label = "Stein", color=colors[3])
+    # plot!(x, mu_a, label = "ADVI", color=colors[2])
 end
 
+display(g)
+
 labels = ["Gauss" "ADVI" "Stein"]
-plot(get.([g_h, a_h, s_h], :l_kernel), label = labels)
-plot(get.([g_h, a_h, s_h], :σ_kernel), label = labels)
-plot(get.([g_h, a_h, s_h], :σ_gaussian), label = labels)
+# plot(get.([g_h, a_h, s_h], :l_kernel), label = labels)
+# plot(get.([g_h, a_h, s_h], :σ_kernel), label = labels)
+# plot(get.([g_h, a_h, s_h], :σ_gaussian), label = labels)
 
 using DataFrames
 function Base.convert(::Type{DataFrame}, h::MVHistory)

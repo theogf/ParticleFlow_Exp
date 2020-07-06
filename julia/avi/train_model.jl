@@ -6,6 +6,9 @@ using ValueHistories
 using Parameters
 using LinearAlgebra
 using Plots
+default(lw=2.0)
+using ColorSchemes
+colors = ColorSchemes.seaborn_colorblind
 
 AVI.setadbackend(:forwarddiff)
 
@@ -19,25 +22,20 @@ function wrap_cb(h::MVHistory)
     end
 end
 
-function cb_hp(h, i, hp)
+function cb_hp(h, i::Int, hp)
     push!(h, :σ_kernel, i, hp[1])
     push!(h, :l_kernel, i, hp[2])
     push!(h, :σ_gaussian, i, hp[3])
 end
 
-cb_var(h, i, q::TransformedDistribution) = cb_var(h, i, q.dist)
+cb_var(h, i::Int, q::TransformedDistribution) = cb_var(h, i, q.dist)
 
-function cb_var(h, i, q::SamplesMvNormal)
-    push!(h, :mu, i, mean(q))
-    push!(h, :sig, i, cov(q)[:])
+function cb_var(h, i::Int, q::Union{SamplesMvNormal, SteinDistribution})
+    push!(h, :mu, i, copy(mean(q)))
+    push!(h, :sig, i, copy(cov(q)[:]))
 end
 
-function cb_var(h, i, q::SteinDistribution)
-    push!(h, :mu, i, mean(q))
-    push!(h, :sig, i, cov(q)[:])
-end
-
-function cb_var(h, i, q::TuringDenseMvNormal)
+function cb_var(h, i::Int, q::TuringDenseMvNormal)
     push!(h, :mu, i, q.m)
     push!(h, :sig, i, Matrix(q.C)[:])
 end

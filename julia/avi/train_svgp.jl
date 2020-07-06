@@ -1,7 +1,7 @@
 include("train_model.jl")
 
 n_samples = 60
-n_iters = 10
+n_iters = 100
 
 ## Create some toy data
 N = 200
@@ -13,7 +13,8 @@ Z = range(0, 1, length = M)
 k = exp(θ[1]) * transform(SqExponentialKernel(), exp(θ[2]))
 K = kernelmatrix(k, x) + 1e-5I
 f = rand(MvNormal(K))
-y = f + randn(N) * exp(θ[3])
+likelihood(f, θ) = Normal(f, sqrt(exp(θ[3])))
+y = rand.(likelihood.(f, Ref(θ)))
 plot(x, y)
 
 ## Create the model
@@ -34,16 +35,14 @@ Ku = kernelmatrix(k, Z) + 1e-5I
 Kf = kerneldiagmatrix(k, x) .+ 1e-5
 Kfu = kernelmatrix(k, x, Z)
 P = Kfu / Ku
-S = sample(1:length(x), B, replace=false)
-exp(θ[3]) .+ Kf[S] - diag(P[S, :] * Kfu[S,:]')
-P[S, :] * rand(M)
 logπ_reduce = meta_logπ(θ)
 logπ_reduce(rand(M))
 # AVI.setadbackend(:reversediff)
 ## Start experiment
 hp_init = θ .- 1
+hp_init = nothing
 
-opt = ADAGrad(1.0)
+opt = ADAGrad(0.2)
 
 general_p =
     Dict(:hyper_params => hp_init, :hp_optimizer => ADAGrad(0.1), :n_dim => M)
@@ -77,8 +76,8 @@ stein_p = Dict(
 
 
 g_h, a_h, s_h =
-    # train_model(x, y, logπ_reduce, general_p, gflow_p, advi_p, stein_p)
-    train_model(x, y, meta_logπ, general_p, gflow_p, advi_p, stein_p)
+    train_model(x, y, logπ_reduce, general_p, gflow_p, advi_p, stein_p)
+    # train_model(x, y, meta_logπ, general_p, gflow_p, advi_p, stein_p)
 
 ## Plotting
 
@@ -86,12 +85,17 @@ iters, mus_g = get(g_h, :mu)
 iters, mus_a = get(a_h, :mu)
 iters, mus_s = get(s_h, :mu)
 
-@gif for (i, mu_g, mu_a, mu_s) in zip(iters, mus_g, mus_a, mus_s)
+g = @gif for (i, mu_g, mu_a, mu_s) in zip(iters, mus_g, mus_a, mus_s)
     plot(x, f, label = "Truth",title = "i = $i")
-    plot!(x, mu_g, label = "Gauss",)
-    plot!(x, mu_a, label = "ADVI")
-    plot!(x, mu_s, label = "Stein")
+    plot!(x, P*mu_g, label = "Gauss", color = colors[1])
+    scatter!(Z, mu_g, label = "Gauss", color = colors[1])
+    plot!(x, P*mu_a, label = "ADVI", color = colors[2])
+    scatter!(Z, mu_a, label = "ADVI", color = colors[2])
+    plot!(x, P*mu_s, label = "Stein", color = colors[3])
+    scatter!(Z, mu_s, label = "Stein", color = colors[3])
 end
+
+display(g)
 
 labels = ["Gauss" "ADVI" "Stein"]
 plot(get.([g_h, a_h, s_h], :l_kernel), label = labels)
