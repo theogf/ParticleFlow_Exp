@@ -12,7 +12,10 @@ colors = ColorSchemes.seaborn_colorblind
 
 AVI.setadbackend(:forwarddiff)
 
-function wrap_cb(h::MVHistory)
+
+# Return a callback function using the correct history
+# The cb_hp function needs to be defined, is set up for GPs by defaults
+function wrap_cb(h::MVHistory, cb_hp = cb_hp_gp)
     return function(i, q, hp)
         if !isnothing(hp)
             cb_hp(h, i, hp)
@@ -22,14 +25,17 @@ function wrap_cb(h::MVHistory)
     end
 end
 
-function cb_hp(h, i::Int, hp)
+# Callback function on hyperparameters
+function cb_hp_gp(h, i::Int, hp)
     push!(h, :σ_kernel, i, hp[1])
     push!(h, :l_kernel, i, hp[2])
     push!(h, :σ_gaussian, i, hp[3])
 end
 
+# Wrapper for transformed distributions
 cb_var(h, i::Int, q::TransformedDistribution) = cb_var(h, i, q.dist)
 
+# Store mean and covariance
 function cb_var(h, i::Int, q::Union{SamplesMvNormal, SteinDistribution})
     push!(h, :mu, i, copy(mean(q)))
     push!(h, :sig, i, copy(cov(q)[:]))
@@ -40,11 +46,13 @@ function cb_var(h, i::Int, q::TuringDenseMvNormal)
     push!(h, :sig, i, Matrix(q.C)[:])
 end
 
+# Store extra values
 function cb_val(h, i, q)
     return nothing
 end
 
-
+# Main function, take dicts of parameters
+# run the inference and return MVHistory objects for each alg.
 function train_model(X, y, logπ, general_p, gflow_p, advi_p, stein_p)
     ## Initialize algorithms
     gflow_vi, gflow_q = init_gflow(gflow_p, general_p)
@@ -97,7 +105,7 @@ function train_model(X, y, logπ, general_p, gflow_p, advi_p, stein_p)
     return gflow_h, advi_h, stein_h
 end
 
-
+# Allows to save the histories into a desired file
 function save_histories(gflow_h, advi_h, stein_h, general_p)
     names = ("gauss", "advi", "stein")
     for (h, name) in zip((gflow_h, advi_h, stein_h), names)
@@ -108,10 +116,12 @@ function save_histories(gflow_h, advi_h, stein_h, general_p)
     end
 end
 
+# Save history in a file
 function save_results(h, name, general_p)
 
 end
 
+# Initialize distribution and algorithm for Gaussian Particles model
 function init_gflow(gflow_p, general_p)
     n_dim = general_p[:n_dim]
     gflow_vi = if gflow_p[:run]
@@ -127,9 +137,10 @@ function init_gflow(gflow_p, general_p)
             gflow_p[:init],
     )
 
-    return gflow_vi, gflow_q
+    return gflow_vi, gflow_q # Return alg. and distr.
 end
 
+# Initialize distribution and algorithm for ADVI model
 function init_advi(advi_p, general_p)
     n_dim = general_p[:n_dim]
     advi_vi = if advi_p[:run]
@@ -143,9 +154,10 @@ function init_advi(advi_p, general_p)
         TuringDenseMvNormal(mu_init, L_init * L_init'),
         AVI.Bijectors.Identity{1}(),
     )
-    return advi_vi, advi_q, vcat(mu_init, L_init[:])
+    return advi_vi, advi_q, vcat(mu_init, L_init[:]) # Return alg., distr. and var. params.
 end
 
+# Initialize distribution and algorithm for SVGD model
 function init_stein(stein_p, general_p)
     n_dim = general_p[:n_dim]
     stein_vi = if stein_p[:run]
@@ -161,5 +173,5 @@ function init_stein(stein_p, general_p)
             stein_p[:init],
     )
 
-    return stein_vi, stein_q
+    return stein_vi, stein_q # return alg. and distr.
 end
