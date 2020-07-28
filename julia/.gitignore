@@ -8,6 +8,7 @@ videos
 plots
 notebooks
 _research
+dev
 
 ################################################################################
 #                                    Julia                                     #
@@ -88,8 +89,6 @@ Backup of *.doc*
 # *.ps
 # *.eps
 # *.pdf
-*.gif
-*.png
 
 ## Generated if empty string given at "Please type another file name for output:"
 .pdf
@@ -417,3 +416,6 @@ $RECYCLE.BIN/
 
 ## Acknowledgements
 # Many thanks to `https://gitignore.io/`, written and maintained by Joe Blau, which contributed much material to this gitignore file.
+
+
+.vscode

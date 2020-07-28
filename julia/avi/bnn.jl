@@ -1,6 +1,6 @@
 using DrWatson
 @quickactivate
-include(srcdir("pflowbase.jl"))
+#include(srcdir("pflowbase.jl"))
 #include(srcdir("makie_plotting.jl"))
 
 using Flux
@@ -156,7 +156,7 @@ gaussq = SamplesMvNormal(copy(θ_t))
 
 using ReverseDiff
 setadbackend(:reversediff)
-logπ_base(x) = _unnormalized_logposterior(bnn_arch, D, x)#log(1/3*pdf(d1,first(x)) + 2/3*pdf(d2,first(x)))
+logπ_base(x) = _unnormalized_logposterior(bnn_arch, D, x)
 
 α =  0.1
 optgauss = ADAGrad(α)
@@ -172,9 +172,7 @@ lift(t) do _
     if gaussq.Σ[1,1] > 0
         gaussqn = Normal(gaussq.μ[1], sqrt(gaussq.Σ[1,1]))
         pdfgauss = pdf.(Ref(gaussqn), xrange)
-        #push!(θ_t_node, gaussq.x[:])
-        θ_t_node[] = gaussq.x
-        #gaussvi.
+        push!(θ_t_node, gaussq.x)
     else
         @info "Zero sigma"
         @info gaussq
@@ -182,7 +180,7 @@ lift(t) do _
 end
 
 record(scene, joinpath(plotsdir(),"gifs","bnn_toy.gif"),framerate=25) do io
-    for i in 1:100
+    for i in 1:20
         #global adq = AVI.vi(logπ_base, advi, adq, θ_init, optimizer = optad)
         # the following doesn't seem to compile
         #global quadq = AVI.vi(logπ_base, quadvi, quadq, θ_init, optimizer = optquad)
