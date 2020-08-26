@@ -25,7 +25,7 @@ function meta_logπ(θ)
 end
 
 logπ_reduce = meta_logπ(θ)
-logπ_reduce(mus_g[end])
+# logπ_reduce(mus_g[end])
 
 ##
 hp_init = θ .- 1
@@ -39,7 +39,7 @@ gflow_p = Dict(
     :n_particles => 60,
     :max_iters => n_iters,
     :cond1 => true,
-    :cond2 => false,
+    :cond2 => true,
     :opt => deepcopy(opt),
     :callback => wrap_cb,
     :init => nothing,
@@ -64,25 +64,32 @@ stein_p = Dict(
 
 
 g_h, a_h, s_h =
-    train_model(x, y, logπ_reduce, general_p, gflow_p, advi_p, stein_p)
+    train_model(logπ_reduce, general_p, gflow_p, advi_p, stein_p)
     # train_model(x, y, meta_logπ, general_p, gflow_p, advi_p, stein_p)
 
 ## Plotting
 
-iters, mus_g = get(g_h, :mu)
-# iters, mus_a = get(a_h, :mu)
-# iters, mus_s = get(s_h, :mu)
+mus = []
+iters = get(g_h, :mu)[1]
+isempty(g_h.storage) ? nothing : push!(mus, get(g_h, :mu)[2])
+# isempty(a_h.storage) ? nothing : push!(mus, get(a_h, :mu)[2])
+# isempty(s_h.storage) ? nothing : push!(mus, get(s_h, :mu)[2])
 
-g = @gif for (i, mu_g, mu_a, mu_s) in zip(iters, mus_g, mus_a, mus_s)
-    plot(x, f, label = "Truth",title = "i = $i", color=colors[4])
+g = @gif for (i, mu_g) in zip(iters, mus...)
+# g = @gif for (i, mu_g, mu_a, mu_s) in zip(iters, mus...)
+    plot(x, f, label = "Truth",title = "i = $(i)", color=colors[4])
     scatter!(x, y, label = "Data", color=colors[4])
-    plot!(x, mu_g, label = "Gauss", color=colors[1])
-    # plot!(x, mu_s, label = "Stein", color=colors[3])
-    # plot!(x, mu_a, label = "ADVI", color=colors[2])
+    if length(mus) == 1
+        plot!(x, mu_g, label = "Gauss", color=colors[1])
+    else
+        plot!(x, mu_g, label = "Gauss", color=colors[1])
+        plot!(x, mu_s, label = "Stein", color=colors[3])
+        plot!(x, mu_a, label = "ADVI", color=colors[2])
+    end
 end
 
 display(g)
-
+## More
 labels = ["Gauss" "ADVI" "Stein"]
 # plot(get.([g_h, a_h, s_h], :l_kernel), label = labels)
 # plot(get.([g_h, a_h, s_h], :σ_kernel), label = labels)

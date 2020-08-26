@@ -1,11 +1,13 @@
+using AdvancedVI; const AVI = AdvancedVI;
 using Turing
 using Distributions, DistributionsAD, Bijectors
-using AdvancedVI; const AVI = AdvancedVI;
+using Bijectors: TransformedDistribution
 using KernelFunctions, Flux
 using ValueHistories
 using Parameters
 using LinearAlgebra
-using Plots
+using ReverseDiff
+using Plots; pyplot()
 default(lw=2.0)
 using ColorSchemes
 colors = ColorSchemes.seaborn_colorblind
@@ -36,7 +38,7 @@ end
 cb_var(h, i::Int, q::TransformedDistribution) = cb_var(h, i, q.dist)
 
 # Store mean and covariance
-function cb_var(h, i::Int, q::Union{SamplesMvNormal, SteinDistribution})
+function cb_var(h, i::Int, q::Union{AVI.SamplesMvNormal, AVI.SteinDistribution})
     push!(h, :mu, i, copy(mean(q)))
     push!(h, :sig, i, copy(cov(q)[:]))
 end
@@ -53,7 +55,7 @@ end
 
 # Main function, take dicts of parameters
 # run the inference and return MVHistory objects for each alg.
-function train_model(X, y, logπ, general_p, gflow_p, advi_p, stein_p)
+function train_model(logπ, general_p, gflow_p, advi_p, stein_p)
     ## Initialize algorithms
     gflow_vi, gflow_q = init_gflow(gflow_p, general_p)
     advi_vi, advi_q, advi_init = init_advi(advi_p, general_p)
