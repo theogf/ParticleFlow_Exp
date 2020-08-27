@@ -1,6 +1,4 @@
 # Based on https://turing.ml/dev/tutorials/3-bayesnn/
-using DrWatson
-@quickactivate
 
 
 using Turing, Flux, Plots, Random;
@@ -90,7 +88,7 @@ end;
 ## Perform inference
 
 N_particles = 200
-n_iters = 10
+n_iters = 1
 
 m = bayes_nn(hcat(xs...), ts)
 logπ = Turing.Variational.make_logjoint(m)
@@ -98,14 +96,14 @@ q =  SamplesMvNormal(randn(20, N_particles)*0.0001)
 gvi = PFlowVI(n_iters, false, false)
 q isa SamplesMvNormal
 
-α = 0.001
+α = 0.01
 opt = ADAM(α)
 
 
 nn_forward(hcat(xs...), q.μ)
 x_range = collect(range(-6,stop=6,length=25))
 y_range = collect(range(-6,stop=6,length=25))
-
+pyplot()
 anim = Animation()
 @progress for i in 1:200
     AdvancedVI.vi(logπ, gvi, q, optimizer = opt)
@@ -118,8 +116,8 @@ anim = Animation()
     frame(anim)
 end
 gif(anim, fps = 5)
-##
-gr()
+## Plotting mean and covariance
+pyplot()
 p1 = Plots.heatmap(q.Σ, yflip = true)
 Plots.plot!([0.5, 6.5, 6.5, 0.5, 0.5], [0.5, 0.5, 6.5, 6.5, 0.5],lab="",color=:black, lw= 3.0)
 Plots.plot!([6.5, 9.5, 9.5, 6.5, 6.5], [6.5, 6.5, 9.5, 9.5, 6.5],lab="",color=:black, lw= 3.0)
