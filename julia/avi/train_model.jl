@@ -8,7 +8,7 @@ using Parameters
 using LinearAlgebra
 using ReverseDiff
 using Plots; pyplot()
-default(lw=2.0)
+default(lw=3.0, legendfontsize = 15.0, labelfontsize = 15.0, tickfontsize = 13.0)
 using ColorSchemes
 colors = ColorSchemes.seaborn_colorblind
 
@@ -19,13 +19,18 @@ AVI.setadbackend(:forwarddiff)
 # The cb_hp function needs to be defined, is set up for GPs by defaults
 function wrap_cb(h::MVHistory, cb_hp = cb_hp_gp)
     return function(i, q, hp)
+        cb_tic(h, i)
         if !isnothing(hp)
             cb_hp(h, i, hp)
         end
         cb_var(h, i, q)
         cb_val(h, i, q)
+        cb_toc(h, i)
     end
 end
+
+cb_tic(h, i::Int) = push!(h, :t_tic, Float64(time_ns()) / 1e9)
+cb_toc(h, i::Int) = push!(h, :t_toc, Float64(time_ns()) / 1e9)
 
 # Callback function on hyperparameters
 function cb_hp_gp(h, i::Int, hp)
@@ -69,6 +74,7 @@ function train_model(logπ, general_p, gflow_p, advi_p, stein_p)
     ## Run algorithms
     if !isnothing(gflow_vi)
         @info "Running Gaussian Flow Particles"
+        push!(gflow_h, :t_start, Float64(time_ns())/1e9)
         AVI.vi(
             logπ,
             gflow_vi,
@@ -81,6 +87,7 @@ function train_model(logπ, general_p, gflow_p, advi_p, stein_p)
     end
     if !isnothing(advi_vi)
         @info "Running ADVI"
+        push!(advi_h, :t_start, Float64(time_ns())/1e9)
         AVI.vi(
             logπ,
             advi_vi,
@@ -94,6 +101,7 @@ function train_model(logπ, general_p, gflow_p, advi_p, stein_p)
     end
     if !isnothing(stein_vi)
         @info "Running Stein VI"
+        push!(stein_h, :t_start, Float64(time_ns())/1e9)
         AVI.vi(
             logπ,
             stein_vi,
