@@ -3,11 +3,15 @@
 
 using Turing, Flux, Plots, Random;
 using AdvancedVI, Bijectors
+const AVI = AdvancedVI
+using ReverseDiff
+using ValueHistories
+AVI.setadbackend(:reversediff)
 
 ## Create the data
 
 # Number of points to generate.
-N = 80
+N = 160
 M = round(Int, N / 4)
 Random.seed!(1234)
 
@@ -41,38 +45,32 @@ plot_data()
 
 ## Create Neural Net parameters
 
-# Turn a vector into a set of weights and biases.
-function unpack(nn_params::AbstractVector)
-    W₁ = reshape(nn_params[1:6], 3, 2);
-    b₁ = reshape(nn_params[7:9], 3)
+# We construct an architecture for our neural network using Flux
+nn = Chain(Dense(2, 3, tanh),
+            Dense(3, 2, tanh),
+            Dense(2, 1, σ))
 
-    W₂ = reshape(nn_params[10:15], 2, 3);
-    b₂ = reshape(nn_params[16:17], 2)
+# We extract a flattened vector of parameters and the reconstruction function
+θ, re = Flux.destructure(nn)
+n_params = length(θ) # Here we have 20 parameters
 
-    Wₒ = reshape(nn_params[18:19], 1, 2);
-    bₒ = reshape(nn_params[20:20], 1)
-    return W₁, b₁, W₂, b₂, Wₒ, bₒ
-end
+# Calling re(θ) will reconstruct the network
 
-# Construct a neural network using Flux and return a predicted value.
 function nn_forward(xs, nn_params::AbstractVector)
-    W₁, b₁, W₂, b₂, Wₒ, bₒ = unpack(nn_params)
-    nn = Chain(Dense(W₁, b₁, tanh),
-               Dense(W₂, b₂, tanh),
-               Dense(Wₒ, bₒ, σ))
+    nn = re(nn_params)
     return nn(xs)
 end;
+
 
 ## Create model
 
 # Create a regularization term and a Gaussain prior variance term.
 alpha = 0.09
 sig = sqrt(1.0 / alpha)
-
 # Specify the probabalistic model.
 @model bayes_nn(xs, ts) = begin
     # Create the weight and bias vector.
-    nn_params ~ MvNormal(zeros(20), sig .* ones(20))
+    nn_params ~ MvNormal(zeros(n_params), sig .* ones(n_params))
 
     # Calculate predictions for the inputs given the weights
     # and biases in theta.
@@ -87,35 +85,53 @@ end;
 
 ## Perform inference
 
-N_particles = 200
-n_iters = 1
+N_particles = 50
+n_iters = 5000
 
 m = bayes_nn(hcat(xs...), ts)
 logπ = Turing.Variational.make_logjoint(m)
-q =  SamplesMvNormal(randn(20, N_particles)*0.0001)
+q =  SamplesMvNormal(randn(20, N_particles) * 0.1)
 gvi = PFlowVI(n_iters, false, false)
 q isa SamplesMvNormal
 
 α = 0.01
-opt = ADAM(α)
+opt = [ADAM(α), ADAM(1e-4)]
+# opt = ADAM(α)
 
 
 nn_forward(hcat(xs...), q.μ)
 x_range = collect(range(-6,stop=6,length=25))
 y_range = collect(range(-6,stop=6,length=25))
 pyplot()
+h = MVHistory()
+predict(q::SamplesMvNormal, x) = nn_forward(x, q.μ)[1] .> 0.5
+predict(q::TransformDistribution, x) = predict(q.dist, x)
+predict.(Ref(q), xs)
 anim = Animation()
-@progress for i in 1:200
-    AdvancedVI.vi(logπ, gvi, q, optimizer = opt)
-    Z = [nn_forward([x, y], q.μ)[1] for x=x_range, y=y_range]
-    p = Plots.contourf(x_range, y_range, Z, title="i = $(i*n_iters)",clims=(0,1))
-    Plots.scatter!(eachrow(hcat(xs...))..., zcolor = ts,lab="")
-    if i % 20 == 0
-        display(p)
-    end
+function plot_pred(q, i, anim)
+    Z = [nn_forward([x, y], q.dist.μ)[1] for x=x_range, y=y_range]
+    p = Plots.contourf(x_range, y_range, Z, title="Prediction (i = $i)",clims=(0,1))
+    Plots.scatter!(eachrow(hcat(xs...))..., zcolor = ts,lab="", )
+    display(p)
     frame(anim)
 end
-gif(anim, fps = 5)
+cb = function(i, q, hp)
+    push!(h, :acc, i, mean(predict.(Ref(q), xs) .== ts))
+    if i % 100 == 0
+        plot_pred(q, i, anim)
+    end
+end
+
+
+AdvancedVI.vi(logπ, gvi, q, optimizer = opt, callback = cb)
+    # Z = [nn_forward([x, y], q.μ)[1] for x=x_range, y=y_range]
+    # p = Plots.contourf(x_range, y_range, Z, title="i = $(i*n_iters)",clims=(0,1))
+    # Plots.scatter!(eachrow(hcat(xs...))..., zcolor = ts,lab="")
+    # if i % 20 == 0
+    #     display(p)
+    # end
+    # frame(anim)
+gif(anim, joinpath(@__DIR__, "..", "plots", "gifs", "bnn.gif"), fps = 5)
 ## Plotting mean and covariance
 pyplot()
 p1 = Plots.heatmap(q.Σ, yflip = true)
@@ -132,3 +148,14 @@ p2 = Plots.heatmap(reshape(q.μ, 1, :), colorbar= false)
 layout = @layout [a{0.1h}
                     b{0.9h}]
 Plots.plot(p2, p1, layout=layout)
+savefig(joinpath(@__DIR__, "..", "plots", "bnn", "covariance.png"))
+## Plotting predictions
+
+Z = [nn_forward([x, y], q.μ)[1] for x=x_range, y=y_range]
+p = Plots.contourf(x_range, y_range, Z, title="Prediction",clims=(0,1))
+Plots.scatter!(eachrow(hcat(xs...))..., zcolor = ts,lab="", )
+
+## Plot accuracy
+
+Plots.plot(h[:acc], title = "Accuracy", lab="")
+savefig(joinpath(@__DIR__, "..", "plots", "bnn", "accuracy.png"))
