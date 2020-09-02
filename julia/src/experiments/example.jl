@@ -31,8 +31,3 @@ runexperiment("example_study", experiments)
 
 # example loading data
 example_data = loaddata("example_study", 19:20)
-
-# TODO:
-# - merge code in
-# - integrate code
-# - push

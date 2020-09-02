@@ -146,7 +146,9 @@ scene, θ_t_node = set_plotting_scene_bnn(bnn_arch, X, y, θ, θ_t)
 using Turing
 using Distributions, DistributionsAD
 using AdvancedVI; const AVI = AdvancedVI
-using Makie, StatsMakie, Colors, MakieLayout
+using Makie, Colors
+#using StatsMakie
+using AbstractPlotting.MakieLayout
 using KernelFunctions, Flux, KernelDensity
 
 max_iters = 2

@@ -154,17 +154,3 @@ with experiment_saver() as es:
             es.save(gen_path(options, i), results(options))
 "
 
-
-##
-#
-# What are the use cases that we want su support?
-# - x models, can be identified by just the model name in theory and logπ
-# - different methods, in first instance can be \
-#
-# What should be stored in the above?
-# - a plot could be a gif or similar
-# - some performance metrics that can be measured across vi algos (but not necessarily across)
-#
-# Possible next extensions
-# - what if we need in between
-#
