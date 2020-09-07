@@ -28,10 +28,10 @@ function run_gaussian_target(exp_p)
     steinvi = []
 
     for i in 1:n_runs
-        ## Create dictionnaries of parameters
         @info "Run $i/$(n_runs)"
         opt = ADAGrad(1.0)
 
+        ## Create dictionnaries of parameters
         general_p =
             Dict(:hyper_params => nothing, :hp_optimizer => ADAGrad(0.1), :n_dim => dim)
         gflow_p = Dict(

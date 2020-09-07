@@ -1,5 +1,6 @@
 using AdvancedVI; const AVI = AdvancedVI;
 using Turing
+using Flux
 using Distributions, DistributionsAD
 using Bijectors: TransformedDistribution
 using KernelFunctions
