@@ -1,15 +1,16 @@
 using AdvancedVI; const AVI = AdvancedVI;
 using Turing
-using Distributions, DistributionsAD, Bijectors
+using Distributions, DistributionsAD
 using Bijectors: TransformedDistribution
-using KernelFunctions, Flux
+using KernelFunctions
 using ValueHistories
-using Parameters
 using LinearAlgebra
 using ReverseDiff
+using Random
 
 
-AVI.setadbackend(:forwarddiff)
+# AVI.setadbackend(:forwarddiff)
+AVI.setadbackend(:reversediff)
 
 
 # Return a callback function using the correct history

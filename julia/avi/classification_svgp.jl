@@ -1,24 +1,37 @@
 include("train_model.jl")
 
-n_samples = 60
-n_iters = 100
+function run_svgp_bin(exp_p)
+    n_iters = exp_p[:n_iters]
+    n_runs = exp_p[:n_runs]
+    data = exp_p[:data]
+    B = 30
+    M = 20
+    X, y = if data == "toydata"
+        ## Create some toy data
+        N = 200
+        x = range(0, 1, length = N)
+        Z = range(0, 1, length = M)
+        θ = vcat(Z, log.([1.0, 10.0, 1e-3]))
+        k = exp(θ[1]) * transform(SqExponentialKernel(), exp(θ[2]))
+        K = kernelmatrix(k, x) + 1e-5I
+        f = rand(MvNormal(K))
+        likelihood(f, θ) = Normal(f, sqrt(exp(θ[3])))
+        y = rand.(likelihood.(f, Ref(θ)))
+    else
+        # Load some data appropriately
+        # Banana dataset for starters ?
+    end
+    ratio = N_train / B
 
-## Create some toy data
-N = 200
-B = 30
-M = 20
-x = range(0, 1, length = N)
-Z = range(0, 1, length = M)
-θ = log.([1.0, 10.0, 1e-3])
-k = exp(θ[1]) * transform(SqExponentialKernel(), exp(θ[2]))
-K = kernelmatrix(k, x) + 1e-5I
-f = rand(MvNormal(K))
-likelihood(f, θ) = Normal(f, sqrt(exp(θ[3])))
-y = rand.(likelihood.(f, Ref(θ)))
-plot(x, y)
+
+    function svgp_loss(S, P, θ, z)
+        kldivergence = logpdf(d, z)
+        log_lik = ratio * logpdf(Product(Normal.(y[S], exp(θ[3]) .+ Kf[S] - diag(P[S, :] * Kfu[S,:]'))), P[S, :] * z)
+    end
 
 ## Create the model
 function meta_logπ(θ)
+    Z = θ
     k = exp(θ[1]) * transform(SqExponentialKernel(), exp(θ[2]))
     Ku = kernelmatrix(k, Z) + 1e-5I
     Kf = kerneldiagmatrix(k, x) .+ 1e-5
@@ -26,8 +39,8 @@ function meta_logπ(θ)
     P = Kfu / Ku
     d = TuringDenseMvNormal(zeros(length(Z)), Ku)
     return function(z)
-        S = sample(1:length(x), B, replace=false)
-        length(x) / B * sum(logpdf.(Normal.(y[S], exp(θ[3]) .+ Kf[S] - diag(P[S, :] * Kfu[S,:]')), P[S, :] * z)) + logpdf(d, z)
+        S = sample(1:length(x), B, replace=false) # Sample a minibatch
+        return svgp_loss(S, P, θ, z)
     end
 end
 k = exp(θ[1]) * transform(SqExponentialKernel(), exp(θ[2]))

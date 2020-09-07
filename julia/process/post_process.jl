@@ -1,5 +1,9 @@
 using DrWatson; @quickactivate
 using PDMats, DataFrames, BSON, ValueHistories
+using Plots; pyplot()
+default(lw=3.0, legendfontsize = 15.0, labelfontsize = 15.0, tickfontsize = 13.0)
+using ColorSchemes
+colors = ColorSchemes.seaborn_colorblind
 
 
 ## Extract timing
@@ -12,10 +16,7 @@ function extract_time(h)
 end
 
 
-using Plots; pyplot()
-default(lw=3.0, legendfontsize = 15.0, labelfontsize = 15.0, tickfontsize = 13.0)
-using ColorSchemes
-colors = ColorSchemes.seaborn_colorblind
+
 
         err_μ_g = norm.(Ref(μ) .- get(g_h, :mu)[2])
         p_μ = plot(t_g, err_μ_g, label = "Gauss", title = "D = $D", xlabel = "t [s]", ylabel = "|μ - μ'|'", color = colors[1], xaxis = :log)#, yaxis = :log)

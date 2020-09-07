@@ -1,11 +1,15 @@
 include("train_model.jl")
 function run_gaussian_target(exp_p)
     n_iters = exp_p[:n_iters]
+    n_runs = exp_p[:n_runs]
     AVI.setadbackend(:reversediff)
     # AVI.setadbackend(:forwarddiff)
     ## Create target distribution
     dim = exp_p[:dim]
     n_particles = exp_p[:n_particles]
+    Random.seed!(exp_p[:seed])
+    cond1 = exp_p[:cond1]
+    cond2 = exp_p[:cond2]
     μ = sort(randn(dim))
     full_cov = exp_p[:full_cov]
     Σ = if full_cov
@@ -19,48 +23,57 @@ function run_gaussian_target(exp_p)
     function logπ_gauss(θ)
         return logpdf(d_target, θ)
     end
+    gpf = []
+    advi = []
+    steinvi = []
 
-    ## Create dictionnaries of parameters
-    opt = ADAGrad(1.0)
+    for i in 1:n_runs
+        ## Create dictionnaries of parameters
+        @info "Run $i/$(n_runs)"
+        opt = ADAGrad(1.0)
 
-    general_p =
-        Dict(:hyper_params => nothing, :hp_optimizer => ADAGrad(0.1), :n_dim => dim)
-    gflow_p = Dict(
-        :run => exp_p[:gpf],
-        :n_particles => n_particles,
-        :max_iters => n_iters,
-        :cond1 => exp_p[:cond1],
-        :cond2 => exp_p[:cond2],
-        :opt => deepcopy(opt),
-        :callback => wrap_cb,
-        :init => nothing,
-    )
-    advi_p = Dict(
-        :run => exp_p[:advi],
-        :n_samples => n_particles,
-        :max_iters => n_iters,
-        :opt => deepcopy(opt),
-        :callback => wrap_cb,
-        :init => nothing,
-    )
-    stein_p = Dict(
-        :run => exp_p[:steinvi],
-        :n_particles => n_particles,
-        :max_iters => n_iters,
-        :kernel => transform(SqExponentialKernel(), 1.0),
-        :opt => deepcopy(opt),
-        :callback => wrap_cb,
-        :init => nothing,
-    )
+        general_p =
+            Dict(:hyper_params => nothing, :hp_optimizer => ADAGrad(0.1), :n_dim => dim)
+        gflow_p = Dict(
+            :run => exp_p[:gpf],
+            :n_particles => n_particles,
+            :max_iters => n_iters,
+            :cond1 => exp_p[:cond1],
+            :cond2 => exp_p[:cond2],
+            :opt => deepcopy(opt),
+            :callback => wrap_cb,
+            :init => nothing,
+        )
+        advi_p = Dict(
+            :run => exp_p[:advi],
+            :n_samples => n_particles,
+            :max_iters => n_iters,
+            :opt => deepcopy(opt),
+            :callback => wrap_cb,
+            :init => nothing,
+        )
+        stein_p = Dict(
+            :run => exp_p[:steinvi],
+            :n_particles => n_particles,
+            :max_iters => n_iters,
+            :kernel => transform(SqExponentialKernel(), 1.0),
+            :opt => deepcopy(opt),
+            :callback => wrap_cb,
+            :init => nothing,
+        )
 
-    # Train all models
-    gpf, advi, steinvi =
-        train_model(logπ_gauss, general_p, gflow_p, advi_p, stein_p)
+        # Train all models
+        _gpf, _advi, _steinvi =
+            train_model(logπ_gauss, general_p, gflow_p, advi_p, stein_p)
+        push!(gpf, _gpf)
+        push!(advi, _advi)
+        push!(steinvi, _steinvi)
+    end
 
-    file_prefix = @savename dim n_particles full_cov n_iters
+    file_prefix = @savename dim n_particles full_cov n_iters n_runs
 
     tagsave(datadir("results", "gaussian", file_prefix * ".bson"),
-            @dict dim n_particles full_cov n_iters cond1 cond2 gpf advi steinvi exp_p d_target;
+            @dict dim n_particles full_cov n_iters n_runs cond1 cond2 gpf advi steinvi exp_p d_target;
             safe=false, storepatch = false)
 end
 

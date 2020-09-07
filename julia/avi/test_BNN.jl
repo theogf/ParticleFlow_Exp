@@ -1,6 +1,4 @@
 # Based on https://turing.ml/dev/tutorials/3-bayesnn/
-
-
 using Turing, Flux, Plots, Random;
 using AdvancedVI, Bijectors
 const AVI = AdvancedVI
