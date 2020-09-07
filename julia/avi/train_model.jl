@@ -7,10 +7,7 @@ using ValueHistories
 using Parameters
 using LinearAlgebra
 using ReverseDiff
-using Plots; pyplot()
-default(lw=3.0, legendfontsize = 15.0, labelfontsize = 15.0, tickfontsize = 13.0)
-using ColorSchemes
-colors = ColorSchemes.seaborn_colorblind
+
 
 AVI.setadbackend(:forwarddiff)
 
