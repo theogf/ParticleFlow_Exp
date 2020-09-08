@@ -4,7 +4,7 @@ using DrWatson
 #include(srcdir("makie_plotting.jl"))
 
 using Flux
-using Makie
+#using Makie
 using Distributions, LinearAlgebra
 import Base.@kwdef
 
@@ -139,16 +139,16 @@ D = Data(X, y)
 
 n_points = 20
 θ_t = rand(bnn_arch.prior, n_points)
-scene, θ_t_node = set_plotting_scene_bnn(bnn_arch, X, y, θ, θ_t)
+#scene, θ_t_node = set_plotting_scene_bnn(bnn_arch, X, y, θ, θ_t)
 
 
 ##
 using Turing
 using Distributions, DistributionsAD
 using AdvancedVI; const AVI = AdvancedVI
-using Makie, Colors
+#using Makie, Colors
 #using StatsMakie
-using AbstractPlotting.MakieLayout
+#using AbstractPlotting.MakieLayout
 using KernelFunctions, Flux, KernelDensity
 
 max_iters = 2
@@ -166,22 +166,22 @@ optgauss = ADAGrad(α)
 # α = 0.001
 # optgauss = ADAM(α)
 
-t = Node(0)
+# t = Node(0)
 
-# should probably just be an event somehow
-# updates θ_t_node, everytime t changes
-lift(t) do _
-    if gaussq.Σ[1,1] > 0
-        gaussqn = Normal(gaussq.μ[1], sqrt(gaussq.Σ[1,1]))
-        pdfgauss = pdf.(Ref(gaussqn), xrange)
-        push!(θ_t_node, gaussq.x)
-    else
-        @info "Zero sigma"
-        @info gaussq
-    end
-end
+# # should probably just be an event somehow
+# # updates θ_t_node, everytime t changes
+# lift(t) do _
+#     if gaussq.Σ[1,1] > 0
+#         gaussqn = Normal(gaussq.μ[1], sqrt(gaussq.Σ[1,1]))
+#         pdfgauss = pdf.(Ref(gaussqn), xrange)
+#         push!(θ_t_node, gaussq.x)
+#     else
+#         @info "Zero sigma"
+#         @info gaussq
+#     end
+# end
 
-record(scene, joinpath(plotsdir(),"gifs","bnn_toy.gif"),framerate=25) do io
+#record(scene, joinpath(plotsdir(),"gifs","bnn_toy.gif"),framerate=25) do io
     for i in 1:20
         #global adq = AVI.vi(logπ_base, advi, adq, θ_init, optimizer = optad)
         # the following doesn't seem to compile
@@ -191,6 +191,9 @@ record(scene, joinpath(plotsdir(),"gifs","bnn_toy.gif"),framerate=25) do io
         if i % 5 == 0
             t[] = i
         end
-        recordframe!(io)
+        #recordframe!(io)
     end
-end
+#end
+
+println("Run successfully")
+
