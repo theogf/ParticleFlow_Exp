@@ -16,6 +16,7 @@ exp_p = Dict(
     :cond1 => false,
     :cond2 => false,
     :seed => 42,
+    :cb_val => nothing,
 )
 
 run_gaussian_target(exp_p)
