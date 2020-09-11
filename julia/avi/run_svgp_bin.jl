@@ -5,13 +5,13 @@ using BSON
 include(projectdir("avi", "classification_svgp.jl"))
 
 exp_p = Dict(
-    :n_iters => 10,
+    :n_iters => 500,
     :n_runs => 10,
     :n_particles => 11,
     :data => "toydata",
     :n_batch => 30,
     :n_ind_points => 20,
-    :t_gate => 0,
+    :t_gate => 50,
     :full_cov => false,
     :gpf => true,
     :cond1 => false,

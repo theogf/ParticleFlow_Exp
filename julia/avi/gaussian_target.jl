@@ -45,6 +45,7 @@ function run_gaussian_target(exp_p)
             :opt => deepcopy(opt),
             :callback => wrap_cb,
             :init => nothing,
+            :cb_val => exp_p[:cb_val],
         )
         advi_p = Dict(
             :run => exp_p[:advi],
@@ -53,15 +54,17 @@ function run_gaussian_target(exp_p)
             :opt => deepcopy(opt),
             :callback => wrap_cb,
             :init => nothing,
+            :cb_val => exp_p[:cb_val],
         )
         stein_p = Dict(
             :run => exp_p[:steinvi],
             :n_particles => n_particles,
             :max_iters => n_iters,
-            :kernel => transform(SqExponentialKernel(), 1.0),
+            :kernel => KernelFunctions.transform(SqExponentialKernel(), 1.0),
             :opt => deepcopy(opt),
             :callback => wrap_cb,
             :init => nothing,
+            :cb_val => exp_p[:cb_val],
         )
 
         # Train all models

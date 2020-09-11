@@ -11,11 +11,12 @@ exp_p = Dict(
     :n_particles => 11,
     :full_cov => false,
     :gpf => true,
-    :advi => true,
+    :advi => false,
     :steinvi => true,
     :cond1 => false,
     :cond2 => false,
     :seed => 42,
+    :cb_val => nothing,
 )
 
 run_gaussian_target(exp_p)

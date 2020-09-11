@@ -15,14 +15,14 @@ Random.seed!(1234)
 
 # Generate artificial data.
 x1s = rand(M) * 4.5; x2s = rand(M) * 4.5;
-xt1s = Array([[x1s[i] + 0.5; x2s[i] + 0.5] for i = 1:M])
+xt1s = Array([[x1s[i] - 0.5; x2s[i] - 0.5] for i = 1:M])
 x1s = rand(M) * 4.5; x2s = rand(M) * 4.5;
-append!(xt1s, Array([[x1s[i] - 5; x2s[i] - 5] for i = 1:M]))
+append!(xt1s, Array([[x1s[i] - 4; x2s[i] - 4] for i = 1:M]))
 
 x1s = rand(M) * 4.5; x2s = rand(M) * 4.5;
-xt0s = Array([[x1s[i] + 0.5; x2s[i] - 5] for i = 1:M])
+xt0s = Array([[x1s[i] - 0.5; x2s[i] - 4] for i = 1:M])
 x1s = rand(M) * 4.5; x2s = rand(M) * 4.5;
-append!(xt0s, Array([[x1s[i] - 5; x2s[i] + 0.5] for i = 1:M]))
+append!(xt0s, Array([[x1s[i] - 4; x2s[i] - 0.5] for i = 1:M]))
 
 # Store all the data for later.
 xs = [xt1s; xt0s]
@@ -157,3 +157,8 @@ Plots.scatter!(eachrow(hcat(xs...))..., zcolor = ts,lab="", )
 
 Plots.plot(h[:acc], title = "Accuracy", lab="")
 savefig(joinpath(@__DIR__, "..", "plots", "bnn", "accuracy.png"))
+
+## Marginals for each parameter
+
+plot(histogram.(eachrow(q.x), bins = 20, label="",normalize = true)...)
+savefig(joinpath(@__DIR__, "..", "plots", "bnn", "hist_weights.png"))

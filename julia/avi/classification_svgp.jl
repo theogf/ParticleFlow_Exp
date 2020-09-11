@@ -18,6 +18,8 @@ function Flux.Optimise.apply!(o::TimeGate, x, Δ)
   end
 end
 
+loglogistic(f::T, y) where T = -log(one(T) + exp(-y * f))
+
 function run_svgp_bin(exp_p)
     n_iters = exp_p[:n_iters]
     n_runs = exp_p[:n_runs]
@@ -39,11 +41,12 @@ function run_svgp_bin(exp_p)
         x = range(0, 1, length = N)
         Z = range(0, 1, length = M)
         θ = vcat(Z, log.([1.0, 10.0]))
-        k = exp(θ[1]) * KernelFunctions.transform(SqExponentialKernel(), exp(θ[2]))
+        k = exp(θ[M+1]) * KernelFunctions.transform(SqExponentialKernel(), exp(θ[M+2]))
         K = kernelmatrix(k, x) + 1e-5I
         f = rand(MvNormal(K))
         likelihood(f) = Bernoulli(logistic(f))
         y = rand(Product(likelihood.(f)))
+        y = (f .+ rand(N) * 0.01) .> 0 #rand(Product(likelihood.(f)))
         x, y, θ
     else
         # Load some data appropriately
@@ -52,10 +55,11 @@ function run_svgp_bin(exp_p)
     n_train = length(y)
     ratio = n_train / B
 
-
-    function svgp_loss(d, S, P, θ, z)
+    function svgp_loss(d, S, P, z)
         kldivergence = logpdf(d, z)
-        log_lik = ratio * loglikelihood(Product(Bernoulli.(logistic.(P[S, :] * z))), y[S])
+        f = P[S, :] * z
+        return ratio * mapreduce(loglogistic, +, f, y)
+        # loglikelihood(Product(Bernoulli.(ρ)), y[S])
     end
 
     ## Create the model
@@ -69,7 +73,7 @@ function run_svgp_bin(exp_p)
         d = TuringDenseMvNormal(zeros(length(Z)), Ku)
         return function(z)
             S = sample(1:n_train, B, replace=false) # Sample a minibatch
-            return svgp_loss(d, S, P, θ, z)
+            return svgp_loss(d, S, P, z)
         end
     end
     k = exp(θ[M+1]) * KernelFunctions.transform(SqExponentialKernel(), exp(θ[M+2]))
@@ -81,9 +85,25 @@ function run_svgp_bin(exp_p)
     logπ_reduce(rand(M))
     # AVI.setadbackend(:reversediff)
     ## Start experiment
-    hp_init = θ .- 1
-    hp_init = nothing
+    hp_init = vcat(θ[1:M], θ[M+1:end] .- 1)
+    # hp_init = nothing
     vals = []
+
+
+    function cb_val_gp(h, i, q, θ)
+        Z = θ[1:M]
+        k = exp(θ[M+1]) * KernelFunctions.transform(SqExponentialKernel(), exp(θ[M+2]))
+        Ku = kernelmatrix(k, Z) + 1e-5I
+        Kf = kerneldiagmatrix(k, x) .+ 1e-5
+        Kfu = kernelmatrix(k, x, Z)
+        P = Kfu / Ku
+        f = P * mean(q.dist)
+        nll = -sum(log, logistic.(y .* f)) / n_train
+        err = count(x->x<0, y .* f) / n_train
+        push!(h, :nll, i, nll)
+        push!(h, :err, i, err)
+    end
+
 
     for i in 1:n_runs
         @info "Run $i/$(n_runs)"
@@ -99,6 +119,7 @@ function run_svgp_bin(exp_p)
             :cond2 => cond2,
             :opt => deepcopy(opt),
             :callback => wrap_cb,
+            :cb_val => cb_val_gp,
             :init => nothing,
         )
         advi_p = Dict(
@@ -107,6 +128,7 @@ function run_svgp_bin(exp_p)
             :max_iters => n_iters,
             :opt => deepcopy(opt),
             :callback => wrap_cb,
+            :cb_val => cb_val_gp,
             :init => nothing,
         )
         stein_p = Dict(
@@ -116,6 +138,7 @@ function run_svgp_bin(exp_p)
             :kernel => KernelFunctions.transform(SqExponentialKernel(), 1.0),
             :opt => deepcopy(opt),
             :callback => wrap_cb,
+            :cb_val => cb_val_gp,
             :init => nothing,
         )
 

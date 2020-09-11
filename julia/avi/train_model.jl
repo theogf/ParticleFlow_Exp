@@ -16,14 +16,14 @@ AVI.setadbackend(:reversediff)
 
 # Return a callback function using the correct history
 # The cb_hp function needs to be defined, is set up for GPs by defaults
-function wrap_cb(h::MVHistory, cb_hp = cb_hp_gp)
+function wrap_cb(h::MVHistory; cb_hp = cb_hp_gp, cb_val = nothing)
     return function(i, q, hp)
         cb_tic(h, i)
         if !isnothing(hp)
             cb_hp(h, i, hp)
         end
         cb_var(h, i, q)
-        cb_val(h, i, q)
+        isnothing(cb_val) ? nothing : cb_val(h, i, q, hp)
         cb_toc(h, i)
     end
 end
@@ -33,9 +33,9 @@ cb_toc(h, i::Int) = push!(h, :t_toc, Float64(time_ns()) / 1e9)
 
 # Callback function on hyperparameters
 function cb_hp_gp(h, i::Int, hp)
-    push!(h, :σ_kernel, i, hp[1])
-    push!(h, :l_kernel, i, hp[2])
-    push!(h, :σ_gaussian, i, hp[3])
+    push!(h, :Z, i, hp[1:end-2])
+    push!(h, :σ_kernel, i, hp[end-1])
+    push!(h, :l_kernel, i, hp[end])
 end
 
 # Wrapper for transformed distributions
@@ -81,7 +81,7 @@ function train_model(logπ, general_p, gflow_p, advi_p, stein_p)
             optimizer = gflow_p[:opt],
             hyperparams = deepcopy(general_p[:hyper_params]),
             hp_optimizer = deepcopy(general_p[:hp_optimizer]),
-            callback = gflow_p[:callback](gflow_h)
+            callback = gflow_p[:callback](gflow_h; cb_val=gflow_p[:cb_val])
         )
     end
     if !isnothing(advi_vi)
@@ -95,7 +95,7 @@ function train_model(logπ, general_p, gflow_p, advi_p, stein_p)
             optimizer = advi_p[:opt],
             hyperparams = deepcopy(general_p[:hyper_params]),
             hp_optimizer = deepcopy(general_p[:hp_optimizer]),
-            callback =  advi_p[:callback](advi_h)
+            callback =  advi_p[:callback](advi_h; cb_val=gflow_p[:cb_val])
         )
     end
     if !isnothing(stein_vi)
@@ -108,7 +108,7 @@ function train_model(logπ, general_p, gflow_p, advi_p, stein_p)
             optimizer = stein_p[:opt],
             hyperparams = deepcopy(general_p[:hyper_params]),
             hp_optimizer = deepcopy(general_p[:hp_optimizer]),
-            callback = stein_p[:callback](stein_h)
+            callback = stein_p[:callback](stein_h; cb_val=gflow_p[:cb_val])
         )
     end
     return gflow_h, advi_h, stein_h
