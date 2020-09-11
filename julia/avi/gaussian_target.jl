@@ -13,7 +13,9 @@ function run_gaussian_target(exp_p)
     μ = sort(randn(dim))
     full_cov = exp_p[:full_cov]
     Σ = if full_cov
-        rand(dim, dim) |> x -> x * x' / dim
+        Q, _ = qr(rand(dim, dim)) # Create random unitary matrix
+        Λ = Diagonal(10.0.^(3 * ((1:dim) .- 1) ./ dim ))
+        Q * Λ * Q'
     else
         I(dim)
     end
