@@ -3,6 +3,7 @@ function run_gaussian_target(exp_p)
     n_iters = exp_p[:n_iters]
     n_runs = exp_p[:n_runs]
     AVI.setadbackend(:reversediff)
+    # AVI.setadbackend(:zygote)
     # AVI.setadbackend(:forwarddiff)
     ## Create target distribution
     dim = exp_p[:dim]
@@ -19,8 +20,8 @@ function run_gaussian_target(exp_p)
     else
         I(dim)
     end
-    d_target = MvNormal(μ, Σ)
-
+    # Flux.@functor TuringDenseMvNormal
+    d_target = TuringDenseMvNormal(μ, Σ)
     ## Create the model
     function logπ_gauss(θ)
         return logpdf(d_target, θ)
@@ -35,7 +36,7 @@ function run_gaussian_target(exp_p)
 
         ## Create dictionnaries of parameters
         general_p =
-            Dict(:hyper_params => nothing, :hp_optimizer => ADAGrad(0.1), :n_dim => dim)
+            Dict(:hyper_params => nothing, :hp_optimizer => ADAGrad(0.1), :n_dim => dim, :gpu => false)
         gflow_p = Dict(
             :run => exp_p[:gpf],
             :n_particles => n_particles,

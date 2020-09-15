@@ -9,17 +9,17 @@ using LinearAlgebra
 using ReverseDiff
 using Random
 
-
+Flux.@functor TransformedDistribution
 # AVI.setadbackend(:forwarddiff)
 AVI.setadbackend(:reversediff)
 
 
 # Return a callback function using the correct history
 # The cb_hp function needs to be defined, is set up for GPs by defaults
-function wrap_cb(h::MVHistory; cb_hp = cb_hp_gp, cb_val = nothing)
+function wrap_cb(h::MVHistory; cb_hp = nothing, cb_val = nothing)
     return function(i, q, hp)
         cb_tic(h, i)
-        if !isnothing(hp)
+        if !isnothing(hp) && !isnothing(cb_hp)
             cb_hp(h, i, hp)
         end
         cb_var(h, i, q)
@@ -59,12 +59,12 @@ end
 
 # Main function, take dicts of parameters
 # run the inference and return MVHistory objects for each alg.
-function train_model(logπ, general_p, gflow_p, advi_p, stein_p)
+function train_model(logπ, general_p, gflow_p, advi_p, stein_p;)
     ## Initialize algorithms
     gflow_vi, gflow_q = init_gflow(gflow_p, general_p)
     advi_vi, advi_q, advi_init = init_advi(advi_p, general_p)
     stein_vi, stein_q = init_stein(stein_p, general_p)
-
+    device = general_p[:gpu] ? gpu : cpu
     ## Set up storage arrays
     gflow_h = MVHistory()
     advi_h = MVHistory()
@@ -73,12 +73,12 @@ function train_model(logπ, general_p, gflow_p, advi_p, stein_p)
     ## Run algorithms
     if !isnothing(gflow_vi)
         @info "Running Gaussian Flow Particles"
-        push!(gflow_h, :t_start, Float64(time_ns())/1e9)
+        push!(gflow_h, :t_start, Float64(time_ns()) / 1e9)
         AVI.vi(
             logπ,
             gflow_vi,
-            gflow_q,
-            optimizer = gflow_p[:opt],
+            gflow_q |> device,
+            optimizer = gflow_p[:opt] |> device,
             hyperparams = deepcopy(general_p[:hyper_params]),
             hp_optimizer = deepcopy(general_p[:hp_optimizer]),
             callback = gflow_p[:callback](gflow_h; cb_val=gflow_p[:cb_val])
@@ -87,12 +87,13 @@ function train_model(logπ, general_p, gflow_p, advi_p, stein_p)
     if !isnothing(advi_vi)
         @info "Running ADVI"
         push!(advi_h, :t_start, Float64(time_ns())/1e9)
+        @show typeof(advi_q |> device)
         AVI.vi(
             logπ,
             advi_vi,
-            advi_q,
-            advi_init,
-            optimizer = advi_p[:opt],
+            advi_q |> device,
+            advi_init |> device,
+            optimizer = advi_p[:opt] |> device,
             hyperparams = deepcopy(general_p[:hyper_params]),
             hp_optimizer = deepcopy(general_p[:hp_optimizer]),
             callback =  advi_p[:callback](advi_h; cb_val=gflow_p[:cb_val])
@@ -125,18 +126,13 @@ function save_histories(gflow_h, advi_h, stein_h, general_p)
     end
 end
 
-# Save history in a file
-function save_results(h, name, general_p)
-
-end
-
 # Initialize distribution and algorithm for Gaussian Particles model
 function init_gflow(gflow_p, general_p)
     n_dim = general_p[:n_dim]
     gflow_vi = if gflow_p[:run]
         AVI.PFlowVI(gflow_p[:max_iters], gflow_p[:cond1], gflow_p[:cond2])
     else
-        nothing
+        return nothing, nothing
     end
     isnothing(gflow_p[:init]) ||
         size(gflow_p[:init]) == (n_dim, gflow_p[:n_particles]) # Check that the size of the inital particles respect the model
@@ -172,7 +168,7 @@ function init_stein(stein_p, general_p)
     stein_vi = if stein_p[:run]
         AVI.SteinVI(stein_p[:max_iters], stein_p[:kernel])
     else
-        nothing
+        return nothing, nothing
     end
     isnothing(stein_p[:init]) ||
         size(stein_p[:init]) == (n_dim, stein_p[:n_particles]) # Check that the size of the inital particles respect the model
