@@ -4,9 +4,9 @@ include(projectdir("analysis", "post_process.jl"))
 
 
 ## Load data and filter it
-res = collect_results(datadir("results", "gaussian"))
+all_res = collect_results(datadir("results", "gaussian"))
 
-res = @linq res |> where(:dim .== 10) |> where(:n_iters .== 1000) |> where(:n_particles .== 11) |> where(:n_runs .== 10)
+res = @linq all_res |> where(:dim .== 10) |> where(:n_iters .== 1000) |> where(:n_particles .== 11) |> where(:n_runs .== 10)
 
 @assert nrow(res) == 1 "Number of rows is not unique or is empty"
 
