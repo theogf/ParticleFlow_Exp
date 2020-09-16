@@ -45,14 +45,14 @@ cb_var(h, i::Int, q::TransformedDistribution) = cb_var(h, i, q.dist)
 
 # Store mean and covariance
 function cb_var(h, i::Int, q::Union{AVI.AbstractSamplesMvNormal, AVI.SteinDistribution})
-    # push!(h, :mu, i, Vector(mean(q)))
-    # push!(h, :sig, i, Vector(cov(q)[:]))
+    push!(h, :mu, i, Vector(mean(q)))
+    push!(h, :sig, i, Vector(cov(q)[:]))
 end
 
 function cb_var(h, i::Int, q::AVI.MFSamplesMvNormal)
-    # push!(h, :mu, i, Vector(mean(q)))
-    # push!(h, :sig, i, Vector(vcat(vec.(blocks(cov(q)))...)))
-    # push!(h, :indices, i, Vector(q.id))
+    push!(h, :mu, i, Vector(mean(q)))
+    push!(h, :sig, i, Vector(vcat(vec.(blocks(cov(q)))...)))
+    push!(h, :indices, i, Vector(q.id))
 end
 
 function cb_var(h, i::Int, q::TuringDenseMvNormal)
@@ -80,44 +80,62 @@ function train_model(logπ, general_p, gflow_p, advi_p, stein_p;)
 
     ## Run algorithms
     if !isnothing(gflow_vi)
-        @info "Running Gaussian Flow Particles"
-        push!(gflow_h, :t_start, Float64(time_ns()) / 1e9)
-        AVI.vi(
-            logπ,
-            gflow_vi,
-            gflow_q |> device,
-            optimizer = gflow_p[:opt] |> device,
-            hyperparams = deepcopy(general_p[:hyper_params]),
-            hp_optimizer = deepcopy(general_p[:hp_optimizer]),
-            callback = gflow_p[:callback](gflow_h)
-        )
+        try
+            @info "Running Gaussian Flow Particles"
+            push!(gflow_h, :t_start, Float64(time_ns()) / 1e9)
+            AVI.vi(
+                logπ,
+                gflow_vi,
+                gflow_q |> device,
+                optimizer = gflow_p[:opt] |> device,
+                hyperparams = deepcopy(general_p[:hyper_params]),
+                hp_optimizer = deepcopy(general_p[:hp_optimizer]),
+                callback = gflow_p[:callback](gflow_h)
+            )
+        catch err
+            if err isa InterruptException
+                rethrow(err)
+            end
+        end
     end
     if !isnothing(advi_vi)
-        @info "Running ADVI"
-        push!(advi_h, :t_start, Float64(time_ns())/1e9)
-        AVI.vi(
-            logπ,
-            advi_vi,
-            advi_q |> device,
-            advi_init |> device,
-            optimizer = advi_p[:opt] |> device,
-            hyperparams = deepcopy(general_p[:hyper_params]),
-            hp_optimizer = deepcopy(general_p[:hp_optimizer]),
-            callback =  advi_p[:callback](advi_h)
-        )
+        try
+            @info "Running ADVI"
+            push!(advi_h, :t_start, Float64(time_ns())/1e9)
+            AVI.vi(
+                logπ,
+                advi_vi,
+                advi_q |> device,
+                advi_init |> device,
+                optimizer = advi_p[:opt] |> device,
+                hyperparams = deepcopy(general_p[:hyper_params]),
+                hp_optimizer = deepcopy(general_p[:hp_optimizer]),
+                callback =  advi_p[:callback](advi_h)
+            )
+        catch err
+            if err isa InterruptException
+                rethrow(err)
+            end
+        end
     end
     if !isnothing(stein_vi)
-        @info "Running Stein VI"
-        push!(stein_h, :t_start, Float64(time_ns())/1e9)
-        AVI.vi(
-            logπ,
-            stein_vi,
-            stein_q,
-            optimizer = stein_p[:opt],
-            hyperparams = deepcopy(general_p[:hyper_params]),
-            hp_optimizer = deepcopy(general_p[:hp_optimizer]),
-            callback = stein_p[:callback](stein_h)
-        )
+        try
+            @info "Running Stein VI"
+            push!(stein_h, :t_start, Float64(time_ns())/1e9)
+            AVI.vi(
+                logπ,
+                stein_vi,
+                stein_q,
+                optimizer = stein_p[:opt],
+                hyperparams = deepcopy(general_p[:hyper_params]),
+                hp_optimizer = deepcopy(general_p[:hp_optimizer]),
+                callback = stein_p[:callback](stein_h)
+            )
+        catch err
+            if err isa InterruptException
+                rethrow(err)
+            end
+        end
     end
     return gflow_h, advi_h, stein_h
 end

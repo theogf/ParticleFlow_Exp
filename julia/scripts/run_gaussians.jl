@@ -7,9 +7,9 @@ include(srcdir("gaussian", "gaussian_target.jl"))
 
 exp_p = Dict(
     :n_iters => 1000,
-    :n_runs => 2,
+    :n_runs => 10,
     :dim => 10,
-    :n_particles => 51,
+    :n_particles => 11,
     :full_cov => false,
     :gpf => true,
     :advi => true,

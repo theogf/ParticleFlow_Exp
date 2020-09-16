@@ -36,6 +36,10 @@ function run_gaussian_target(exp_p)
     for i in 1:n_runs
         @info "Run $i/$(n_runs)"
         opt = exp_p[:opt]
+        μ_init = randn(dim)
+        Σ_init = Diagonal(exp.(randn(dim)))
+        p_init = MvNormal(μ_init, Σ_init)
+        x_init = rand(p_init, n_particles)
 
         ## Create dictionnaries of parameters
         general_p =
@@ -49,7 +53,7 @@ function run_gaussian_target(exp_p)
             :opt => deepcopy(opt),
             :callback => wrap_cb(),
             :mf => false,
-            :init => nothing,
+            :init => x_init,
         )
         advi_p = Dict(
             :run => exp_p[:advi],
@@ -57,7 +61,7 @@ function run_gaussian_target(exp_p)
             :max_iters => n_iters,
             :opt => deepcopy(opt),
             :callback => wrap_cb(),
-            :init => nothing,
+            :init => (μ_init, sqrt.(Σ_init)),
         )
         stein_p = Dict(
             :run => exp_p[:steinvi],
@@ -66,7 +70,7 @@ function run_gaussian_target(exp_p)
             :kernel => KernelFunctions.transform(SqExponentialKernel(), 1.0),
             :opt => deepcopy(opt),
             :callback => wrap_cb(),
-            :init => nothing,
+            :init => x_init,
         )
 
         # Train all models
