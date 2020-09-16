@@ -1,5 +1,6 @@
 using AdvancedVI; const AVI = AdvancedVI;
 using Turing
+using BlockDiagonals
 using Flux
 using Distributions, DistributionsAD
 using Bijectors: TransformedDistribution
@@ -10,21 +11,22 @@ using ReverseDiff
 using Random
 
 Flux.@functor TransformedDistribution
-# AVI.setadbackend(:forwarddiff)
-AVI.setadbackend(:reversediff)
-
 
 # Return a callback function using the correct history
 # The cb_hp function needs to be defined, is set up for GPs by defaults
-function wrap_cb(h::MVHistory; cb_hp = nothing, cb_val = nothing)
-    return function(i, q, hp)
-        cb_tic(h, i)
-        if !isnothing(hp) && !isnothing(cb_hp)
-            cb_hp(h, i, hp)
+function wrap_cb(; cb_hp = nothing, cb_val = nothing)
+    return function base_cb(h::MVHistory)
+        return function(i, q, hp)
+            if iseverylog10(i)
+                cb_tic(h, i)
+                if !isnothing(hp) && !isnothing(cb_hp)
+                    cb_hp(h, i, hp)
+                end
+                cb_var(h, i, q)
+                isnothing(cb_val) ? nothing : cb_val(h, i, q, hp)
+                cb_toc(h, i)
+            end
         end
-        cb_var(h, i, q)
-        isnothing(cb_val) ? nothing : cb_val(h, i, q, hp)
-        cb_toc(h, i)
     end
 end
 
@@ -42,9 +44,15 @@ end
 cb_var(h, i::Int, q::TransformedDistribution) = cb_var(h, i, q.dist)
 
 # Store mean and covariance
-function cb_var(h, i::Int, q::Union{AVI.SamplesMvNormal, AVI.SteinDistribution})
-    push!(h, :mu, i, copy(mean(q)))
-    push!(h, :sig, i, copy(cov(q)[:]))
+function cb_var(h, i::Int, q::Union{AVI.AbstractSamplesMvNormal, AVI.SteinDistribution})
+    # push!(h, :mu, i, Vector(mean(q)))
+    # push!(h, :sig, i, Vector(cov(q)[:]))
+end
+
+function cb_var(h, i::Int, q::AVI.MFSamplesMvNormal)
+    # push!(h, :mu, i, Vector(mean(q)))
+    # push!(h, :sig, i, Vector(vcat(vec.(blocks(cov(q)))...)))
+    # push!(h, :indices, i, Vector(q.id))
 end
 
 function cb_var(h, i::Int, q::TuringDenseMvNormal)
@@ -81,13 +89,12 @@ function train_model(logπ, general_p, gflow_p, advi_p, stein_p;)
             optimizer = gflow_p[:opt] |> device,
             hyperparams = deepcopy(general_p[:hyper_params]),
             hp_optimizer = deepcopy(general_p[:hp_optimizer]),
-            callback = gflow_p[:callback](gflow_h; cb_val=gflow_p[:cb_val])
+            callback = gflow_p[:callback](gflow_h)
         )
     end
     if !isnothing(advi_vi)
         @info "Running ADVI"
         push!(advi_h, :t_start, Float64(time_ns())/1e9)
-        @show typeof(advi_q |> device)
         AVI.vi(
             logπ,
             advi_vi,
@@ -96,7 +103,7 @@ function train_model(logπ, general_p, gflow_p, advi_p, stein_p;)
             optimizer = advi_p[:opt] |> device,
             hyperparams = deepcopy(general_p[:hyper_params]),
             hp_optimizer = deepcopy(general_p[:hp_optimizer]),
-            callback =  advi_p[:callback](advi_h; cb_val=gflow_p[:cb_val])
+            callback =  advi_p[:callback](advi_h)
         )
     end
     if !isnothing(stein_vi)
@@ -109,7 +116,7 @@ function train_model(logπ, general_p, gflow_p, advi_p, stein_p;)
             optimizer = stein_p[:opt],
             hyperparams = deepcopy(general_p[:hyper_params]),
             hp_optimizer = deepcopy(general_p[:hp_optimizer]),
-            callback = stein_p[:callback](stein_h; cb_val=gflow_p[:cb_val])
+            callback = stein_p[:callback](stein_h)
         )
     end
     return gflow_h, advi_h, stein_h
@@ -136,11 +143,18 @@ function init_gflow(gflow_p, general_p)
     end
     isnothing(gflow_p[:init]) ||
         size(gflow_p[:init]) == (n_dim, gflow_p[:n_particles]) # Check that the size of the inital particles respect the model
-    gflow_q = SamplesMvNormal(
+    gflow_q = if isnothing(gflow_p[:mf]) || !gflow_p[:mf]
+        SamplesMvNormal(
         isnothing(gflow_p[:init]) ?
             rand(MvNormal(ones(n_dim)), gflow_p[:n_particles]) :
             gflow_p[:init],
-    )
+            )
+        else
+         MFSamplesMvNormal(isnothing(gflow_p[:init]) ?
+             rand(MvNormal(ones(n_dim)), gflow_p[:n_particles]) :
+             gflow_p[:init], gflow_p[:mf]
+             )
+         end
 
     return gflow_vi, gflow_q # Return alg. and distr.
 end

@@ -1,4 +1,5 @@
-include("train_model.jl")
+include(srcdir("train_model.jl"))
+include(srcdir("utils", "tools.jl"))
 function run_gaussian_target(exp_p)
     n_iters = exp_p[:n_iters]
     n_runs = exp_p[:n_runs]
@@ -20,19 +21,21 @@ function run_gaussian_target(exp_p)
     else
         I(dim)
     end
+
     # Flux.@functor TuringDenseMvNormal
     d_target = TuringDenseMvNormal(μ, Σ)
     ## Create the model
     function logπ_gauss(θ)
         return logpdf(d_target, θ)
     end
+
     gpf = []
     advi = []
     steinvi = []
 
     for i in 1:n_runs
         @info "Run $i/$(n_runs)"
-        opt = ADAGrad(1.0)
+        opt = exp_p[:opt]
 
         ## Create dictionnaries of parameters
         general_p =
@@ -44,18 +47,17 @@ function run_gaussian_target(exp_p)
             :cond1 => exp_p[:cond1],
             :cond2 => exp_p[:cond2],
             :opt => deepcopy(opt),
-            :callback => wrap_cb,
+            :callback => wrap_cb(),
+            :mf => false,
             :init => nothing,
-            :cb_val => exp_p[:cb_val],
         )
         advi_p = Dict(
             :run => exp_p[:advi],
             :n_samples => n_particles,
             :max_iters => n_iters,
             :opt => deepcopy(opt),
-            :callback => wrap_cb,
+            :callback => wrap_cb(),
             :init => nothing,
-            :cb_val => exp_p[:cb_val],
         )
         stein_p = Dict(
             :run => exp_p[:steinvi],
@@ -63,9 +65,8 @@ function run_gaussian_target(exp_p)
             :max_iters => n_iters,
             :kernel => KernelFunctions.transform(SqExponentialKernel(), 1.0),
             :opt => deepcopy(opt),
-            :callback => wrap_cb,
+            :callback => wrap_cb(),
             :init => nothing,
-            :cb_val => exp_p[:cb_val],
         )
 
         # Train all models
@@ -132,15 +133,3 @@ end
     # # plot(get.([g_h, a_h, s_h], :l_kernel), label = labels)
     # # plot(get.([g_h, a_h, s_h], :σ_kernel), label = labels)
     # # plot(get.([g_h, a_h, s_h], :σ_gaussian), label = labels)
-    #
-    # using DataFrames
-    # function Base.convert(::Type{DataFrame}, h::MVHistory)
-    #     names = collect(keys(h))
-    #     values = map(names) do key
-    #         ValueHistories.values(h[key]).values
-    #     end
-    #     return DataFrame(values, names)
-    # end
-    # convert(DataFrame, a_h)
-    # values(g_h[:mu]).values
-    # collect(keys(a_h))

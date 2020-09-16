@@ -1,8 +1,8 @@
 cd(@__DIR__)
+using AdvancedVI, Bijectors
 using Turing, Flux, Plots, Random;
 include("train_model.jl")
 # using ONNX
-using AdvancedVI, Bijectors
 using BSON
 const AVI = AdvancedVI
 using Parameters: @with_kw
@@ -10,8 +10,8 @@ using MLDatasets
 using ReverseDiff
 using ValueHistories
 using CUDA
-# AVI.setadbackend(:reversediff)
-device = gpu
+device = cpu
+AVI.setadbackend(:reversediff)
 AVI.setadbackend(:zygote)
 model = "squeezenet1.1"
 model = "mobilenetv2-1.0"
@@ -29,12 +29,15 @@ model_dir = joinpath(
 # weights = ONNX.load_weights(joinpath(model_dir, "weights.bson"))
 # model = include(joinpath(model_dir, "model.jl"))
 m = BSON.load(joinpath(model_dir, "model.bson"))[:model]
-convm = m[1:6]
-densem = m[7:end]
+convm = m[1:7]
+densem = m[8:end]
 dense_θ, dense_re = Flux.destructure(densem)
 convm = convm |> device
 n_θ = length(dense_θ)
-
+densem_sizes = broadcast(x-> length(x.W) + length(x.b), densem)
+nn_indices = vcat(0, cumsum(densem_sizes))
+# K = 1000
+# nn_indices = ceil.(Int, collect(range(0, n_θ, length = K)))
 
 function nn_forward(xs, nn_params::AbstractVector)
     densem = dense_re(nn_params)
@@ -108,14 +111,12 @@ using Functors
 @functor TuringDiagMvNormal
 # Put prior on GPU
 prior_θ = TuringDiagMvNormal(zeros(n_θ), sig .* ones(n_θ)) |> device
-# |> device
 function meta_logjoint(dummy)
     s = rand(1:length(train_loader))
     xs, ys = Random.nth(train_loader, s)
     xs = xs |> device
     ys = ys |> device
     return function logjoint(θ)
-        # θ |> device
         logprior = logpdf(prior_θ, θ)
         pred = nn_forward(xs, θ)
         loglike = Flux.logitcrossentropy(pred, ys)
@@ -123,12 +124,14 @@ function meta_logjoint(dummy)
     end
 end
 
-# logjoint(dense_θ |> gpu)
+GC.gc(true)
+CUDA.reclaim()
+
 
 norun = Dict(:run => false)
 general_p = Dict(:hyper_params => [], :hp_optimizer => nothing, :n_dim => n_θ, :gpu => device == gpu)
 n_particles = 2
-n_iters = 1
+n_iters = 2
 cond1 = false
 cond2 = false
 opt = ADAGrad(0.1)
@@ -141,11 +144,24 @@ gflow_p = Dict(
     :cond1 => cond1,
     :cond2 => cond2,
     :opt => deepcopy(opt),
-    :callback => wrap_cb,
+    :callback => wrap_cb(),
     :cb_val => nothing,
     :init => init_particles,
+    :mf => nn_indices,
     :gpu => device == gpu
 )
-g_h, _, _ = train_model(meta_logjoint, general_p, gflow_p, norun, norun)
-last(g_h[:sig])[2]
-last(g_h[:mu])[2]
+
+## running
+
+# g_h, _, _ = train_model(meta_logjoint, general_p, gflow_p, norun, norun)
+
+@profiler train_model(meta_logjoint, general_p, gflow_p, norun, norun)
+# CUDA.@time train_model(meta_logjoint, general_p, gflow_p, norun, norun)
+# last(g_h[:sig])[2]
+# last(g_h[:mu])[2]
+# last(g_h[:indices])[2]
+##
+# CUDA.@profile train_model(meta_logjoint, general_p, gflow_p, norun, norun)
+a = CUDA.ones(2,3)
+b = CUDA.zeros(1)
+@which Base.mapreducedim!(sin, +, b, a)
