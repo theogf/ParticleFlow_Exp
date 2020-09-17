@@ -14,6 +14,7 @@ using Random
 Flux.@functor TransformedDistribution
 include(joinpath("utils", "callback.jl"))
 include(joinpath("utils", "tools.jl"))
+include(joinpath("utils", "bnn.jl"))
 # Main function, take dicts of parameters
 # run the inference and return MVHistory objects for each alg.
 function train_model(logπ, general_p, gflow_p, advi_p, stein_p;)

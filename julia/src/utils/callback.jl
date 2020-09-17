@@ -77,5 +77,6 @@ function cb_heavy_var(h, i::Int, q, path::String)
     @info "Saving model at iteration $i in $path"
     isdir(path) ? nothing : mkdir(path)
     new_path = joinpath(path, string("model_iter_", i, ".bson"))
+    q = cpu(q)
     BSON.@save new_path q
 end
