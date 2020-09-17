@@ -12,15 +12,18 @@ res = @linq all_res |> where(:dim .== 10) |> where(:n_iters .== 1000) |> where(:
 
 truth = first(res.d_target)
 ## Plotting
-algs = [:gpf, :advi, :steinvi]
 
-p = plot(title = "Convergence Mean", xlabel = "Time [s]", ylabel =L"\mu - \mu_{true}", xaxis=:log)
-for alg in algs
+p_μ = plot(title = "Convergence Mean", xlabel = "Time [s]", ylabel =L"\|\mu - \mu_{true}\|", xaxis=:log)
+p_Σ = plot(title = "Convergence Covariance", xlabel = "Time [s]", ylabel =L"\|\Sigma - \Sigma_{true}\|", xaxis=:log)
+for (i, alg) in enumerate(algs)
     @info "Processing $(alg)"
     t_alg = Symbol("t_", alg); t_var_alg = Symbol("t_var_", alg)
     m_alg = Symbol("m_", alg); m_var_alg = Symbol("m_var_", alg)
+    v_alg = Symbol("v_", alg); v_var_alg = Symbol("v_var_", alg)
     @eval $(t_alg), $(t_var_alg) = process_time(first(res.$(alg)))
-    @eval $(m_alg), $(m_var_alg) = process_means(first(res.$(alg)), truth)
-    @eval plot!($(t_alg), $(m_alg), ribbon = sqrt.($(m_var_alg)), label = $(string(alg)))
+    @eval $(m_alg), $(m_var_alg) = process_means(first(res.$(alg)), truth.m)
+    @eval $(v_alg), $(v_var_alg) = process_fullcovs(first(res.$(alg)), vec(truth.C.L * truth.C.U))
+    @eval plot!(p_μ, $(t_alg), $(m_alg), ribbon = sqrt.($(m_var_alg)), label = $(labels[alg]), color = colors[$i])
+    @eval plot!(p_Σ, $(t_alg), $(v_alg), ribbon = sqrt.($(v_var_alg)), label = $(labels[alg]), color = colors[$i])
 end
-display(p)
+display(plot(p_μ, p_Σ))

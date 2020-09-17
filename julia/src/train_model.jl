@@ -1,4 +1,5 @@
-using AdvancedVI; const AVI = AdvancedVI;
+using AdvancedVI;
+const AVI = AdvancedVI;
 using Turing
 using BlockDiagonals
 using Flux
@@ -11,60 +12,8 @@ using ReverseDiff
 using Random
 
 Flux.@functor TransformedDistribution
-
-# Return a callback function using the correct history
-# The cb_hp function needs to be defined, is set up for GPs by defaults
-function wrap_cb(; cb_hp = nothing, cb_val = nothing)
-    return function base_cb(h::MVHistory)
-        return function(i, q, hp)
-            if iseverylog10(i)
-                cb_tic(h, i)
-                if !isnothing(hp) && !isnothing(cb_hp)
-                    cb_hp(h, i, hp)
-                end
-                cb_var(h, i, q)
-                isnothing(cb_val) ? nothing : cb_val(h, i, q, hp)
-                cb_toc(h, i)
-            end
-        end
-    end
-end
-
-cb_tic(h, i::Int) = push!(h, :t_tic, Float64(time_ns()) / 1e9)
-cb_toc(h, i::Int) = push!(h, :t_toc, Float64(time_ns()) / 1e9)
-
-# Callback function on hyperparameters
-function cb_hp_gp(h, i::Int, hp)
-    push!(h, :Z, i, hp[1:end-2])
-    push!(h, :σ_kernel, i, hp[end-1])
-    push!(h, :l_kernel, i, hp[end])
-end
-
-# Wrapper for transformed distributions
-cb_var(h, i::Int, q::TransformedDistribution) = cb_var(h, i, q.dist)
-
-# Store mean and covariance
-function cb_var(h, i::Int, q::Union{AVI.AbstractSamplesMvNormal, AVI.SteinDistribution})
-    push!(h, :mu, i, Vector(mean(q)))
-    push!(h, :sig, i, Vector(cov(q)[:]))
-end
-
-function cb_var(h, i::Int, q::AVI.MFSamplesMvNormal)
-    push!(h, :mu, i, Vector(mean(q)))
-    push!(h, :sig, i, Vector(vcat(vec.(blocks(cov(q)))...)))
-    push!(h, :indices, i, Vector(q.id))
-end
-
-function cb_var(h, i::Int, q::TuringDenseMvNormal)
-    push!(h, :mu, i, q.m)
-    push!(h, :sig, i, Matrix(q.C)[:])
-end
-
-# Store extra values
-function cb_val(h, i, q)
-    return nothing
-end
-
+include(joinpath("utils", "callback.jl"))
+include(joinpath("utils", "tools.jl"))
 # Main function, take dicts of parameters
 # run the inference and return MVHistory objects for each alg.
 function train_model(logπ, general_p, gflow_p, advi_p, stein_p;)
@@ -90,10 +39,10 @@ function train_model(logπ, general_p, gflow_p, advi_p, stein_p;)
                 optimizer = gflow_p[:opt] |> device,
                 hyperparams = deepcopy(general_p[:hyper_params]),
                 hp_optimizer = deepcopy(general_p[:hp_optimizer]),
-                callback = gflow_p[:callback](gflow_h)
+                callback = gflow_p[:callback](gflow_h),
             )
         catch err
-            if err isa InterruptException
+            if err isa InterruptException || get!(general_p, :unsafe, true)
                 rethrow(err)
             end
         end
@@ -101,7 +50,7 @@ function train_model(logπ, general_p, gflow_p, advi_p, stein_p;)
     if !isnothing(advi_vi)
         try
             @info "Running ADVI"
-            push!(advi_h, :t_start, Float64(time_ns())/1e9)
+            push!(advi_h, :t_start, Float64(time_ns()) / 1e9)
             AVI.vi(
                 logπ,
                 advi_vi,
@@ -110,10 +59,10 @@ function train_model(logπ, general_p, gflow_p, advi_p, stein_p;)
                 optimizer = advi_p[:opt] |> device,
                 hyperparams = deepcopy(general_p[:hyper_params]),
                 hp_optimizer = deepcopy(general_p[:hp_optimizer]),
-                callback =  advi_p[:callback](advi_h)
+                callback = advi_p[:callback](advi_h),
             )
         catch err
-            if err isa InterruptException
+            if err isa InterruptException || get!(general_p, :unsafe, true)
                 rethrow(err)
             end
         end
@@ -121,7 +70,7 @@ function train_model(logπ, general_p, gflow_p, advi_p, stein_p;)
     if !isnothing(stein_vi)
         try
             @info "Running Stein VI"
-            push!(stein_h, :t_start, Float64(time_ns())/1e9)
+            push!(stein_h, :t_start, Float64(time_ns()) / 1e9)
             AVI.vi(
                 logπ,
                 stein_vi,
@@ -129,10 +78,10 @@ function train_model(logπ, general_p, gflow_p, advi_p, stein_p;)
                 optimizer = stein_p[:opt],
                 hyperparams = deepcopy(general_p[:hyper_params]),
                 hp_optimizer = deepcopy(general_p[:hp_optimizer]),
-                callback = stein_p[:callback](stein_h)
+                callback = stein_p[:callback](stein_h),
             )
         catch err
-            if err isa InterruptException
+            if err isa InterruptException || get!(general_p, :unsafe, true)
                 rethrow(err)
             end
         end
@@ -159,20 +108,19 @@ function init_gflow(gflow_p, general_p)
     else
         return nothing, nothing
     end
-    isnothing(gflow_p[:init]) ||
-        size(gflow_p[:init]) == (n_dim, gflow_p[:n_particles]) # Check that the size of the inital particles respect the model
-    gflow_q = if isnothing(gflow_p[:mf]) || !gflow_p[:mf]
+    isnothing(gflow_p[:init]) || size(gflow_p[:init]) == (n_dim, gflow_p[:n_particles]) # Check that the size of the inital particles respect the model
+    gflow_q = if gflow_p[:mf] isa AbstractVector
+        MFSamplesMvNormal(
+            isnothing(gflow_p[:init]) ?
+                rand(MvNormal(ones(n_dim)), gflow_p[:n_particles]) : gflow_p[:init],
+            gflow_p[:mf],
+        )
+    else
         SamplesMvNormal(
-        isnothing(gflow_p[:init]) ?
-            rand(MvNormal(ones(n_dim)), gflow_p[:n_particles]) :
-            gflow_p[:init],
-            )
-        else
-         MFSamplesMvNormal(isnothing(gflow_p[:init]) ?
-             rand(MvNormal(ones(n_dim)), gflow_p[:n_particles]) :
-             gflow_p[:init], gflow_p[:mf]
-             )
-         end
+            isnothing(gflow_p[:init]) ?
+                rand(MvNormal(ones(n_dim)), gflow_p[:n_particles]) : gflow_p[:init],
+        )
+    end
 
     return gflow_vi, gflow_q # Return alg. and distr.
 end
@@ -202,12 +150,10 @@ function init_stein(stein_p, general_p)
     else
         return nothing, nothing
     end
-    isnothing(stein_p[:init]) ||
-        size(stein_p[:init]) == (n_dim, stein_p[:n_particles]) # Check that the size of the inital particles respect the model
+    isnothing(stein_p[:init]) || size(stein_p[:init]) == (n_dim, stein_p[:n_particles]) # Check that the size of the inital particles respect the model
     stein_q = AVI.SteinDistribution(
         isnothing(stein_p[:init]) ?
-            rand(MvNormal(ones(n_dim)), stein_p[:n_particles]) :
-            stein_p[:init],
+            rand(MvNormal(ones(n_dim)), stein_p[:n_particles]) : stein_p[:init],
     )
 
     return stein_vi, stein_q # return alg. and distr.

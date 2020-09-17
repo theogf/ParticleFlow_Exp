@@ -1,7 +1,8 @@
 cd(@__DIR__)
 using AdvancedVI, Bijectors
 using Turing, Flux, Plots, Random;
-include("train_model.jl")
+include("../src/train_model.jl")
+include("../src/utils/tools.jl")
 # using ONNX
 using BSON
 const AVI = AdvancedVI
@@ -10,7 +11,7 @@ using MLDatasets
 using ReverseDiff
 using ValueHistories
 using CUDA
-device = cpu
+device = gpu
 AVI.setadbackend(:reversediff)
 AVI.setadbackend(:zygote)
 model = "squeezenet1.1"
@@ -29,8 +30,9 @@ model_dir = joinpath(
 # weights = ONNX.load_weights(joinpath(model_dir, "weights.bson"))
 # model = include(joinpath(model_dir, "model.jl"))
 m = BSON.load(joinpath(model_dir, "model.bson"))[:model]
-convm = m[1:7]
-densem = m[8:end]
+middle = 7
+convm = m[1:middle]
+densem = m[middle+1:end]
 dense_θ, dense_re = Flux.destructure(densem)
 convm = convm |> device
 n_θ = length(dense_θ)
@@ -84,15 +86,6 @@ args = Args()
 train_loader, test_loader = get_data(args)
 x, y = first(train_loader)
 
-# for (x, y) in train_loader
-#     x, y = x |> device, y |> device
-#     gs = Flux.gradient(ps) do
-#         ŷ = model(x)
-#         loss(ŷ, y)
-#     end
-#     Flux.Optimise.update!(opt, ps, gs)
-#     ProgressMeter.next!(p)   # comment out for no progress bar
-# end
 # Specify the probabalistic model.
 @model bayes_nn(xs, ys) = begin
     # Create the weight and bias vector.
@@ -107,21 +100,37 @@ x, y = first(train_loader)
         ys[i] ~ Categorical(softmax(preds[i]))
     end
 end;
-using Functors
-@functor TuringDiagMvNormal
 # Put prior on GPU
+Flux.@functor TuringDiagMvNormal
 prior_θ = TuringDiagMvNormal(zeros(n_θ), sig .* ones(n_θ)) |> device
+N_batch = length(train_loader)
 function meta_logjoint(dummy)
-    s = rand(1:length(train_loader))
+    s = rand(1:N_batch)
     xs, ys = Random.nth(train_loader, s)
     xs = xs |> device
     ys = ys |> device
     return function logjoint(θ)
         logprior = logpdf(prior_θ, θ)
         pred = nn_forward(xs, θ)
-        loglike = Flux.logitcrossentropy(pred, ys)
-        return logprior + loglike
+        loglike = Flux.logitcrossentropy(pred, ys) * N_batch
+        return logprior - loglike
     end
+end
+
+function evaluate_acc(x)
+    pred = nn_forward(xs)
+end
+
+function cb_val(h, i, q, hp)
+    s = rand(1:length(test_loader))
+    xt, yt = Random.nth(test_loader, s) |> device
+    ŷ = mean(eachcol(q.dist.x)) do θ
+        pred = softmax(nn_forward(xt, θ))
+    end
+    @show ll = Flux.Losses.crossentropy(ŷ, yt)
+    @show acc = mean(yt[findmax(ŷ, dims = 1)[2]])
+    push!(h, :ll, i, ll)
+    push!(h, :acc, i, acc)
 end
 
 GC.gc(true)
@@ -130,8 +139,8 @@ CUDA.reclaim()
 
 norun = Dict(:run => false)
 general_p = Dict(:hyper_params => [], :hp_optimizer => nothing, :n_dim => n_θ, :gpu => device == gpu)
-n_particles = 2
-n_iters = 2
+n_particles = 10
+n_iters = 500
 cond1 = false
 cond2 = false
 opt = ADAGrad(0.1)
@@ -144,7 +153,7 @@ gflow_p = Dict(
     :cond1 => cond1,
     :cond2 => cond2,
     :opt => deepcopy(opt),
-    :callback => wrap_cb(),
+    :callback => wrap_heavy_cb(;cb_val = cb_val, path = joinpath(@__DIR__, "tests_models")),
     :cb_val => nothing,
     :init => init_particles,
     :mf => nn_indices,
@@ -153,15 +162,13 @@ gflow_p = Dict(
 
 ## running
 
-# g_h, _, _ = train_model(meta_logjoint, general_p, gflow_p, norun, norun)
 
-@profiler train_model(meta_logjoint, general_p, gflow_p, norun, norun)
+g_h, _, _ = train_model(meta_logjoint, general_p, gflow_p, norun, norun)
+
+# @profiler train_model(meta_logjoint, general_p, gflow_p, norun, norun)
 # CUDA.@time train_model(meta_logjoint, general_p, gflow_p, norun, norun)
 # last(g_h[:sig])[2]
 # last(g_h[:mu])[2]
 # last(g_h[:indices])[2]
 ##
 # CUDA.@profile train_model(meta_logjoint, general_p, gflow_p, norun, norun)
-a = CUDA.ones(2,3)
-b = CUDA.zeros(1)
-@which Base.mapreducedim!(sin, +, b, a)
