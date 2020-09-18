@@ -71,7 +71,7 @@ function meta_logjoint(dummy)
     return function logjoint(θ)
         logprior = logpdf(prior_θ, θ)
         pred = nn_forward(xs, θ)
-        loglike = Flux.logitcrossentropy(pred, ys) * N_batch
+        loglike = Flux.Losses.logitcrossentropy(pred, ys) * N_batch
         return logprior - loglike
     end
 end

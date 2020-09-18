@@ -1,19 +1,13 @@
 include(srcdir("train_model.jl"))
 include(srcdir("utils", "tools.jl"))
 function run_gaussian_target(exp_p)
-    n_iters = exp_p[:n_iters]
-    n_runs = exp_p[:n_runs]
+    @unpack seed = exp_p
+    Random.seed!(seed)
     AVI.setadbackend(:reversediff)
-    # AVI.setadbackend(:zygote)
-    # AVI.setadbackend(:forwarddiff)
+
     ## Create target distribution
-    dim = exp_p[:dim]
-    n_particles = exp_p[:n_particles]
-    Random.seed!(exp_p[:seed])
-    cond1 = exp_p[:cond1]
-    cond2 = exp_p[:cond2]
+    @unpack dim, n_particles, n_iters, n_runs, cond1, cond2, full_cov = exp_p[:dim]
     μ = sort(randn(dim))
-    full_cov = exp_p[:full_cov]
     Σ = if full_cov
         Q, _ = qr(rand(dim, dim)) # Create random unitary matrix
         Λ = Diagonal(10.0.^(3 * ((1:dim) .- 1) ./ dim ))
@@ -48,15 +42,15 @@ function run_gaussian_target(exp_p)
             :run => exp_p[:gpf],
             :n_particles => n_particles,
             :max_iters => n_iters,
-            :cond1 => exp_p[:cond1],
-            :cond2 => exp_p[:cond2],
+            :cond1 => cond1,
+            :cond2 => cond2,
             :opt => deepcopy(opt),
             :callback => wrap_cb(),
             :mf => false,
             :init => x_init,
         )
         advi_p = Dict(
-            :run => exp_p[:advi],
+            :run => exp_p[:advi] && !cond1 && !cond2,
             :n_samples => n_particles,
             :max_iters => n_iters,
             :opt => deepcopy(opt),
@@ -64,7 +58,7 @@ function run_gaussian_target(exp_p)
             :init => (μ_init, sqrt.(Σ_init)),
         )
         stein_p = Dict(
-            :run => exp_p[:steinvi],
+            :run => exp_p[:steinvi] && !cond1 && !cond2,
             :n_particles => n_particles,
             :max_iters => n_iters,
             :kernel => KernelFunctions.transform(SqExponentialKernel(), 1.0),

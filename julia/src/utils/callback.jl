@@ -58,7 +58,6 @@ function wrap_heavy_cb(; cb_hp = nothing, cb_val = nothing, path = nothing)
                 if !isnothing(hp) && !isnothing(cb_hp)
                     cb_hp(h, i, hp)
                 end
-                @show path
                 isnothing(path) ? nothing : cb_heavy_var(h, i, q, path)
                 isnothing(cb_val) ? nothing : cb_val(h, i, q, hp)
                 cb_toc(h, i)
