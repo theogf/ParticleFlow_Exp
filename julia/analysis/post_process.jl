@@ -1,5 +1,5 @@
 using PDMats, LinearAlgebra
-using DataFrames, BSON, ValueHistories
+using DataFrames, BSON, CSV, ValueHistories
 using Distributions, DistributionsAD
 using DataFramesMeta
 using Plots; pyplot()
@@ -8,7 +8,7 @@ using LaTeXStrings
 using ColorSchemes
 colors = ColorSchemes.seaborn_colorblind
 using Flux
-using AdvancedVI
+using AdvancedVI; const AVI = AdvancedVI
 
 algs = [:gpf, :advi, :steinvi]
 labels = Dict(:gpf => "GPF", :advi => "GVA", :steinvi => "SVGD")

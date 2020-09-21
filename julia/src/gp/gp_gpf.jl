@@ -15,7 +15,7 @@ function run_gp_gpf(exp_p)
     y_trainpm = sign.(y_train .- 0.5)
     n_train, n_dim = size(X_train)
     ρ = initial_lengthscale(X_train)
-    k = transform(SqExponentialKernel(), ρ)
+    k = KernelFunctions.transform(SqExponentialKernel(), ρ)
 
     K = kernelpdmat(k, X_train; obsdim = 1)
     prior = TuringDenseMvNormal(zeros(n_train), K)
@@ -78,7 +78,7 @@ function run_gp_gpf(exp_p)
         )
         tagsave(
         datadir("results", "gp", dataset, file_prefix * ".bson"),
-        @dict n_particles σ_init n_iters n_runs cond1 cond2 exp_p d_target i;
+        @dict q n_particles σ_init n_iters n_runs cond1 cond2 exp_p i;
         safe = false,
         storepatch = false,
         )

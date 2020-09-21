@@ -1,5 +1,7 @@
 using AugmentedGaussianProcesses
-using CSV, DataFrames
+using CSV
+using Distances
+using DataFrames: DataFrame
 using MLDataUtils: rescale!, splitobs
 
 function load_gp_data(dataset)
@@ -10,4 +12,14 @@ function load_gp_data(dataset)
     end
     rescale!(X; obsdim = 1)
     splitobs((X, y); at = 0.66, obsdim = 1)
+end
+
+
+function initial_lengthscale(X)
+    if size(X,1) > 10000
+        D = pairwise(SqEuclidean(),X[StatsBase.sample(1:size(X,1),10000,replace=false),:],dims=1)
+    else
+        D = pairwise(SqEuclidean(),X,dims=1)
+    end
+    return sqrt(mean([D[i,j] for i in 2:size(D,1) for j in 1:(i-1)]))
 end
