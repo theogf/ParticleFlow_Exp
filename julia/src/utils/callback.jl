@@ -1,4 +1,6 @@
 # First callback part is for returning a MVHistory object, for light problems
+using BSON
+
 
 cb_tic(h, i::Int) = push!(h, :t_tic, Float64(time_ns()) / 1e9)
 cb_toc(h, i::Int) = push!(h, :t_toc, Float64(time_ns()) / 1e9)
