@@ -1,6 +1,6 @@
 include(srcdir("train_model.jl"))
 include(srcdir("utils", "tools.jl"))
-function run_gaussian_target(exp_p)
+function run_gp_gpf(exp_p)
     @unpack seed = exp_p
     Random.seed!(seed)
     AVI.setadbackend(:reversediff)
@@ -16,16 +16,7 @@ function run_gaussian_target(exp_p)
         I(dim)
     end
 
-    # Flux.@functor TuringDenseMvNormal
-    d_target = TuringDenseMvNormal(μ, Σ)
-    ## Create the model
-    function logπ_gauss(θ)
-        return logpdf(d_target, θ)
-    end
-
     gpf = []
-    advi = []
-    steinvi = []
 
     for i in 1:n_runs
         @info "Run $i/$(n_runs)"
