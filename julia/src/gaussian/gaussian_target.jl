@@ -15,9 +15,14 @@ function run_gaussian_target(exp_p)
     Σ = if full_cov
         Q, _ = qr(rand(dim, dim)) # Create random unitary matrix
         Λ = Diagonal(10.0.^(3 * ((1:dim) .- 1) ./ dim ))
-        Q * Λ * Q'
+        Symmetric(Q * Λ * Q')
     else
         I(dim)
+    end
+    α = eps(Float64)
+    while !isposdef(Σ)
+        Σ .+= α * I(dim)
+        α *= 10
     end
 
     # Flux.@functor TuringDenseMvNormal
