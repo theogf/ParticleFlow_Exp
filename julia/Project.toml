@@ -2,7 +2,6 @@ name = "ParticleFlow"
 
 [deps]
 AdvancedVI = "b5ca4192-6429-45e5-a2d9-87aec30a685c"
-AugmentedGaussianProcesses = "38eea1fd-7d7d-5162-9d08-f89d0f2e271e"
 AxisArrays = "39de3d68-74b9-583c-8d2d-e117c070f3a9"
 BSON = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
 Bijectors = "76274a88-744f-5084-9051-94815aaf08c4"
