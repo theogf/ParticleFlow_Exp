@@ -1,3 +1,6 @@
+using DataFrames
+using BSON
+using Flux
 include(srcdir("train_model.jl"))
 include(srcdir("utils", "tools.jl"))
 function run_gaussian_target(exp_p)
