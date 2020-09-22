@@ -10,6 +10,7 @@ function run_gaussian_target(exp_p)
 
     ## Create target distribution
     @unpack dim, n_particles, n_iters, n_runs, cond1, cond2, full_cov = exp_p
+    n_particles = isnothing(n_particles) ? dim + 1 : n_particles # If nothing is given use dim+1 particles
     μ = sort(randn(dim))
     Σ = if full_cov
         Q, _ = qr(rand(dim, dim)) # Create random unitary matrix
