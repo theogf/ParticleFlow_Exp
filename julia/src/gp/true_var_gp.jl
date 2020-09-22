@@ -10,7 +10,7 @@ function run_true_gp(exp_p)
     (X_train, y_train), (X_test, y_test) = load_gp_data(dataset)
 
     ρ = initial_lengthscale(X_train)
-    k = KernelFunctions.transform(SqExponentialKernel(), ρ)
+    k = KernelFunctions.transform(SqExponentialKernel(), 1 / ρ)
 
     ## Training true model via Gibbs Sampling
     @info "Training model with sampling"

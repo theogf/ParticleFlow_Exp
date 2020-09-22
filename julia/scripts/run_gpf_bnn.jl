@@ -13,9 +13,9 @@ exp_p = Dict(
     :use_gpu => true,
     :layers => 7:end,
     :seed => 42,
-    :n_period => 10
-    :η => 1f-3 # 0.001 in Float32
-    :α => 0.01
+    :n_period => 10,
+    :η => 1f-3, # 0.001 in Float32
+    :α => 0.01, # Prior variance
 )
 
 run_gaussian_target(exp_p)

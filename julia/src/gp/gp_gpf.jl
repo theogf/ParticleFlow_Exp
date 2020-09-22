@@ -15,7 +15,7 @@ function run_gp_gpf(exp_p)
     y_trainpm = sign.(y_train .- 0.5)
     n_train, n_dim = size(X_train)
     ρ = initial_lengthscale(X_train)
-    k = KernelFunctions.transform(SqExponentialKernel(), ρ)
+    k = KernelFunctions.transform(SqExponentialKernel(), 1 / ρ)
 
     K = kernelpdmat(k, X_train; obsdim = 1)
     prior = TuringDenseMvNormal(zeros(n_train), K)

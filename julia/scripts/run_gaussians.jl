@@ -1,11 +1,14 @@
 using DrWatson
 @quickactivate
 using DataFrames
+using Distributed
 using BSON
 using Flux
 include(srcdir("gaussian", "gaussian_target.jl"))
+nthreads = 10
+addprocs(nthreads)
 
-exp_p = Dict(
+exp_ps = Dict(
     :n_iters => 5000,
     :n_runs => 10,
     :dim => vcat(1:9, 10:10:99, 100:100:500),
@@ -14,11 +17,13 @@ exp_p = Dict(
     :gpf => true,
     :advi => true,
     :steinvi => true,
-    :cond1 => [true, false],
-    :cond2 => [true, false],
+    :cond1 => false,
+    :cond2 => false,
     :seed => 42,
     :cb_val => nothing,
     :opt => ADAGrad(0.1),
 )
 
-run_gaussian_target(exp_p)
+ps = dict_list(exp_ps)
+
+pmap(run_gaussian_target, ps)
