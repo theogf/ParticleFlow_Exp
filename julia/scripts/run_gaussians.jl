@@ -1,11 +1,14 @@
 # Make sure that all packages are up to date
-using DrWatson; @quickactivate
+using DrWatson;
+@quickactivate
 using Pkg; Pkg.update()
 
 # Use parallelism
 using Distributed
 nthreads = 32 # Number of threads to use
-addprocs(nthreads) # Add the threads as workers
+if nprocs() < nthreads
+    addprocs(nthreads-nprocs()+1) # Add the threads as workers
+end
 
 # Load all needed packages on every worker
 @everywhere using DrWatson
@@ -31,4 +34,5 @@ exp_ps = Dict(
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
 # run for each dict the simulation
+# run_gaussian(ps[1])
 pmap(run_gaussian_target, ps)
