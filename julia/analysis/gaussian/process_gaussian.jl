@@ -32,7 +32,15 @@ display(plot(p_μ, p_Σ))
 
 ## Treating all results at once
 
-res = @linq all_res |> where(:n_iters .== 2000) |> where(:n_runs .== 10) |> where(:full_cov .== false)
+fullcov = true
+n_particles = 20
+
+res = @linq all_res |> where(:n_iters .== 2000) |> where(:n_runs .== 10) |> where(:full_cov .== fullcov)
+res = if n_particles == 0
+    @linq res |> where(:n_particles .== :dim .+ 1)
+else
+    @linq res |> where(:n_particles .== n_particles)
+end
 dims = Float64.(Vector(res.dim))
 s = sortperm(dims)
 ## Plot combined results
@@ -71,4 +79,5 @@ for (i, alg) in enumerate(algs)
     @eval plot!(p_μ, dims[s], $(fm_alg)[s], ribbon = sqrt.($(fm_var_alg)[s]), label = $(labels[alg]))
     @eval plot!(p_Σ, dims[s], $(fv_alg)[s], ribbon = sqrt.($(fv_var_alg)[s]), label = $(labels[alg]))
 end
-plot(p_t, p_μ, p_Σ, legend = false)
+p = plot(p_t, p_μ, p_Σ, legend = false) |> display
+savefig(plotsdir("gaussian", "all_plots.png"))
