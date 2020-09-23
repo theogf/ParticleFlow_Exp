@@ -80,4 +80,5 @@ for (i, alg) in enumerate(algs)
     @eval plot!(p_Σ, dims[s], $(fv_alg)[s], ribbon = sqrt.($(fv_var_alg)[s]), label = $(labels[alg]))
 end
 p = plot(p_t, p_μ, p_Σ, legend = false) |> display
-savefig(plotsdir("gaussian", "all_plots.png"))
+plotname = @savename fullcov n_particles
+savefig(plotsdir("gaussian", "plots_vs_dim" * plotname * ".png"))
