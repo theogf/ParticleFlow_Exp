@@ -36,7 +36,7 @@ function run_gp_gpf(exp_p)
         gradneglogπ!,
         Vector(y_trainpm),
         LBFGS(),
-        Optim.Options(allow_f_increases = false, iterations = 10),
+        Optim.Options(allow_f_increases = false, iterations = 50),
     )
     @show opt_MAP
 
