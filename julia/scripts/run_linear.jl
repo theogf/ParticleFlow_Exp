@@ -1,7 +1,7 @@
 # Make sure that all packages are up to date
 using DrWatson;
 @quickactivate
-using Pkg; Pkg.update()
+# using Pkg; Pkg.update()
 
 # Use parallelism
 # using Distributed
@@ -22,7 +22,7 @@ exp_ps = Dict(
     :seed => 42,
     :dataset => "swarm_flocking",
     :n_iters => 200, # Number of iterations to run
-    :n_particles => 10, # Number of particles used, nothing will give dim + 1
+    :n_particles => 100, # Number of particles used, nothing will give dim + 1
     :n_runs => 10, # Number of repeated runs
     :gpf => true, # Run GaussParticle Flow
     :advi => !true, # Run Black Box VI

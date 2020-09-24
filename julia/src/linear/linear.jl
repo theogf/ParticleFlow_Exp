@@ -8,7 +8,10 @@ include(srcdir("utils", "tools.jl"))
 include(srcdir("utils", "linear.jl"))
 (X_train, y_train), (X_test, y_test) = load_logistic_data("swarm_flocking")
 
-no_cb(xs...) = nothing
+function cb_val(h, i, q, hp)
+
+end
+
 function run_logistic_regression(exp_p)
     @unpack seed = exp_p
     Random.seed!(seed)
@@ -106,6 +109,7 @@ function run_logistic_regression(exp_p)
             :opt => deepcopy(opt),
             :callback => no_cb,
             :init => (μ_init, sqrt.(Σ_init)),
+            :mf => mf,
         )
         stein_p = Dict(
             :run => exp_p[:steinvi] && !cond1 && !cond2,

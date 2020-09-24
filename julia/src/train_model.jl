@@ -134,8 +134,14 @@ function init_advi(advi_p, general_p)
     else
         return nothing, nothing, nothing
     end
+    mf = get!(advi_p, :mf, false)
     mu_init, L_init =
         isnothing(advi_p[:init]) ? (zeros(n_dim), Matrix(I(n_dim))) : advi_p[:init] # Check that the size of the inital particles respect the model
+    L_init = if mf isa AbstractVector
+        BlockDiagonal([L_init[(mf[i]+1):mf.id[i+1], (mf[i]+1):mf.id[i+1]] for i in 1:length(mf)-1])
+    else
+        L_init
+    end
     advi_q = AVI.transformed(
         TuringDenseMvNormal(mu_init, L_init * L_init'),
         AVI.Bijectors.Identity{1}(),

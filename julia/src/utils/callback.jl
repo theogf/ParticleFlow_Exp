@@ -5,6 +5,8 @@ using BSON
 cb_tic(h, i::Int) = push!(h, :t_tic, Float64(time_ns()) / 1e9)
 cb_toc(h, i::Int) = push!(h, :t_toc, Float64(time_ns()) / 1e9)
 
+no_cb(xs...) = nothing
+
 # Return a callback function using the correct history
 function wrap_cb(; cb_hp = nothing, cb_val = nothing)
     return function base_cb(h::MVHistory)
