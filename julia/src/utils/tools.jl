@@ -7,3 +7,9 @@ function mean_and_var(f::Function, q::AVI.AbstractSamplesMvNormal)
     vals = f.(eachcol(q.x))
     return mean(vals), var(vals)
 end
+
+# Preload the data if it has not been yet
+function preload(dataset::String, folder::String)
+    isdir(datadir("exp_raw", folder)) ? nothing : mkpath(datadir("exp_raw", folder)) # Check the path exists and creates it if not
+    isfile(datadir("exp_raw", folder, dataset * ".csv")) ? nothing : resolve(dataset, @__FILE__) # Check the dataset have been loaded and download it if not
+end

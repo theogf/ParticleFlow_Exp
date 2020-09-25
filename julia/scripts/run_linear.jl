@@ -1,21 +1,25 @@
 # Make sure that all packages are up to date
 using DrWatson;
 @quickactivate
-# using Pkg; Pkg.update()
+using Pkg; Pkg.update()
 
 # Use parallelism
-# using Distributed
-# nthreads = 32 # Number of threads to use
-# if nprocs() < nthreads
-    # addprocs(nthreads-nprocs()+1) # Add the threads as workers
-# end
+using Distributed
+nthreads = 32 # Number of threads to use
+if nprocs() < nthreads
+    addprocs(nthreads-nprocs()+1) # Add the threads as workers
+end
 
 # Load all needed packages on every worker
-# @everywhere using DrWatson
-# @everywhere quickactivate(@__DIR__)
-# @everywhere include(srcdir("linear", "linear.jl"))
+@everywhere using DrWatson
+@everywhere quickactivate(@__DIR__)
+@everywhere include(srcdir("linear", "linear.jl"))
+# include(srcdir("linear", "linear.jl"))
 
-include(srcdir("linear", "linear.jl"))
+
+dataset = "swarm_flocking"
+
+preload(dataset, "linear")
 
 # Create a list of parameters
 exp_ps = Dict(
@@ -31,9 +35,10 @@ exp_ps = Dict(
     :cond2 => false, # Use preconditionning on A
     :cb_val => nothing, # Callback values
     :opt => ADAGrad(0.1), # Common optimizer
-    :α => 0.01,
-    :σ_init => 1.0,
-    :use_gpu => false,
+    :α => 0.01, # Prior variance
+    :σ_init => 1.0, # Initial variance
+    :use_gpu => false, # Use of the GPU (tends do be inefficient)
+    :mf => [:full, :partial, :none], # Wich mean_field method should be used
 
 )
 ps = dict_list(exp_ps)

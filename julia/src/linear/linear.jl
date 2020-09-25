@@ -6,11 +6,6 @@ using Optim
 include(srcdir("train_model.jl"))
 include(srcdir("utils", "tools.jl"))
 include(srcdir("utils", "linear.jl"))
-(X_train, y_train), (X_test, y_test) = load_logistic_data("swarm_flocking")
-
-function cb_val(h, i, q, hp)
-
-end
 
 function run_logistic_regression(exp_p)
     @unpack seed = exp_p
@@ -19,20 +14,28 @@ function run_logistic_regression(exp_p)
 
     ## Load the data
     @unpack dataset, use_gpu = exp_p
-    # (X_train, y_train), (X_test, y_test) = load_logistic_data(dataset)
+    (X_train, y_train), (X_test, y_test) = load_logistic_data(dataset)
     n_train, n_dim = size(X_train)
     y_trainpm = sign.(y_train .- 0.5)
     device = use_gpu ? gpu : cpu
     B = 200
 
     ## Load experiment parameters
-    @unpack n_particles, n_iters, n_runs, cond1, cond2, α, σ_init = exp_p
+    @unpack mf, n_particles, n_iters, n_runs, cond1, cond2, α, σ_init = exp_p
 
-
-    mf = vcat(0, 1, 13:12:n_dim)
+    mf_vals = if mf == :full
+        mf = vcat(0, 1:n_dim)
+    elseif mf == :partial
+        if data == "swarm_flocking"
+            mf = vcat(0, 1, 13:12:n_dim)
+        else
+            error("Partial MF not available for this dataset")
+        end
+    elseif mf == :none
+        false
+    end
     Flux.@functor TuringDiagMvNormal
     prior = TuringDiagMvNormal(zeros(n_dim), α * ones(n_dim)) |> device
-    @show typeof(prior)
     ## Create the model
     function logπ_logistic(dummy = nothing;B = B, neg = false)
         s = StatsBase.sample(1:n_train, B, replace = false)
@@ -56,6 +59,7 @@ function run_logistic_regression(exp_p)
     MAP_opt = ADAGrad(0.1)
     MAP_n_iters = 500
     θ = randn(n_dim) |> device
+    @info "Finding map via SGD"
     @info "Init loss : $(logπ_logistic(B=n_train)(θ))"
     for i in 1:MAP_n_iters
         g = Flux.gradient(logπ_logistic(B; neg=true), θ)
@@ -65,15 +69,6 @@ function run_logistic_regression(exp_p)
         end
     end
     @info "Final loss : $(logπ_logistic(B=n_train)(θ))"
-
-    # opt_MAP = optimize(
-    #     neglogπ,
-    #     # gradneglogπ!,
-    #     randn(n_dim),
-    #     LBFGS(),
-    #     Optim.Options(iterations = 50)
-    # )
-    # @show opt_MAP
 
     gpf = []
     advi = []
@@ -88,6 +83,7 @@ function run_logistic_regression(exp_p)
         x_init = rand(p_init, n_particles)
 
         ## Create dictionnaries of parameters
+
         general_p =
             Dict(:hyper_params => [] , :hp_optimizer => nothing, :n_dim => n_dim, :gpu => use_gpu)
         gflow_p = Dict(
@@ -97,8 +93,8 @@ function run_logistic_regression(exp_p)
             :cond1 => cond1,
             :cond2 => cond2,
             :opt => deepcopy(opt),
-            :callback => no_cb,
-            :mf => mf,
+            :callback => wrap_heavy_cb(;path=)(h),
+            :mf => mf_vals,
             :init => x_init,
             :gpu => use_gpu,
         )
@@ -109,7 +105,7 @@ function run_logistic_regression(exp_p)
             :opt => deepcopy(opt),
             :callback => no_cb,
             :init => (μ_init, sqrt.(Σ_init)),
-            :mf => mf,
+            :mf => mf_vals,
         )
         stein_p = Dict(
             :run => exp_p[:steinvi] && !cond1 && !cond2,

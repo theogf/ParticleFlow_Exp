@@ -17,9 +17,8 @@ end
 # include(srcdir("gp", "gp_gpf.jl"))
 
 dataset = "ionosphere"
+preload(dataset, "gp")
 
-isdir(datadir("exp_raw", "gp")) ? nothing : mkpath(datadir("exp_raw", "gp")) # Check the path exists and creates it if not
-isfile(datadir("exp_raw", "gp", dataset * ".csv")) ? nothing : resolve(dataset, @__FILE__) # Check the dataset have been loaded and download it if not
 
 exp_p = Dict(
     :seed => 42, # Random seed
