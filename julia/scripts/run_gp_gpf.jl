@@ -1,18 +1,41 @@
+# Make sure that all packages are up to date
 using DrWatson
 @quickactivate
-include(srcdir("gp", "gp_gpf.jl"))
+using Pkg; Pkg.update()
+
+#Use parallelism
+using Distributed
+nthreads = 32 # Number of threads to use
+if nprocs() < nthreads
+    addprocs(nthreads-nprocs()+1) # Add the threads as workers
+end
+
+# Load all needed packages on every worker
+@everywhere using DrWatson
+@everywhere quickactivate(@__DIR__)
+@everywhere include(srcdir("gp", "gp_gpf.jl"))
+# include(srcdir("gp", "gp_gpf.jl"))
+
+dataset = "ionosphere"
+
+isdir(datadir("exp_raw", "gp")) ? nothing : mkpath(datadir("exp_raw", "gp")) # Check the path exists and creates it if not
+isfile(datadir("exp_raw", "gp", dataset * ".csv")) ? nothing : resolve(dataset, @__FILE__) # Check the dataset have been loaded and download it if not
 
 exp_p = Dict(
-    :seed => 42,
-    :dataset => "ionosphere",
-    :n_particles => 10,
-    :n_iters => 1000,
-    :n_runs => 10,
-    :cond1 => false,
-    :cond2 => false,
-    :σ_init => 1.0,
-    :opt => ADAGrad(0.01),
+    :seed => 42, # Random seed
+    :dataset => dataset, # Name of the dataset
+    :n_particles => vcat(1:9, 10:10:99, 100:50:400), # Number of particles used
+    :n_iters => 2000, # Total number of iterations
+    :n_runs => 10, # Number of repeated runs
+    :cond1 => false, # Preconditionning on b
+    :cond2 => false, # Preconditionning on A
+    :σ_init => 1.0, # Initial std dev
+    :opt => [ADAGrad(0.01), ADAGrad(0.1)], # Optimizer used
 )
 
+ps = dict_list(exp_p) # Create list of parameters
+@info "Preparing to run $(dict_list_count(exp_p)) simulations"
 
-run_gp_gpf(exp_p)
+# Running simulations
+# run_gp_gpf(ps[1])
+pmap(run_gp_gpf, ps)

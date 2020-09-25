@@ -1,6 +1,8 @@
+using AugmentedGaussianProcesses
 include(srcdir("train_model.jl"))
 include(srcdir("utils", "gp.jl"))
 include(srcdir("utils", "tools.jl"))
+
 function run_true_gp(exp_p)
     @unpack seed = exp_p
     Random.seed!(seed)
