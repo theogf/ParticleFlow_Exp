@@ -55,9 +55,9 @@ function train_model(logπ, general_p, gflow_p, advi_p, stein_p;)
             AVI.vi(
                 logπ,
                 advi_vi,
-                advi_q |> device,
-                advi_init |> device,
-                optimizer = advi_p[:opt] |> device,
+                advi_q, #|> device,
+                advi_init, #|> device,
+                optimizer = advi_p[:opt],# |> device,
                 hyperparams = deepcopy(general_p[:hyper_params]),
                 hp_optimizer = deepcopy(general_p[:hp_optimizer]),
                 callback = advi_p[:callback](advi_h),
@@ -138,7 +138,7 @@ function init_advi(advi_p, general_p)
     mu_init, L_init =
         isnothing(advi_p[:init]) ? (zeros(n_dim), Matrix(I(n_dim))) : advi_p[:init] # Check that the size of the inital particles respect the model
     L_init = if mf isa AbstractVector
-        BlockDiagonal([L_init[(mf[i]+1):mf.id[i+1], (mf[i]+1):mf.id[i+1]] for i in 1:length(mf)-1])
+        BlockDiagonal([L_init[(mf[i]+1):mf[i+1], (mf[i]+1):mf[i+1]] for i in 1:length(mf)-1])
     else
         L_init
     end

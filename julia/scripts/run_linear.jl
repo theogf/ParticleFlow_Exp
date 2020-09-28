@@ -5,16 +5,16 @@ using Pkg; Pkg.update()
 
 # Use parallelism
 using Distributed
-nthreads = 32 # Number of threads to use
+nthreads = 6 # Number of threads to use
 if nprocs() < nthreads
     addprocs(nthreads-nprocs()+1) # Add the threads as workers
 end
 
 # Load all needed packages on every worker
-@everywhere using DrWatson
-@everywhere quickactivate(@__DIR__)
-@everywhere include(srcdir("linear", "linear.jl"))
-# include(srcdir("linear", "linear.jl"))
+# @everywhere using DrWatson
+# @everywhere quickactivate(@__DIR__)
+# @everywhere include(srcdir("linear", "linear.jl"))
+include(srcdir("linear", "linear.jl"))
 
 
 dataset = "swarm_flocking"
@@ -28,15 +28,16 @@ exp_ps = Dict(
     :n_iters => 200, # Number of iterations to run
     :n_particles => 100, # Number of particles used, nothing will give dim + 1
     :n_runs => 10, # Number of repeated runs
-    :gpf => true, # Run GaussParticle Flow
-    :advi => !true, # Run Black Box VI
-    :steinvi => !true, # Run Stein VI
+    :gpf => !true, # Run GaussParticle Flow
+    :advi => true, # Run Black Box VI
+    :steinvi => true, # Run Stein VI
     :cond1 => false, # Use preconditionning on b
     :cond2 => false, # Use preconditionning on A
     :cb_val => nothing, # Callback values
     :opt => ADAGrad(0.1), # Common optimizer
     :α => 0.01, # Prior variance
     :σ_init => 1.0, # Initial variance
+    :B => 200, # Batchsize
     :use_gpu => false, # Use of the GPU (tends do be inefficient)
     :mf => [:full, :partial, :none], # Wich mean_field method should be used
 
@@ -44,5 +45,5 @@ exp_ps = Dict(
 ps = dict_list(exp_ps)
 # @info "Will now run $(dict_list_count(exp_ps)) simulations"
 # run for each dict the simulation
-run_logistic_regression(ps[1])
+run_logistic_regression(ps[2])
 # pmap(run_logistic_regrssion, ps)

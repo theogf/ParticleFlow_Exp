@@ -14,7 +14,7 @@ end
 @everywhere using DrWatson
 @everywhere quickactivate(@__DIR__)
 @everywhere include(srcdir("gp", "gp_gpf.jl"))
-# include(srcdir("gp", "gp_gpf.jl"))
+include(srcdir("gp", "gp_gpf.jl"))
 
 dataset = "ionosphere"
 preload(dataset, "gp")

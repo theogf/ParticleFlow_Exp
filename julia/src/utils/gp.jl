@@ -4,15 +4,6 @@ using DataFrames: DataFrame
 using MLDataUtils: rescale!, shuffleobs, splitobs
 using DataDeps, Tables
 
-register(DataDep("ionosphere",
-    """
-    Ionosphere dataset :
-    Coming from the UCI repository : https://archive.ics.uci.edu/ml/datasets/Ionosphere
-    351 Samples and 34 Features with binary labels
-    """,
-    "https://archive.ics.uci.edu/ml/machine-learning-databases/ionosphere/ionosphere.data";
-    post_fetch_method = treat_ionosphere)
-)
 function treat_ionosphere(datadeps_path)
     data = Matrix(CSV.read(datadeps_path, DataFrame; header=false))
     y = data[:, end]
@@ -24,7 +15,15 @@ function treat_ionosphere(datadeps_path)
     @info "Wrote file in $(target_dir)"
 end
 
-
+register(DataDep("ionosphere",
+    """
+    Ionosphere dataset :
+    Coming from the UCI repository : https://archive.ics.uci.edu/ml/datasets/Ionosphere
+    351 Samples and 34 Features with binary labels
+    """,
+    "https://archive.ics.uci.edu/ml/machine-learning-databases/ionosphere/ionosphere.data";
+    post_fetch_method = treat_ionosphere)
+)
 
 function load_gp_data(dataset)
     data = Matrix(CSV.read(datadir("exp_raw", "gp", dataset*".csv"), DataFrame))

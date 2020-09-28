@@ -4,16 +4,6 @@ using StatsFuns: logistic
 using StatsBase
 using DataDeps, DataFrames, Tables
 
-register(DataDep("swarm_flocking",
-    """
-    Swarm Flocking dataset :
-    Coming from the UCI repository : https://archive.ics.uci.edu/ml/datasets/Swarm+Behaviour
-    24016 Samples and 2400 Features with binary labels
-    """,
-    "https://archive.ics.uci.edu/ml/machine-learning-databases/00524/Swarm%20Behavior%20Data.zip";
-    post_fetch_method = treat_swarm)
-)
-
 function treat_swarm(file_path)
     run(`unzip $file_path -d $(dirname(file_path))`)
     dir_path = dirname(file_path)
@@ -23,6 +13,16 @@ function treat_swarm(file_path)
     data = data[shuffle(axes(data, 1)), :] # Shuffle the data
     CSV.write(datadir("exp_raw", "linear", "swarm_flocking.csv"), data)
 end
+
+register(DataDep("swarm_flocking",
+    """
+    Swarm Flocking dataset :
+    Coming from the UCI repository : https://archive.ics.uci.edu/ml/datasets/Swarm+Behaviour
+    24016 Samples and 2400 Features with binary labels
+    """,
+    "https://archive.ics.uci.edu/ml/machine-learning-databases/00524/Swarm%20Behavior%20Data.zip";
+    post_fetch_method = treat_swarm)
+)
 
 function load_logistic_data(dataset)
     data = CSV.read(datadir("exp_raw", "linear", dataset*".csv"), DataFrame)
