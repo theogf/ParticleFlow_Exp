@@ -22,6 +22,10 @@ function run_logistic_regression(exp_p)
     ## Load experiment parameters
     @unpack B, mf, n_particles, n_iters, n_runs, cond1, cond2, α, σ_init = exp_p
 
+    # default values for running experiments
+    get!(exp_p, :svgd, false)
+    get!(exp_p, :advi, false)
+
     mf_vals = if mf == :full
         mf = vcat(0, 1:n_dim)
     elseif mf == :partial
