@@ -56,7 +56,7 @@ function run_logistic_regression(exp_p)
         # G .= -y_trainpm .* logistic.(-y_trainpm .* (X_train * θ)) + θ ./ α
     # end
     MAP_opt = ADAGrad(0.1)
-    MAP_n_iters = 100
+    MAP_n_iters = 1000
     θ = randn(n_dim) |> device
     @info "Finding map via SGD"
     @info "Init loss : $(logπ_logistic(B=n_train)(θ))"
@@ -80,7 +80,7 @@ function run_logistic_regression(exp_p)
         Σ_init = σ_init^2 * I(n_dim)
         p_init = MvNormal(μ_init, Σ_init)
         x_init = rand(p_init, n_particles)
-        prefix = datadir("results", "linear", dataset, savename(@dict n_particles mf α σ_init B))
+        prefix = datadir("results", "linear", dataset, savename(@dict n_particles mf α σ_init B i))
         ## Create dictionnaries of parameters
         general_p =
             Dict(:hyper_params => [] , :hp_optimizer => nothing, :n_dim => n_dim, :gpu => use_gpu)
@@ -91,7 +91,7 @@ function run_logistic_regression(exp_p)
             :cond1 => cond1,
             :cond2 => cond2,
             :opt => deepcopy(opt),
-            :callback => wrap_heavy_cb(;path=prefix * "_gflow_iter=$(i)"),
+            :callback => wrap_heavy_cb(;path=prefix * "_gflow"),
             :mf => mf_vals,
             :init => x_init,
             :gpu => use_gpu,
@@ -101,7 +101,7 @@ function run_logistic_regression(exp_p)
             :n_samples => n_particles,
             :max_iters => n_iters,
             :opt => deepcopy(opt),
-            :callback => wrap_heavy_cb(;path=path=prefix * "_advi_iter=$(i)"),
+            :callback => wrap_heavy_cb(;path=path=prefix * "_advi"),
             :init => (μ_init, sqrt.(Σ_init)),
             :mf => mf_vals,
         )
@@ -111,7 +111,7 @@ function run_logistic_regression(exp_p)
             :max_iters => n_iters,
             :kernel => KernelFunctions.transform(SqExponentialKernel(), 1.0),
             :opt => deepcopy(opt),
-            :callback => wrap_heavy_cb(;path=prefix * "_stein_iter=$(i)"),
+            :callback => wrap_heavy_cb(;path=prefix * "_stein"),
             :init => x_init,
         )
 

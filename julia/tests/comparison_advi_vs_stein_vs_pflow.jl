@@ -79,7 +79,7 @@ gaussxs = lift(t) do _
 end
 
 scene, layout = layoutscene()
-ax = layout[1, 1] = LAxis(scene))
+ax = layout[1, 1] = LAxis(scene)
 Makie.plot!(ax,histogram(nbins=100,normalize=true), x, color=RGBA(0.0,0.0,0.0,0.5))
 
 plots_with_labels = [

@@ -146,7 +146,12 @@ function init_advi(advi_p, general_p)
         TuringDenseMvNormal(mu_init, L_init * L_init'),
         AVI.Bijectors.Identity{1}(),
     )
-    return advi_vi, advi_q, vcat(mu_init, L_init[:]) # Return alg., distr. and var. params.
+    if L_init isa BlockDiagonal
+        return advi_vi, advi_q, vcat(mu_init, vec.(LowerTriangular.(blocks(L_init)))...)
+    else
+        return advi_vi, advi_q, vcat(mu_init, L_init[:]) # Return alg., distr. and var. params.
+    end
+
 end
 
 # Initialize distribution and algorithm for SVGD model

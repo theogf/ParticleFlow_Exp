@@ -4,11 +4,11 @@ using DrWatson;
 using Pkg; Pkg.update()
 
 # Use parallelism
-using Distributed
-nthreads = 6 # Number of threads to use
-if nprocs() < nthreads
-    addprocs(nthreads-nprocs()+1) # Add the threads as workers
-end
+# using Distributed
+# nthreads = 6 # Number of threads to use
+# if nprocs() < nthreads
+#     addprocs(nthreads-nprocs()+1) # Add the threads as workers
+# end
 
 # Load all needed packages on every worker
 # @everywhere using DrWatson
@@ -26,9 +26,9 @@ exp_ps = Dict(
     :seed => 42,
     :dataset => "swarm_flocking",
     :n_iters => 200, # Number of iterations to run
-    :n_particles => 100, # Number of particles used, nothing will give dim + 1
+    :n_particles => 10, # Number of particles used, nothing will give dim + 1
     :n_runs => 10, # Number of repeated runs
-    :gpf => !true, # Run GaussParticle Flow
+    :gpf => true, # Run GaussParticle Flow
     :advi => true, # Run Black Box VI
     :steinvi => true, # Run Stein VI
     :cond1 => false, # Use preconditionning on b
