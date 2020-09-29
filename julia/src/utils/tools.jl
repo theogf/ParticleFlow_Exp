@@ -3,11 +3,15 @@ iseverylog10(iter) = iter % (10^(floor(Int64, log10(iter + 1)))) == 0
 
 
 # Return the mean and the variance over all particles
-function StatsBase.mean_and_var(f::Function, q::AVI.AbstractSamplesMvNormal)
+function StatsBase.mean_and_var(f, q::AVI.AbstractSamplesMvNormal)
     return mean_and_var(f, q.x)
 end
 
-function StatsBase.mean_and_var(f::Function, x::AbstractMatrix)
+function StatsBase.mean_and_var(f, q::AVI.SteinDistribution)
+    return mean_and_var(f, q.x)
+end
+
+function StatsBase.mean_and_var(f, x::AbstractMatrix)
     vals = f.(eachcol(x))
     return mean(vals), var(vals)
 end
