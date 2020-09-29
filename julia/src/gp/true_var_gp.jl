@@ -20,19 +20,20 @@ function run_true_gp(exp_p)
     m = MCGP(X_train, y_train, k, LogisticLikelihood(), GibbsSampling(nBurnin = nBurnin))
     chain = AugmentedGaussianProcesses.sample(m, nSamples)
     μ_f, σ_f = predict_f(m, X_test; cov = true, diag = true)
-    mcmc = true; vi = false; gpf = false
+    @show typeof.([μ_f, σ_f])
+    mcmc = true; vi = false
     savepath = datadir("results", "gp", dataset)
     tagsave(joinpath(savepath, "mcmcgp.bson"),
-        @dict chain mcmc vi gpf y_test μ_f, σ_f;
+        @dict m mcmc vi;
         safe=false, storepatch = false)
     ## Training moodel via variational inference
     @info "Training model with VI"
     m = VGP(X_train, y_train, k, LogisticLikelihood(), AnalyticVI(), optimiser=nothing)
     train!(m, 20)
     μ_f, σ_f = predict_f(m, X_test; cov = true, diag = true)
-    vi = true; mcmc = false; gpf = false
+    vi = true; mcmc = false
     savepath = datadir("results", "gp", dataset)
     tagsave(joinpath(savepath, "vigp.bson"),
-        @dict m vi mcmc vi gpf y_test μ_f σ_f;
+        @dict m vi mcmc;
         safe=false, storepatch = false)
 end
