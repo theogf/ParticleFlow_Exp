@@ -39,11 +39,11 @@ exp_ps = Dict(
     :σ_init => 1.0, # Initial variance
     :B => 200, # Batchsize
     :use_gpu => false, # Use of the GPU (tends do be inefficient)
-    :mf => [:full, :partial, :none], # Wich mean_field method should be used
+    :mf => [:full, :partial, :none], # Which mean_field method should be used
 
 )
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
 # run for each dict the simulation
 # run_logistic_regression(ps[2])
-pmap(run_logistic_regrssion, ps)
+pmap(run_logistic_regression, ps)

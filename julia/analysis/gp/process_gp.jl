@@ -4,7 +4,7 @@ include(projectdir("analysis", "post_process.jl"))
 include(srcdir("utils", "gp.jl"))
 include(srcdir("utils", "tools.jl"))
 using AxisArrays, MCMCChains, PDMats, KernelFunctions
-using StatsFuns
+using StatsFuns, AugmentedGaussianProcesses
 dataset = "ionosphere"
 (X_train, y_train), (X_test, y_test) = load_gp_data(dataset)
 
@@ -23,6 +23,8 @@ mc_res = @linq base_res |> where(:mcmc .=== true)
 m_vi = vi_res.m[1]
 m_mc = mc_res.m[1]
 
+mu_mc, sig_mc = predict_f(m_mc, X_test, cov = true); sig_mc = vec(sig_mc)
+mu_vi, sig_vi = predict_f(m_vi, X_test, cov = true)
 pred_mc, sig_mc = proba_y(m_mc, X_test)
 pred_vi, sig_vi = proba_y(m_vi, X_test)
 acc_mc = mean((pred_mc .> 0.5) .== y_test)
@@ -31,16 +33,37 @@ nll_mc = Flux.Losses.binarycrossentropy(pred_mc, y_test)
 nll_vi = Flux.Losses.binarycrossentropy(pred_vi, y_test)
 
 
-n_particles = 10
-gpf_res = collect_results(datadir("results", "gp", dataset, @savename n_particles))
-pred_gpf, sig_gpf, acc_gpf, nll_gpf = [], [], [], []
-for q in gpf_res.q
-    f = pred_f(q.x)
-    pred, sig = StatsBase.mean_and_var(x->StatsFuns.logistic.(x), f)
-    push!(pred_gpf, pred); push!(sig_gpf, sig)
-    push!(acc_gpf, mean((pred .> 0.5) .== y_test))
-    push!(nll_gpf, Flux.Losses.binarycrossentropy(pred, y_test))
+acc, acc_sig = [], []
+nll, nll_sig = [], []
+mu_f, sig_f = [], []
+n_parts = vcat(1:9, 10:10:99, 100:50:400)
+for n_particles in nparts
+    # n_particles = 10
+    gpf_res = collect_results(datadir("results", "gp", dataset, @savename n_particles))
+    pred_gpf, sig_gpf, acc_gpf, nll_gpf = [], [], [], []
+    for q in gpf_res.q
+        f = pred_f(q.x)
+        pred_f, sig_f = StatsBase.mean_and_var(f)
+        pred, sig = StatsBase.mean_and_var(x->StatsFuns.logistic.(x), f)
+        push!(pred_gpf, pred); push!(sig_gpf, sig)
+        push!(acc_gpf, mean((pred .> 0.5) .== y_test))
+        push!(nll_gpf, Flux.Losses.binarycrossentropy(pred, y_test))
+    end
+    x,y = mean_and_var(acc_gpf)
+    push!(acc, x); push!(acc_sig, y)
+    x,y = mean_and_var(nll_gpf)
+    push!(nll, x); push!(nll_sig, y)
 end
 
-acc_gpf[1]
-nll_gpf[1]
+## Plot accuracy
+plot(n_parts, acc, ribbon=sqrt.(acc_sig), label = "GPF", color = colors[1], xlabel = "# Particles", ylabel = "Accuracy")
+hline!([acc_mc], label = "MCMC", color = colors[2])
+hline!([acc_vi], label = "VI", line = :dash, color = colors[3])
+isdir(plotsdir("gp")) ? nothing : mkpath(plotsdir("gp"))
+savefig(plotsdir("gp", "Accuracy.png"))
+
+plot(n_parts, nll, ribbon=sqrt.(nll_sig), label = "GPF", color = colors[1], xlabel = "# Particles", ylabel = "Neg. Log-Likelihood")
+hline!([nll_mc], label = "MCMC", color = colors[2])
+hline!([nll_vi], label = "VI", line = :dash, color = colors[3])
+isdir(plotsdir("gp")) ? nothing : mkpath(plotsdir("gp"))
+savefig(plotsdir("gp", "NLL.png"))

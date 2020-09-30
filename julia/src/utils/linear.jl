@@ -25,7 +25,7 @@ register(DataDep("swarm_flocking",
 )
 
 function load_logistic_data(dataset)
-    data = CSV.read(datadir("exp_raw", "linear", dataset*".csv"), DataFrame)
+    data = CSV.read(datadir("exp_raw", "linear", dataset * ".csv"), DataFrame)
     X, y = Matrix(data) |> x->(x[:, 1:end-1], x[:, end])
     if unique(y) == [-1, 1]
         y[y.==-1] .= 0
