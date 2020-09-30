@@ -130,6 +130,6 @@ function run_logistic_regression(exp_p)
     file_prefix = savename(exp_p)
 
     tagsave(datadir("results", "linear", file_prefix * ".bson"),
-            merge(exp_p, @dict gpf advi steinvi X_test y_test);
+            merge(exp_p, @dict gpf advi steinvi);
             safe=false, storepatch = false)
 end

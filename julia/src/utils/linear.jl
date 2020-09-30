@@ -32,5 +32,5 @@ function load_logistic_data(dataset)
     end
     rescale!(X; obsdim = 1)
     X = hcat(ones(size(X, 1)), X) # Add a constant term
-    splitobs((X, y); at = 0.66, obsdim = 1)
+    splitobs((X, y); at = 0.8, obsdim = 1)
 end
