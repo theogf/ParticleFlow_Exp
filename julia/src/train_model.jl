@@ -9,6 +9,7 @@ using KernelFunctions
 using ValueHistories
 using LinearAlgebra
 using ReverseDiff
+using StatsBase
 using Random
 
 Flux.@functor TransformedDistribution

@@ -3,8 +3,9 @@ using BSON
 using Flux
 using Optim
 include(srcdir("train_model.jl"))
-include(srcdir("utils", "tools.jl"))
 include(srcdir("utils", "linear.jl"))
+include(srcdir("utils", "tools.jl"))
+
 
 function run_logistic_regression(exp_p)
     @unpack seed = exp_p
