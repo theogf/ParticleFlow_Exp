@@ -8,6 +8,6 @@ To make sure everything works smoothly, in the julia folder :
 ```julia
 ] activate .
 ] instantiate
-] dev https://github.com/theogf/AdvancedVI.jl
-] dev https://github.com/theogf/BlockDiagonals.jl
+] add https://github.com/theogf/AdvancedVI.jl#gaussparticleflow
+] add https://github.com/theogf/BlockDiagonals.jl#param_abstractvector
 ```
