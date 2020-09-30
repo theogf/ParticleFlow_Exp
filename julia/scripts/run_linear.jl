@@ -43,7 +43,7 @@ exp_ps = Dict(
 
 )
 ps = dict_list(exp_ps)
-# @info "Will now run $(dict_list_count(exp_ps)) simulations"
+@info "Will now run $(dict_list_count(exp_ps)) simulations"
 # run for each dict the simulation
-run_logistic_regression(ps[2])
-# pmap(run_logistic_regrssion, ps)
+# run_logistic_regression(ps[2])
+pmap(run_logistic_regrssion, ps)

@@ -1,7 +1,6 @@
 using DataFrames
 using BSON
 using Flux
-using CUDA
 using Optim
 include(srcdir("train_model.jl"))
 include(srcdir("utils", "tools.jl"))
