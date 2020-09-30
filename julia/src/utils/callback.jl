@@ -81,5 +81,5 @@ function cb_heavy_var(h, i::Int, q, path::String)
     isdir(path) ? nothing : mkpath(path)
     new_path = joinpath(path, string("model_iter_", i, ".bson"))
     q = cpu(q)
-    BSON.@save new_path q
+    tagsave(new_path, @dict i q; safe=false, storepatch = false)
 end
