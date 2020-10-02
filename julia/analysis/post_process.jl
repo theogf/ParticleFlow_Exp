@@ -9,7 +9,7 @@ using ColorSchemes
 colors = ColorSchemes.seaborn_colorblind
 using Flux
 using AdvancedVI; const AVI = AdvancedVI
-
+using StatsFuns
 algs = [:gpf, :advi, :steinvi]
 labels = Dict(:gpf => "GPF", :advi => "GVA", :steinvi => "SVGD")
 
@@ -55,4 +55,49 @@ function extract_time(h)
     t_diff = cumsum(t_end-t_init)
     t_init[2:end] .-= t_diff[1:end-1]
     return t_init .- get(h, :t_start)[2][1]
+end
+
+
+## Semi-discrete Optimal Transport
+
+function h(x::AbstractVector, v::AbstractVector, y::AbstractVector, ν::AbstractVector, ϵ::Real, c)
+    dot(v, ν) - ϵ * logsumexp((v - c.(Ref(x), y)) ./ ϵ .+ log.(ν)) - ϵ
+end
+
+function h(x::AbstractVector, v::AbstractVector, y::AbstractVector, ν::AbstractVector, ϵ::Int, c)
+    ϵ == 0 || error("ϵ has to be 0")
+    dot(v,ν) + mininum(c.(Ref(x), y) .- v)
+end
+
+function optim_v(μ::Distribution, y::AbstractVector, ν::AbstractVector, η::Real, N::Int, ϵ::Real, c)
+    v = zero(ν); ṽ = zero(ν)
+    @progress for k in 1:N
+        xₖ = rand(μ)
+        ṽ .+= η /√(k) * gradient(ν->h(xₖ, ṽ, y, ν, ϵ, c), ν)[1]
+        v = ṽ ./ k + (k - 1) / k * v
+    end
+    return v
+end
+
+function optim_v(x::AbstractVector, μ::AbstractVector, y::AbstractVector, ν::AbstractVector, η::Real, N::Int, ϵ::Real, c)
+    N_x = length(x)
+    v = zero(ν); g = [zero(ν) for i in 1:N_x]; d = zero(ν)
+    @progress for k in 1:N
+        i = rand(1:N_x)
+        d .-= g[i]
+        g[i] = μ[i] * gradient(ν->h(x[i], v, y, ν, ϵ, c), ν)[1]
+        d .+= g[i]
+        v .+= η * d
+    end
+    return v
+end
+
+function wasserstein_semidiscrete(μ, y, ν, ϵ; c=(x,y)->norm(x-y), η::Real = 0.1, N::Int = 100, N_MC::Int=2000)
+    v = optim_v(μ, y, ν, η, N, ϵ, c)
+    return mean(x->h(x, v, y, ν, ϵ, c), eachcol(rand(μ, N_MC)))
+end
+
+function wasserstein_discrete(x, μ, y, ν, ϵ; c=(x,y)->norm(x-y), η::Real = 0.1, N::Int = 100, N_MC::Int = 200 )
+    v = optim_v(x, μ, y, ν, η, N, ϵ, c)
+    return mean(x->h(x, v, y, ν, ϵ, c), rand(x, N_MC))
 end

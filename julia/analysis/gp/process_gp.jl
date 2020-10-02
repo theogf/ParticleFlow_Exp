@@ -32,27 +32,38 @@ acc_vi = mean((pred_vi .> 0.5) .== y_test)
 nll_mc = Flux.Losses.binarycrossentropy(pred_mc, y_test)
 nll_vi = Flux.Losses.binarycrossentropy(pred_vi, y_test)
 
+x_mc = collect(eachrow(dropdims(m_mc.inference.sample_store, dims=3)))
+N_mc = length(x_mc); μ_mc = ones(N_mc) / N_mc
+d_vi = MvNormal(AGP.mean(m_vi.f[1]), AGP.cov(m_vi.f[1]))
+wass_vi = wasserstein_semidiscrete(d_vi, x_mc, μ_mc, 0.1)
 
+## Treating the GPF results
 acc, acc_sig = [], []
 nll, nll_sig = [], []
 mu_f, sig_f = [], []
+wass, wass_sig = [], []
 n_parts = vcat(1:9, 10:10:99, 100:50:400)
-for n_particles in nparts
+for n_particles in n_parts
     # n_particles = 10
     gpf_res = collect_results(datadir("results", "gp", dataset, @savename n_particles))
-    pred_gpf, sig_gpf, acc_gpf, nll_gpf = [], [], [], []
+    pred_gpf, sig_gpf, acc_gpf, nll_gpf, wass_gpf = [], [], [], [], []
     for q in gpf_res.q
         f = pred_f(q.x)
-        pred_f, sig_f = StatsBase.mean_and_var(f)
+        mu_f, sig_f = StatsBase.mean_and_var(f)
         pred, sig = StatsBase.mean_and_var(x->StatsFuns.logistic.(x), f)
+        N_gpf = q.n_particles ; ν_gpf = ones(N_gpf) / N_gpf
+        wass_val = wasserstein_discrete(x_mc, μ_mc, collect(eachcol(q.x)), ν_gpf, 0.01; N = 100)
         push!(pred_gpf, pred); push!(sig_gpf, sig)
         push!(acc_gpf, mean((pred .> 0.5) .== y_test))
         push!(nll_gpf, Flux.Losses.binarycrossentropy(pred, y_test))
+        push!(wass_gpf, wass_val)
     end
     x,y = mean_and_var(acc_gpf)
     push!(acc, x); push!(acc_sig, y)
     x,y = mean_and_var(nll_gpf)
     push!(nll, x); push!(nll_sig, y)
+    x,y = mean_and_var(wass_gpf)
+    push!(wass, x); push!(wass_sig, y)
 end
 
 ## Plot accuracy
@@ -67,3 +78,8 @@ hline!([nll_mc], label = "MCMC", color = colors[2])
 hline!([nll_vi], label = "VI", line = :dash, color = colors[3])
 isdir(plotsdir("gp")) ? nothing : mkpath(plotsdir("gp"))
 savefig(plotsdir("gp", "NLL.png"))
+
+plot(n_parts, wass, ribbon=sqrt.(wass_sig), label = "GPF", color = colors[1], xaxis = :log, xlabel = "# Particles", ylabel = L"W^2")
+hline!([wass_vi], label = "VI", line = :dash, color = colors[3])
+isdir(plotsdir("gp")) ? nothing : mkpath(plotsdir("gp"))
+savefig(plotsdir("gp", "Wasserstein.png"))
