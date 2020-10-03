@@ -14,7 +14,7 @@ end
 asyncmap((zip(workers(), devices()))) do (p, d)
     remotecall_wait(p) do
         @info "Worker $p uses $d"
-        # context()
+        context()
         device!(d)
     end
 end
