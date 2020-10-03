@@ -11,14 +11,15 @@ function run_SWAG(exp_p)
 
     ## Loading parameters for SWAG
     @unpack start_layer, n_period, n_epoch = exp_p
-    global ps = Flux.params(m[start_layer:end])
+    ps = Flux.params(m[start_layer:end])
     opt = Flux.Descent(η)
-    save_path = datadir("results", "bnn", dataset, "SWAG", @savename n_epoch n_period batchsize η)
+    save_path = datadir("results", "bnn", dataset, "SWAG", @savename n_epoch n_period batchsize η start_layer)
     ispath(save_path) ? nothing : mkpath(save_path)
 
     function save_params(ps, i)
         path = save_path * "i=$(i)" * ".bson"
-        tagsave(joinpath(save_path, savename(@dict i) * ".bson"), @dict ps i)
+        parameters = [cpu(p) for p in ps]
+        tagsave(joinpath(save_path, savename(@dict i) * ".bson"), @dict parameters i)
     end
     ## Define prior
     @unpack α = exp_p
@@ -30,7 +31,7 @@ function run_SWAG(exp_p)
     ## Define list of arguments and load the data
     train_loader, test_loader = get_data(dataset, batchsize)
     iter = 0
-    save_params(cpu(ps), 0)
+    save_params(ps, 0)
     for epoch in 1:n_epoch
         # p = ProgressMeter.Progress(length(train_loader))
 
@@ -40,12 +41,15 @@ function run_SWAG(exp_p)
                 ŷ = m(x)
                 loss(ŷ, y) - logprior(ps, α)
             end
+            # for p in ps
+                # p .-= Flux.Optimise.apply!(opt, p, gs[p])
+            # end
             Flux.Optimise.update!(opt, ps, gs)
             # ProgressMeter.next!(p)   # comment out for no progress bar
             iter += 1
             if mod(iter, n_period) == 0
                 @info "Saving at iteration $iter"
-                save_params(cpu(ps), iter)
+                save_params(ps, iter)
             end
         end
     end

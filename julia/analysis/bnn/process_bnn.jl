@@ -2,10 +2,23 @@ using DrWatson
 @quickactivate
 include(projectdir("analysis", "post_process.jl"))
 
-
+using Flux, Zygote, CUDA
+using StatsBase, LinearAlgebra
 ## Load data and filter it
-all_res = collect_results(datadir("results", "gaussian"))
+dataset = "MNIST"
+batchsize = 128
+n_epoch = 1
+n_period = 10
+η = 0.01
+start_layer = 9
 
+swag_res = collect_results(datadir("results", "bnn", dataset, "SWAG", savename(@dict batchsize n_epoch n_period η start_layer)))
+res = ([vcat(vec.(x)...) for x in swag_res.parameters])
+using Plots
+SWA_diag = Diagonal(StatsBase.var(res))
+SWA_LR = StatsBase.cov(res))
+heatmap(SWA_diag)
+heatmap(SWA_LR)
 res = @linq all_res |> where(:dim .== 10) |> where(:n_iters .== 1000) |> where(:n_particles .== 11) |> where(:n_runs .== 10)
 
 @assert nrow(res) == 1 "Number of rows is not unique or is empty"
