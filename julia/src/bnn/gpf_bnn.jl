@@ -19,7 +19,15 @@ function run_gpf_bnn(exp_p)
     opt_m = m[start_layer:end]
     opt_θ, opt_re = Flux.destructure(opt_m)
     n_θ = length(opt_θ)
-    opt_m_sizes = broadcast(x -> length(x.W) + length(x.b), opt_m)
+    opt_m_sizes = broadcast(opt_m) do x
+        p = Flux.params(x)
+        if length(p) == 0
+            0
+        else
+            sum(length, p)
+        end
+    end
+    opt_m_sizes = opt_m_sizes[opt_m_sizes.!=0]
     nn_id_layers = vcat(0, cumsum(opt_m_sizes))
 
     ## Loading specific parameters to GPF

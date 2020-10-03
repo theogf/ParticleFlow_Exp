@@ -44,6 +44,7 @@ function run_SWAG(exp_p)
             # ProgressMeter.next!(p)   # comment out for no progress bar
             iter += 1
             if mod(iter, n_period) == 0
+                @info "Saving at iteration $iter"
                 save_params(cpu(ps), iter)
             end
         end
