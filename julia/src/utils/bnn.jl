@@ -1,4 +1,6 @@
 using Flux
+using DataFrames
+using BSON
 using Random
 using MLDatasets
 using ProgressMeter

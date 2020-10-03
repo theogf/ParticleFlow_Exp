@@ -2,10 +2,22 @@ using DrWatson
 @quickactivate
 using Pkg; Pkg.update()
 
-using DataFrames
-using BSON
-using Flux
+using Distributed, CUDA
+if length(workers()) != length(devices())
+    addprocs(length(devices()))
+end
+@everywhere using CUDA
+
+# Assign one GPU per worker
+asyncmap((zip(workers(), devices()))) do (p, d)
+    remotecall_wait(p) do
+        @info "Worker $p uses $d"
+        device!(d)
+    end
+end
+
 include(srcdir("bnn", "swag.jl"))
+@everywhere include(srcdir("bnn", "swag.jl"))
 
 exp_ps = Dict(
     :n_epoch => 100,
@@ -23,7 +35,9 @@ exp_ps = Dict(
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
 
-for (i, p) in enumerate(ps)
-    @info "Running dict $(i)/$(length(ps)) : $(savename(p))"
-    run_SWAG(p)
-end
+pmap(run_SWAG, ps)
+
+# for (i, p) in enumerate(ps)
+    # @info "Running dict $(i)/$(length(ps)) : $(savename(p))"
+    # run_SWAG(p)
+# end
