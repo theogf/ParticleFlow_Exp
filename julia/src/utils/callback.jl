@@ -75,7 +75,16 @@ end
 # Wrapper for transformed distributions
 cb_heavy_var(h, i::Int, q::TransformedDistribution, path::String) = cb_heavy_var(h, i, q.dist, path)
 
-# Store mean and covariance
+# Store particles
+function cb_heavy_var(h, i::Int, q::Union{AVI.AbstractSamplesMvNormal, AVI.SteinDistribution}, path::String)
+    @info "Saving model at iteration $i in $path"
+    isdir(path) ? nothing : mkpath(path)
+    new_path = joinpath(path, string("model_iter_", i, ".bson"))
+    q = cpu(q)
+    particles = q.x
+    tagsave(new_path, @dict i particles; safe=false, storepatch = false)
+end
+
 function cb_heavy_var(h, i::Int, q, path::String)
     @info "Saving model at iteration $i in $path"
     isdir(path) ? nothing : mkpath(path)

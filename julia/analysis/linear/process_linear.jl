@@ -15,7 +15,7 @@ n_particles = 100
 σ_init = 1
 
 ## Get ADVI data
-mf = full
+mf = :partial
 prefix = datadir("results", "linear", dataset)
 nruns = 1
 advi_res = [Dict() for i in 1:nruns]
@@ -41,7 +41,7 @@ end
 
 ## Get GPF data
 
-mf = full
+mf = :none
 prefix = datadir("results", "linear", dataset)
 nruns = 1
 gpf_res = [Dict() for i in 1:nruns]
