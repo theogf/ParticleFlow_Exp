@@ -3,18 +3,20 @@ using DrWatson
 using Pkg; Pkg.update()
 
 using Distributed, CUDA
-if length(workers()) != length(devices())
-    addprocs(length(devices()))
-end
-@everywhere using CUDA
-
-# Assign one GPU per worker
-asyncmap((zip(workers(), devices()))) do (p, d)
-    remotecall_wait(p) do
-        @info "Worker $p uses $d"
-        device!(d)
-    end
-end
+# if length(workers()) != length(devices()) || first(workers()) == 1
+#     addprocs(length(devices()))
+# end
+# @everywhere using DrWatson
+# @everywhere @quickactivate
+# @everywhere using CUDA
+#
+# # Assign one GPU per worker
+# asyncmap((zip(workers(), devices()))) do (p, d)
+#     remotecall_wait(p) do
+#         @info "Worker $p uses $d"
+#         device!(d)
+#     end
+# end
 
 include(srcdir("bnn", "swag.jl"))
 @everywhere include(srcdir("bnn", "swag.jl"))
@@ -35,9 +37,9 @@ exp_ps = Dict(
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
 
-pmap(run_SWAG, ps)
+# pmap(run_SWAG, ps)
 
-# for (i, p) in enumerate(ps)
-    # @info "Running dict $(i)/$(length(ps)) : $(savename(p))"
-    # run_SWAG(p)
-# end
+for (i, p) in enumerate(ps)
+    @info "Running dict $(i)/$(length(ps)) : $(savename(p))"
+    run_SWAG(p)
+end
