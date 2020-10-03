@@ -1,5 +1,4 @@
 include(srcdir("utils", "bnn.jl"))
-
 function run_SWAG(exp_p)
     @unpack seed = exp_p
     Random.seed!(seed)
@@ -8,23 +7,23 @@ function run_SWAG(exp_p)
     @unpack use_gpu, model, dataset, batchsize, η = exp_p # Load all variables from the dict exp_p
     device = use_gpu ? gpu : cpu
     modelfile = projectdir("bnn_models", model, "model.bson")
-    m = (BSON.@load modelfile model) |> device
+    m = BSON.load(modelfile)[:model] |> device
 
     ## Loading parameters for SWAG
-    @unpack layers, n_period, n_epoch = exp_p
-    ps = Flux.params(m[layers])
+    @unpack start_layer, n_period, n_epoch = exp_p
+    global ps = Flux.params(m[start_layer:end])
     opt = Flux.Descent(η)
     save_path = datadir("results", "bnn", dataset, "SWAG", @savename n_epoch n_period batchsize η)
-
+    ispath(save_path) ? nothing : mkpath(save_path)
 
     function save_params(ps, i)
         path = save_path * "i=$(i)" * ".bson"
-        BSON.@save path ps
+        tagsave(joinpath(save_path, savename(@dict i) * ".bson"), @dict ps i)
     end
     ## Define prior
     @unpack α = exp_p
     logprior(θ::AbstractArray{<:Real}) = sum(abs2, θ)
-    logprior(θ, α) = - sum(logprior.(θ)) / α
+    logprior(θ, α) = - sum(logprior, θ) / α
 
     loss(ŷ, y) = Flux.Losses.logitcrossentropy(ŷ, y)
 
@@ -33,16 +32,16 @@ function run_SWAG(exp_p)
     iter = 0
     save_params(cpu(ps), 0)
     for epoch in 1:n_epoch
-        p = ProgressMeter.Progress(length(train_loader))
+        # p = ProgressMeter.Progress(length(train_loader))
 
         for (x, y) in train_loader
             x, y = x |> device, y |> device
             gs = Flux.gradient(ps) do
-                ŷ = model(x)
-                loss(ŷ, ps, y) - logprior(θ, α)
+                ŷ = m(x)
+                loss(ŷ, y) - logprior(ps, α)
             end
             Flux.Optimise.update!(opt, ps, gs)
-            ProgressMeter.next!(p)   # comment out for no progress bar
+            # ProgressMeter.next!(p)   # comment out for no progress bar
             iter += 1
             if mod(iter, n_period) == 0
                 save_params(cpu(ps), iter)

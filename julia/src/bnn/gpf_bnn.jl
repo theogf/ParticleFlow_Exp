@@ -1,5 +1,6 @@
 include(srcdir("train_model.jl"))
 include(srcdir("utils", "bnn.jl"))
+include(srcdir("utils", "callback.jl"))
 
 function run_gpf_bnn(exp_p)
     @unpack seed = exp_p
@@ -9,31 +10,30 @@ function run_gpf_bnn(exp_p)
     @unpack use_gpu, model, dataset, batchsize, η = exp_p # Load all variables from the dict exp_p
     device = use_gpu ? gpu : cpu
     modelfile = projectdir("bnn_models", model, "model.bson")
-    m = (BSON.@load modelfile model) |> device
+    m = BSON.load(modelfile)[:model] |> device
 
     AVI.setadbackend(:zygote)
     ## Loading parameters for GPF
-    @unpack layers, n_particles, n_iters, opt = exp_p
-    fixed_m = m[1:(first(layers)-1)] |> device
-    opt_m = m[layers]
+    @unpack start_layer, n_particles, n_iter, opt = exp_p
+    fixed_m = m[1:(start_layer-1)] |> device
+    opt_m = m[start_layer:end]
     opt_θ, opt_re = Flux.destructure(opt_m)
-    n_θ = length(dense_θ)
-    opt_m_sizes = broadcast(x -> length(x.W) + length(x.b), densem)
-    nn_id_layers = vcat(0, cumsum(densem_sizes))
+    n_θ = length(opt_θ)
+    opt_m_sizes = broadcast(x -> length(x.W) + length(x.b), opt_m)
+    nn_id_layers = vcat(0, cumsum(opt_m_sizes))
 
     ## Loading specific parameters to GPF
     @unpack cond1, cond2, σ_init, mf = exp_p
     σ_init = rand(MvNormal(opt_θ, Float32(σ_init)), n_particles)
-    mf_option = if mf == :layers
+    mf_option = if mf == :partial
         nn_id_layers
-    elseif mf == :ind
-        0:n_θ
     elseif mf == :full
+        0:n_θ
+    elseif mf == :none
         false
     else
         error("Wrong option for mf")
     end
-
     ## Rebuild model given parameters and run it on data
     function nn_forward(xs, θ)
         opt_m = opt_re(θ)
@@ -68,12 +68,12 @@ function run_gpf_bnn(exp_p)
             # Making prediction on minibatch
             pred = nn_forward(xs, θ)
             # Scaled up loglikelihood (logitcrossentropy returns a mean)
-            negloglike = -n_data * Flux.logitcrossentropy(pred, ys)
-            return logprior - negloglike
+            loglike = -n_data * Flux.logitcrossentropy(pred, ys)
+            return logprior + loglike
         end
     end
 
-
+    x_init = gpu(randn(n_θ, n_particles)) .+ opt_θ
     ## Create dictionnaries of parameters
     general_p = Dict(
         :hyper_params => [],
@@ -82,9 +82,9 @@ function run_gpf_bnn(exp_p)
         :gpu => device == gpu,
     )
     gflow_p = Dict(
-        :run => exp_p[:gpf],
+        :run => true,
         :n_particles => n_particles,
-        :max_iters => n_iters,
+        :max_iters => n_iter,
         :cond1 => cond1,
         :cond2 => cond2,
         :opt => deepcopy(opt),
@@ -93,7 +93,6 @@ function run_gpf_bnn(exp_p)
         :init => x_init,
         :gpu => device == gpu,
     )
-    no_run = Dict(:run => false)
     # Train all models
     train_model(meta_logjoint, general_p, gflow_p, no_run, no_run)
 end

@@ -18,6 +18,8 @@ include(joinpath("utils", "tools.jl"))
 include(joinpath("utils", "bnn.jl"))
 # Main function, take dicts of parameters
 # run the inference and return MVHistory objects for each alg.
+no_run = Dict(:run => false)
+
 function train_model(logπ, general_p, gflow_p, advi_p, stein_p;)
     ## Initialize algorithms
     gflow_vi, gflow_q = init_gflow(gflow_p, general_p)
