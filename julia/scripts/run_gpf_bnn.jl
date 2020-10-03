@@ -27,7 +27,9 @@ exp_ps = Dict(
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
 
-for (i, p) in enumerate(ps)
-    @info "Running dict $(i)/$(length(ps)) : $(savename(p))"
-    run_gpf_bnn(p)
-end
+run_gpf_bnn(ps[end])
+
+# for (i, p) in enumerate(ps)
+#     @info "Running dict $(i)/$(length(ps)) : $(savename(p))"
+#     run_gpf_bnn(p)
+# end

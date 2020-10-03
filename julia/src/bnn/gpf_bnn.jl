@@ -7,7 +7,7 @@ function run_gpf_bnn(exp_p)
     Random.seed!(seed)
 
     ## Loading the model and creating the appropriate function
-    @unpack use_gpu, model, dataset, batchsize, η = exp_p # Load all variables from the dict exp_p
+    @unpack use_gpu, model, dataset, batchsize = exp_p # Load all variables from the dict exp_p
     device = use_gpu ? gpu : cpu
     modelfile = projectdir("bnn_models", model, "model.bson")
     m = BSON.load(modelfile)[:model] |> device
@@ -33,6 +33,7 @@ function run_gpf_bnn(exp_p)
     ## Loading specific parameters to GPF
     @unpack cond1, cond2, σ_init, mf = exp_p
     σ_init = rand(MvNormal(opt_θ, Float32(σ_init)), n_particles)
+
     mf_option = if mf == :partial
         nn_id_layers
     elseif mf == :full
