@@ -84,7 +84,7 @@ function run_logistic_regression(exp_p)
         Σ_init = σ_init^2 * I(n_dim)
         p_init = MvNormal(μ_init, Σ_init)
         x_init = rand(p_init, n_particles)
-        prefix = datadir("results", "linear", dataset, savename(@dict n_particles mf α σ_init B i))
+        prefix = datadir("results", "linear", dataset, savename(exp_p))
         ## Create dictionnaries of parameters
         general_p =
             Dict(:hyper_params => [] , :hp_optimizer => nothing, :n_dim => n_dim, :gpu => use_gpu)
@@ -95,7 +95,7 @@ function run_logistic_regression(exp_p)
             :cond1 => cond1,
             :cond2 => cond2,
             :opt => deepcopy(opt),
-            :callback => wrap_heavy_cb(;path=prefix * "_gflow"),
+            :callback => wrap_heavy_cb(;path=joinpath(prefix, savename("gflow", @dict i))),
             :mf => mf_vals,
             :init => x_init,
             :gpu => use_gpu,
@@ -105,7 +105,7 @@ function run_logistic_regression(exp_p)
             :n_samples => n_particles,
             :max_iters => n_iters,
             :opt => deepcopy(opt),
-            :callback => wrap_heavy_cb(;path=path=prefix * "_advi"),
+            :callback => wrap_heavy_cb(;path=joinpath(prefix, savename("advi", @dict i))),
             :init => (μ_init, sqrt.(Σ_init)),
             :mf => mf_vals,
         )
@@ -115,7 +115,7 @@ function run_logistic_regression(exp_p)
             :max_iters => n_iters,
             :kernel => KernelFunctions.transform(SqExponentialKernel(), 1.0),
             :opt => deepcopy(opt),
-            :callback => wrap_heavy_cb(;path=prefix * "_stein"),
+            :callback => wrap_heavy_cb(;joinpath(prefix, savename("stein", @dict i))),
             :init => x_init,
         )
 
