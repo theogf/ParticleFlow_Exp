@@ -10,7 +10,7 @@ dataset = "swarm_flocking"
 
 ## Parameters used
 B = 200
-n_particles = 100
+n_particles = 8
 α = 0.01
 σ_init = 1
 
@@ -43,10 +43,10 @@ end
 
 mf = :none
 prefix = datadir("results", "linear", dataset)
-nruns = 1
-gpf_res = [Dict() for i in 1:nruns]
-for i in 1:1
-    gpf_path = joinpath(prefix, savename(@dict B n_particles α σ_init) * "_gflow_iter=1")
+nruns = 10
+gpf_res = [Dict{Symbol, Any}() for i in 1:nruns]
+for i in 1:nruns
+    gpf_path = joinpath(prefix, savename(@dict B mf n_particles α i σ_init) * "_gflow")
     res = collect_results!(gpf_path)
     files = readdir(gpf_path)
     iter = parse.(Int64, getindex.(files, range.(12, length.(files).-5; step = 1)))
@@ -54,8 +54,8 @@ for i in 1:1
     last_res = @linq res |> where(:iter .== maximum(:iter))
     gpf_acc = Float64[]
     gpf_nll = Float64[]
-    for q in res.q[sortperm(iter)]
-        pred, sig_pred = StatsBase.mean_and_var(x -> logistic.(X_test * x), q)
+    for ps in res.particles[sortperm(iter)]
+        pred, sig_pred = StatsBase.mean_and_var(x -> logistic.(X_test * x), ps)
         acc = mean((pred .> 0.5) .== y_test); push!(gpf_acc, acc)
         nll = Flux.Losses.binarycrossentropy(pred, y_test); push!(gpf_nll, nll)
     end
@@ -64,15 +64,17 @@ for i in 1:1
     gpf_res[i][:acc] = gpf_acc
 end
 
-
+gpf = Dict()
+gpf[:acc] = mean(getindex.(gpf_res, :acc))
+gpf[:acc_var] = var(getindex.(gpf_red, :acc))
 ## Load Stein data
-n_particles = 10
+n_particles = 8
 mf = :none
 prefix = datadir("results", "linear", dataset)
-nruns = 1
+nruns = 9
 stein_res = [Dict() for i in 1:nruns]
-for i in 1:1
-    stein_path = joinpath(prefix, savename(@dict B i n_particles α σ_init) * "_stein")
+for i in 1:nruns
+    stein_path = joinpath(prefix, savename(@dict B i mf n_particles α σ_init) * "_stein")
     res = collect_results!(stein_path)
     files = readdir(stein_path)
     iter = parse.(Int64, getindex.(files, range.(12, length.(files).-5; step = 1)))
@@ -80,8 +82,8 @@ for i in 1:1
     last_res = @linq res |> where(:iter .== maximum(:iter))
     stein_acc = Float64[]
     stein_nll = Float64[]
-    for q in res.q[sortperm(iter)]
-        pred, sig_pred = StatsBase.mean_and_var(x -> logistic.(X_test * x), q)
+    for ps in res.particles[sortperm(iter)]
+        pred, sig_pred = StatsBase.mean_and_var(x -> logistic.(X_test * x), ps)
         acc = mean((pred .> 0.5) .== y_test); push!(stein_acc, acc)
         nll = Flux.Losses.binarycrossentropy(pred, y_test); push!(stein_nll, nll)
     end
