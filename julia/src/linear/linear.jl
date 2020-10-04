@@ -23,7 +23,7 @@ function run_logistic_regression(exp_p)
     @unpack B, mf, n_particles, n_iters, n_runs, cond1, cond2, α, σ_init = exp_p
 
     # default values for running experiments
-    get!(exp_p, :svgd, false)
+    get!(exp_p, :steinvi, false)
     get!(exp_p, :advi, false)
 
     mf_vals = if mf == :full
@@ -115,7 +115,7 @@ function run_logistic_regression(exp_p)
             :max_iters => n_iters,
             :kernel => KernelFunctions.transform(SqExponentialKernel(), 1.0),
             :opt => deepcopy(opt),
-            :callback => wrap_heavy_cb(;joinpath(prefix, savename("stein", @dict i))),
+            :callback => wrap_heavy_cb(;path=joinpath(prefix, savename("stein", @dict i))),
             :init => x_init,
         )
 
