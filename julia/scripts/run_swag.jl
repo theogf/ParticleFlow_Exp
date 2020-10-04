@@ -2,7 +2,8 @@ using DrWatson
 @quickactivate
 using Pkg; Pkg.update()
 
-using Distributed, CUDA
+using CUDA
+# using Distributed
 # if length(workers()) != length(devices()) || first(workers()) == 1
 #     addprocs(length(devices()))
 # end

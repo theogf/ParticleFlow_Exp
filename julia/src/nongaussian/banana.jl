@@ -19,17 +19,21 @@ yrange = range(-60, 20, length = 200)
 totσ = 3
 d_init = MvNormal(zeros(2))
 ps = []
-n_p = 100
+n_p = 1000
 q = SamplesMvNormal(randn(2, n_p))
 qvi = AVI.PFlowVI(2000, false, false)
 
-q_final = vi(x->-logbanana(x), qvi, q; optimizer = ADAGrad(0.1))
+
+vi(logbanana, qvi, q; optimizer = ADAGrad(0.1))
+
+## Plotting
 p = plot()
-contourf!(p, xrange, yrange, banana)
-scatter!(p, eachrow(q.x)...)
+contourf!(p, xrange, yrange, banana, colorbar = false)
+scatter!(p, eachrow(q.x)..., label="")
 for i in 1:totσ
     l = std_line(q, i)
     plot!(p, eachrow(l)..., color = :white, label="", linewidth = 0.3)
 end
+savefig(plotsdir("nongaussian", "banana.png"))
 display(p)
 # for n_p in n_particles
