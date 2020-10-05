@@ -55,7 +55,7 @@ function run_gpf_bnn(exp_p)
         "bnn",
         dataset,
         "GPF",
-        @savename n_particles n_iter batchsize mf σ_init cond1 cond2
+        @savename n_particles start_layer n_iter batchsize mf σ_init cond1 cond2
     )
 
     ## Define prior

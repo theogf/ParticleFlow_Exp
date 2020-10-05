@@ -8,7 +8,8 @@ using Plots
 using Distributions
 include(srcdir("utils", "tools.jl"))
 
-
+setadbackend(Val(:forward_diff))
+m0 = [0.1, 0]
 m1 = zeros(2)
 m2 = zeros(2)
 
@@ -35,11 +36,11 @@ a = Animation()
 η = 0.1
 m1 = zeros(2)
 m2 = zeros(2)
-q = SamplesMvNormal(randn(2, n_p))
+q = SamplesMvNormal(randn(2, n_p) .+ m0)
 @progress for i in 1:40
-    # q = SamplesMvNormal(randn(2, n_p))
-    qvi = AVI.PFlowVI(2000, false, false)
-    vi(logzygote, qvi, q; optimizer = ADAGrad(0.1))
+    q = SamplesMvNormal(randn(2, n_p))
+    qvi = AVI.PFlowVI(200, false, false)
+    vi(logzygote, qvi, q; optimizer = Descent(0.01))
 
     ## Plotting
     p = plot(title = "$n_p particles", showaxis = false, legend = false)
@@ -48,23 +49,23 @@ q = SamplesMvNormal(randn(2, n_p))
     for i in 1:totσ
         plot!(p, eachrow(std_line(q, i))..., color = :white, linewidth = 0.8)
     end
-    # display(p)
+    display(p)
     frame(a)
     global m1 .+= η
     global m2 .-= η
 end
-gif(a, plotsdir("nongaussian", "zygote_continuous.gif"), fps = 10)
+gif(a, plotsdir("nongaussian", "zygote.gif"), fps = 10)
 ## Same thing with VI
 m1 = zeros(2)
 m2 = zeros(2)
 θ = vcat(zeros(2), [1, 0, 1])
 q = TuringDenseMvNormal(zeros(2), Diagonal(ones(2)))
 a = Animation()
-for i in 1:40
-    # θ = vcat(zeros(2), [1, 0, 1])
+@progress for i in 1:40
+    θ = vcat(m0, [1, 0, 1])
 
-    qvi = ADVI(5000, 20)
-    vi(logzygote, qvi, q, θ, optimizer = ADAGrad(0.1))
+    qvi = ADVI(5000, 10)
+    vi(logzygote, qvi, q, θ, optimizer = Descent(0.1))
     q = AVI.update(q, θ)
     p = plot(title = "Standard VI", showaxis =false)
     contourf!(p, xrange, yrange, zygote, colorbar = false)
@@ -76,7 +77,7 @@ for i in 1:40
     global m1 .+= η
     global m2 .-= η
 end
-gif(a, plotsdir("nongaussian", "zygote_stdvi_continuous.gif"), fps = 10)
+gif(a, plotsdir("nongaussian", "zygote_stdvi.gif"), fps = 10)
 
 # push!(ps, p)
 # # end
