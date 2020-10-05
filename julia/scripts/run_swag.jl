@@ -33,7 +33,7 @@ exp_ps = Dict(
     :seed => 42,
     :n_period => 10,
     :η => [1f-1, 5f-2, 1f-2], # 0.001 in Float32
-    :α => 0.01,
+    :α => [0.01, Inf],
 )
 
 ps = dict_list(exp_ps)
