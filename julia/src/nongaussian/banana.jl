@@ -10,12 +10,15 @@ using AdvancedVI, Distributions
 include(srcdir("utils", "tools.jl"))
 Distributions.mean(d::TuringDenseMvNormal) = d.m
 Distributions.cov(d::TuringDenseMvNormal) = d.C.L * d.C.U
-logbanana(x1, x2) = -0.5 * (0.01 * x1^2 + 0.1(x2 + 0.1x1^2 - 10)^2)
+logbanana(x1, x2) = -0.5(0.01 * x1^2 + 0.1(x2 + 0.1x1^2 - 10)^2)
 logbanana(x) = logbanana(first(x), last(x))
 banana(x1, x2) = exp(logbanana(x1, x2))
 banana(x) = exp(logbanana(x))
-contourf(xrange, yrange, banana, colorbar = false)
-opt = Descent(0.01)
+# contourf(xrange, yrange, banana, colorbar = false)
+opt = ADAGrad(0.1)
+opt = Flux.Optimise.Optimiser(ClipNorm(10.0), Descent(1.0))
+opt = Flux.Optimise.Optimiser(ClipNorm(10.0), Momentum(0.1))
+# opt = Momentum(0.01)
 function std_line(d, nσ)
     θ = range(0, 2π, length = 100)
     return mean(d) .+ sqrt(nσ) * cholesky(cov(d) .+ 1e-5).L * [cos.(θ) sin.(θ)]'
@@ -25,13 +28,12 @@ xrange = range(-30, 30, length = 200)
 yrange = range(-60, 20, length = 200)
 totσ = 3
 d_init = MvNormal(zeros(2))
-ps = Vector{Any}(undef, length(n_particles)+1)
+ps = Vector{Any}(undef, length(n_particles) + 2)
 n_p = 1000
 ## Training the particles
 for (i, n_p) in enumerate(n_particles)
-    q = SamplesMvNormal(randn(2, n_p))
+    global q = SamplesMvNormal(randn(2, n_p))
     qvi = AVI.PFlowVI(2000, false, false)
-
 
     vi(logbanana, qvi, q; optimizer = deepcopy(opt))
 
@@ -61,6 +63,23 @@ for i in 1:totσ
 end
 display(p)
 ps[end] = p
+
+## Training stein
+using KernelFunctions
+q = SteinDistribution(randn(2, 50))
+qvi = AVI.SteinVI(2000, KernelFunctions.transform(SqExponentialKernel(), 0.1))
+
+vi(logbanana, qvi, q; optimizer = deepcopy(opt))
+p = plot(title = "Stein VI", showaxis =false)
+contourf!(p, xrange, yrange, banana, colorbar = false)
+scatter!(p, eachrow(q.x)..., label="")
+for i in 1:totσ
+    l = std_line(q, i)
+    plot!(p, eachrow(l)..., color = :white, label="", linewidth = 0.5)
+end
+display(p)
+ps[end-1] = p
+
 ## Plot all results
 p = plot(ps..., layout = (1, length(ps)), size = (1000, 200), dpi = 300)
 display(p)

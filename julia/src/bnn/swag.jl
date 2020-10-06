@@ -13,7 +13,7 @@ function run_SWAG(exp_p)
     @unpack start_layer, n_period, n_epoch = exp_p
     ps = Flux.params(m[start_layer:end])
     opt = Flux.Descent(η)
-    save_path = datadir("results", "bnn", dataset, "SWAG", @savename n_epoch n_period batchsize η start_layer)
+    save_path = datadir("results", "bnn", dataset, "SWAG_" * model, @savename n_epoch n_period batchsize η start_layer)
     ispath(save_path) ? nothing : mkpath(save_path)
 
     function save_params(ps, i)

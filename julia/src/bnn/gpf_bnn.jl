@@ -54,7 +54,7 @@ function run_gpf_bnn(exp_p)
         "results",
         "bnn",
         dataset,
-        "GPF",
+        "GPF_" * model,
         @savename n_particles start_layer n_iter batchsize mf σ_init cond1 cond2
     )
 

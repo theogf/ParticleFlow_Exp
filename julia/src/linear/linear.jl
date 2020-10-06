@@ -1,6 +1,7 @@
 using DataFrames
 using BSON
 using Flux
+using Flux: Optimise
 using Optim
 include(srcdir("train_model.jl"))
 include(srcdir("utils", "linear.jl"))
