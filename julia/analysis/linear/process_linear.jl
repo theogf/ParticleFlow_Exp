@@ -26,7 +26,9 @@ ps = Dict(
     :steinvi => true,
     )
 
-
+do_run
+n_particles = 2:2:10
+for n_p in n_particles
 ## Get partial MF
 ps[:advi] = true
 ps[:steinvi] = false

@@ -40,7 +40,7 @@ function run_gaussian_target(exp_p)
         @info "Run $i/$(n_runs)"
         opt = exp_p[:opt]
         μ_init = randn(dim)
-        Σ_init = Diagonal(exp.(randn(dim)))
+        Σ_init = Matrix(Diagonal(exp.(randn(dim))))
         p_init = MvNormal(μ_init, Σ_init)
         x_init = rand(p_init, n_particles)
 
