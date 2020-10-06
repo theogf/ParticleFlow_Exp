@@ -2,6 +2,11 @@
 using DrWatson;
 @quickactivate
 using Pkg; Pkg.update()
+include(srcdir("linear", "linear.jl"))
+
+dataset = "swarm_flocking"
+
+preload(dataset, "linear")
 
 # Use parallelism
 using Distributed
@@ -11,12 +16,6 @@ if nprocs() < nthreads
 end
 
 # Load all needed packages on every worker
-include(srcdir("linear", "linear.jl"))
-
-dataset = "swarm_flocking"
-
-preload(dataset, "linear")
-
 @everywhere using DrWatson
 @everywhere quickactivate(@__DIR__)
 @everywhere include(srcdir("linear", "linear.jl"))
