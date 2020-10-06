@@ -9,85 +9,128 @@ dataset = "swarm_flocking"
 (X_train, y_train), (X_test, y_test) = load_logistic_data(dataset)
 
 ## Parameters used
-B = 200
-n_particles = 8
-α = 0.01
-σ_init = 1
-
-## Get ADVI data
-# mf = :partial
-# prefix = datadir("results", "linear", dataset)
-# nruns = 1
-# advi_res = [Dict() for i in 1:nruns]
-# for i in 1:1
-#     advi_path = joinpath(prefix, savename(@dict i B n_particles α σ_init) * "_advi")
-#     res = collect_results!(advi_path)
-#     files = readdir(advi_path)
-#     iter = parse.(Int64, getindex.(files, range.(12, length.(files).-5; step = 1)))
-#     res.iter = iter
-#     last_res = @linq res |> where(:iter .== maximum(:iter))
-#     advi_acc = Float64[]
-#     advi_nll = Float64[]
-#     for q in res.q[sortperm(iter)]
-#         pred, sig_pred = StatsBase.mean_and_var(x -> logistic.(X_test * x), rand(q, 100))
-#         acc = mean((pred .> 0.5) .== y_test); push!(advi_acc, acc)
-#         nll = Flux.Losses.binarycrossentropy(pred, y_test); push!(advi_nll, nll)
-#     end
-#     advi_res[i][:iter] = sort(iter)
-#     advi_res[i][:nll] = advi_nll
-#     advi_res[i][:acc] = advi_acc
-# end
+ps = Dict(
+    :B => 200,
+    :n_particles => 8,
+    :α => 0.1,
+    :σ_init => 1,
+    :cond1 => false,
+    :cond2 => false,
+    :n_iters => 101,
+    :use_gpu => false,
+    :n_runs => 10,
+    :seed => 42,
+    :dataset => dataset,
+    :advi => true,
+    :gpf => true,
+    :steinvi => true,
+    )
 
 
-## Get GPF data
-
-mf = :none
-prefix = datadir("results", "linear", dataset)
-nruns = 10
-gpf_res = [Dict{Symbol, Any}() for i in 1:nruns]
-for i in 1:nruns
-    gpf_path = joinpath(prefix, savename(@dict B mf n_particles α i σ_init) * "_gflow")
-    res = collect_results!(gpf_path)
-    files = readdir(gpf_path)
-    iter = parse.(Int64, getindex.(files, range.(12, length.(files).-5; step = 1)))
-    res.iter = iter
-    last_res = @linq res |> where(:iter .== maximum(:iter))
-    gpf_acc = Float64[]
-    gpf_nll = Float64[]
-    for ps in res.particles[sortperm(iter)]
-        pred, sig_pred = StatsBase.mean_and_var(x -> logistic.(X_test * x), ps)
-        acc = mean((pred .> 0.5) .== y_test); push!(gpf_acc, acc)
-        nll = Flux.Losses.binarycrossentropy(pred, y_test); push!(gpf_nll, nll)
+## Get partial MF
+ps[:advi] = true
+ps[:steinvi] = false
+mf = :partial
+prefix_folder = datadir("results", "linear", dataset, savename(merge(ps, @dict mf)))
+@assert isdir(prefix_folder)
+partialmf = Dict()
+partialmf[:advi] = [Dict() for i in 1:ps[:n_runs]]
+partialmf[:gflow] = [Dict() for i in 1:ps[:n_runs]]
+for i in 1:ps[:n_runs]
+    for model in [:advi, :gflow]
+        model_path = joinpath(prefix_folder, savename(string(model), @dict i))
+        res = collect_results!(model_path)
+        # last_res = @linq res |> where(:i .== maximum(:i))
+        acc, nll = treat_results(Val(model), res, X_test, y_test)
+        partialmf[model][i][:acc] = acc
+        partialmf[model][i][:nll] = nll
+        partialmf[model][i][:iter] = sort(res.i)
     end
-    gpf_res[i][:iter] = sort(iter)
-    gpf_res[i][:nll] = gpf_nll
-    gpf_res[i][:acc] = gpf_acc
+end
+for model in [:advi, :gflow]
+    res = partialmf[model]
+    partialmf[model] = Dict()
+    for metric in [:acc, :nll]
+        partialmf[model][Symbol(metric, "_m")] = mean(x[metric] for x in res)
+        partialmf[model][Symbol(metric, "_v")] = vec(StatsBase.var(reduce(hcat,x[metric] for x in res), dims = 2))
+    end
+    partialmf[model][:iter] = first(res)[:iter]
+end
+## Get no-Mean field data
+ps[:advi] = false
+ps[:steinvi] = true
+mf = :none
+prefix_folder = datadir("results", "linear", dataset, savename(merge(ps, @dict mf)))
+@assert isdir(prefix_folder)
+@assert isdir(prefix_folder)
+nonemf = Dict()
+nonemf[:stein] = [Dict() for i in 1:ps[:n_runs]]
+nonemf[:gflow] = [Dict() for i in 1:ps[:n_runs]]
+for i in 1:ps[:n_runs]
+    for model in [:stein, :gflow]
+        model_path = joinpath(prefix_folder, savename(string(model), @dict i))
+        res = collect_results!(model_path)
+        # last_res = @linq res |> where(:i .== maximum(:i))
+        acc, nll = treat_results(Val(model), res, X_test, y_test)
+        nonemf[model][i][:acc] = acc
+        nonemf[model][i][:nll] = nll
+        nonemf[model][i][:iter] = sort(res.i)
+    end
+end
+for model in [:gflow, :stein]
+    res = nonemf[model]
+    nonemf[model] = Dict()
+    for metric in [:acc, :nll]
+        nonemf[model][Symbol(metric, "_m")] = mean(x[metric] for x in res)
+        nonemf[model][Symbol(metric, "_v")] = vec(StatsBase.var(reduce(hcat,x[metric] for x in res), dims = 2))
+    end
+    nonemf[model][:iter] = first(res)[:iter]
+end
+## Load full-mean field data
+ps[:advi] = true
+ps[:steinvi] = false
+mf = :full
+prefix_folder = datadir("results", "linear", dataset, savename(merge(ps, @dict mf)))
+fullmf = Dict()
+fullmf[:advi] = [Dict() for i in 1:ps[:n_runs]]
+fullmf[:gflow] = [Dict() for i in 1:ps[:n_runs]]
+for i in 1:ps[:n_runs]
+    for model in [:advi, :gflow]
+        model_path = joinpath(prefix_folder, savename(string(model), @dict i))
+        res = collect_results!(model_path)
+        # last_res = @linq res |> where(:i .== maximum(:i))
+        acc, nll = treat_results(Val(model), res, X_test, y_test)
+        fullmf[model][i][:acc] = acc
+        fullmf[model][i][:nll] = nll
+        fullmf[model][i][:iter] = sort(res.i)
+    end
+end
+for model in [:gflow, :advi]
+    res = fullmf[model]
+    fullmf[model] = Dict()
+    for metric in [:acc, :nll]
+        fullmf[model][Symbol(metric, "_m")] = mean(x[metric] for x in res)
+        fullmf[model][Symbol(metric, "_v")] = vec(StatsBase.var(reduce(hcat,x[metric] for x in res), dims = 2))
+    end
+    fullmf[model][:iter] = first(res)[:iter]
 end
 
-gpf = Dict()
-gpf[:acc] = mean(getindex.(gpf_res, :acc))
-gpf[:acc_var] = var(getindex.(gpf_red, :acc))
-## Load Stein data
-n_particles = 8
-mf = :none
-prefix = datadir("results", "linear", dataset)
-nruns = 9
-stein_res = [Dict() for i in 1:nruns]
-for i in 1:nruns
-    stein_path = joinpath(prefix, savename(@dict B i mf n_particles α σ_init) * "_stein")
-    res = collect_results!(stein_path)
-    files = readdir(stein_path)
-    iter = parse.(Int64, getindex.(files, range.(12, length.(files).-5; step = 1)))
-    res.iter = iter
-    last_res = @linq res |> where(:iter .== maximum(:iter))
-    stein_acc = Float64[]
-    stein_nll = Float64[]
-    for ps in res.particles[sortperm(iter)]
-        pred, sig_pred = StatsBase.mean_and_var(x -> logistic.(X_test * x), ps)
-        acc = mean((pred .> 0.5) .== y_test); push!(stein_acc, acc)
-        nll = Flux.Losses.binarycrossentropy(pred, y_test); push!(stein_nll, nll)
+## Plot the results
+ps = []
+for metric in [:acc, :nll]
+    p = plot(xaxis = "Iteration", yaxis = string(metric))
+    # Plotting Full-MF
+    for model in [:gflow, :advi]
+        plot!(fullmf[model][:iter], fullmf[model][Symbol(metric, "_m")], ribbon=sqrt.(fullmf[model][Symbol(metric, "_v")]), marker = :o, label = string(model, " - FullMF"))
     end
-    stein_res[i][:iter] = sort(iter)
-    stein_res[i][:nll] = stein_nll
-    stein_res[i][:acc] = stein_acc
+    # Plotting Partial-MF
+    for model in [:gflow, :advi]
+        plot!(partialmf[model][:iter], partialmf[model][Symbol(metric, "_m")], ribbon=sqrt.(partialmf[model][Symbol(metric, "_v")]), marker = :o, label = string(model, " - PartialMF"))
+    end
+    # Plotting Partial-MF
+    for model in [:gflow, :stein]
+        plot!(nonemf[model][:iter], nonemf[model][Symbol(metric, "_m")], ribbon=sqrt.(nonemf[model][Symbol(metric, "_v")]), marker = :o, label = string(model, " - No MF"))
+    end
+    push!(ps, p)
+    display(p)
 end

@@ -101,3 +101,25 @@ function wasserstein_discrete(x, μ, y, ν, ϵ; c=(x,y)->norm(x-y), η::Real = 0
     v = optim_v(x, μ, y, ν, η, N, ϵ, c)
     return mean(x->h(x, v, y, ν, ϵ, c), rand(x, N_MC))
 end
+
+function treat_results(::Val{:advi}, res::DataFrame, X_test, y_test; nMC = 100)
+    acc = zeros(length(res.i))
+    nll = zeros(length(res.i))
+    for (i, q) in enumerate(res.q[sortperm(res.i)])
+        pred, sig_pred = StatsBase.mean_and_var(x -> logistic.(X_test * x), rand(q, nMC))
+        acc[i] = mean((pred .> 0.5) .== y_test)
+        nll[i] = Flux.Losses.binarycrossentropy(pred, y_test)
+    end
+    return acc, nll
+end
+
+function treat_results(::Union{Val{:gflow}, Val{:stein}}, res::DataFrame, X_test, y_test; nMC = 100)
+    acc = zeros(length(res.i))
+    nll = zeros(length(res.i))
+    for (i, ps) in enumerate(res.particles[sortperm(res.i)])
+        pred, sig_pred = StatsBase.mean_and_var(x -> logistic.(X_test * x), ps)
+        acc[i] = mean((pred .> 0.5) .== y_test)
+        nll[i] = Flux.Losses.binarycrossentropy(pred, y_test)
+    end
+    return acc, nll
+end
