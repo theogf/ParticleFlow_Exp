@@ -2,6 +2,7 @@
 using DrWatson;
 @quickactivate
 using Pkg; Pkg.update()
+include(srcdir("gaussian", "gaussian_target.jl"))
 
 # Use parallelism
 using Distributed
@@ -11,7 +12,6 @@ if nprocs() < nthreads
 end
 
 # Load all needed packages on every worker
-include(srcdir("gaussian", "gaussian_target.jl"))
 @everywhere using DrWatson
 @everywhere quickactivate(@__DIR__)
 @everywhere include(srcdir("gaussian", "gaussian_target.jl"))
