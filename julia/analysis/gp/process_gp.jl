@@ -42,7 +42,7 @@ acc, acc_sig = [], []
 nll, nll_sig = [], []
 mu_f, sig_f = [], []
 wass, wass_sig = [], []
-n_parts = vcat(1:9, 10:10:99, 100:50:400)
+n_parts = vcat(1:9, 10:10:60]#, 100:50:400)
 for n_particles in n_parts
     # n_particles = 10
     gpf_res = collect_results(datadir("results", "gp", dataset, @savename n_particles))

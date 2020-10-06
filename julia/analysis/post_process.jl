@@ -5,6 +5,7 @@ using DataFramesMeta
 using Plots; pyplot()
 default(lw=3.0, legendfontsize = 15.0, labelfontsize = 15.0, tickfontsize = 13.0)
 using LaTeXStrings
+using ProgressMeter
 using ColorSchemes
 colors = ColorSchemes.seaborn_colorblind
 using Flux
@@ -71,7 +72,7 @@ end
 
 function optim_v(μ::Distribution, y::AbstractVector, ν::AbstractVector, η::Real, N::Int, ϵ::Real, c)
     v = zero(ν); ṽ = zero(ν)
-    @progress for k in 1:N
+    for k in 1:N
         xₖ = rand(μ)
         ṽ .+= η /√(k) * gradient(ν->h(xₖ, ṽ, y, ν, ϵ, c), ν)[1]
         v = ṽ ./ k + (k - 1) / k * v
@@ -82,7 +83,7 @@ end
 function optim_v(x::AbstractVector, μ::AbstractVector, y::AbstractVector, ν::AbstractVector, η::Real, N::Int, ϵ::Real, c)
     N_x = length(x)
     v = zero(ν); g = [zero(ν) for i in 1:N_x]; d = zero(ν)
-    @progress for k in 1:N
+    @showprogress for k in 1:N
         i = rand(1:N_x)
         d .-= g[i]
         g[i] = μ[i] * gradient(ν->h(x[i], v, y, ν, ϵ, c), ν)[1]

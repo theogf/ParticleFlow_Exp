@@ -5,16 +5,16 @@ using Pkg; Pkg.update()
 
 #Use parallelism
 using Distributed
-nthreads = 32 # Number of threads to use
+nthreads = 6 # Number of threads to use
 if nprocs() < nthreads
     addprocs(nthreads-nprocs()+1) # Add the threads as workers
 end
 
 # Load all needed packages on every worker
+include(srcdir("gp", "gp_gpf.jl"))
 @everywhere using DrWatson
 @everywhere quickactivate(@__DIR__)
 @everywhere include(srcdir("gp", "gp_gpf.jl"))
-include(srcdir("gp", "gp_gpf.jl"))
 
 dataset = "ionosphere"
 preload(dataset, "gp")
@@ -29,7 +29,7 @@ exp_p = Dict(
     :cond1 => false, # Preconditionning on b
     :cond2 => false, # Preconditionning on A
     :σ_init => 1.0, # Initial std dev
-    :opt => [ADAGrad(0.01), ADAGrad(0.1)], # Optimizer used
+    :opt => Flux.Optimise.Optimiser(ClipNorm(10), Descent(0.1)), # Optimizer used
 )
 
 ps = dict_list(exp_p) # Create list of parameters
