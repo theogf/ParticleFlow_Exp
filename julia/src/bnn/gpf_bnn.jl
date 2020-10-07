@@ -14,7 +14,7 @@ function run_gpf_bnn(exp_p)
 
     AVI.setadbackend(:zygote)
     ## Loading parameters for GPF
-    @unpack start_layer, n_particles, n_iter, opt = exp_p
+    @unpack start_layer, n_particles, n_iter, opt, α = exp_p
     fixed_m = m[1:(start_layer-1)] |> device
     opt_m = m[start_layer:end]
     opt_θ, opt_re = Flux.destructure(opt_m)
@@ -55,11 +55,10 @@ function run_gpf_bnn(exp_p)
         "bnn",
         dataset,
         "GPF_" * model,
-        @savename n_particles start_layer n_iter batchsize mf σ_init cond1 cond2
+        @savename n_particles start_layer n_iter batchsize mf σ_init cond1 cond2 α
     )
 
     ## Define prior
-    @unpack α = exp_p
     Flux.@functor TuringDiagMvNormal
     prior_θ = TuringDiagMvNormal(zeros(n_θ), α .* ones(n_θ)) |> device
 

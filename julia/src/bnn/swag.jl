@@ -10,10 +10,10 @@ function run_SWAG(exp_p)
     m = BSON.load(modelfile)[:model] |> device
 
     ## Loading parameters for SWAG
-    @unpack start_layer, n_period, n_epoch = exp_p
+    @unpack start_layer, n_period, n_epoch, α = exp_p
     ps = Flux.params(m[start_layer:end])
     opt = Flux.Momentum(η)
-    save_path = datadir("results", "bnn", dataset, "SWAG_" * model, @savename n_epoch n_period batchsize η start_layer)
+    save_path = datadir("results", "bnn", dataset, "SWAG_" * model, @savename n_epoch n_period batchsize α η start_layer)
     ispath(save_path) ? nothing : mkpath(save_path)
 
     function save_params(ps, i)
@@ -22,7 +22,6 @@ function run_SWAG(exp_p)
         tagsave(joinpath(save_path, savename(@dict i) * ".bson"), @dict parameters i)
     end
     ## Define prior
-    @unpack α = exp_p
     logprior(θ::AbstractArray{<:Real}) = sum(abs2, θ)
     logprior(θ, α) = - sum(logprior, θ) / α
 

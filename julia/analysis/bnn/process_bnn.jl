@@ -13,10 +13,11 @@ model = "LeNet"
 batchsize = 128
 n_epoch = 100
 n_period = 10
-η = 0.001
+η = 0.01
+α = 0.1
 cond1 = false
 cond2 = false
-start_layer = 1
+start_layer = 7
 K = 30
 ## Load SWAG data
 swag_res = collect_results(datadir("results", "bnn", dataset, "SWAG", savename(@dict batchsize n_epoch n_period η start_layer)))

@@ -38,11 +38,11 @@ d_vi = MvNormal(AGP.mean(m_vi.f[1]), AGP.cov(m_vi.f[1]))
 wass_vi = wasserstein_semidiscrete(d_vi, x_mc, μ_mc, 0.1)
 
 ## Treating the GPF results
-acc, acc_sig = [], []
-nll, nll_sig = [], []
+accs, acc, acc_sig = [], [], []
+nlls, nll, nll_sig = [], [], []
 mu_f, sig_f = [], []
-wass, wass_sig = [], []
-n_parts = vcat(1:9, 10:10:60]#, 100:50:400)
+wasss, wass, wass_sig = [], [], []
+n_parts = vcat(1:9, 10:10:99, 100:50:300)
 for n_particles in n_parts
     # n_particles = 10
     gpf_res = collect_results(datadir("results", "gp", dataset, @savename n_particles))
@@ -59,27 +59,32 @@ for n_particles in n_parts
         push!(wass_gpf, wass_val)
     end
     x,y = mean_and_var(acc_gpf)
-    push!(acc, x); push!(acc_sig, y)
+    push!(acc, x); push!(acc_sig, y); push!(accs, acc_gpf)
     x,y = mean_and_var(nll_gpf)
-    push!(nll, x); push!(nll_sig, y)
+    push!(nll, x); push!(nll_sig, y); push!(nlls, nll_gpf)
     x,y = mean_and_var(wass_gpf)
-    push!(wass, x); push!(wass_sig, y)
+    push!(wass, x); push!(wass_sig, y); push!(wasss, wass_gpf)
 end
 
 ## Plot accuracy
-plot(n_parts, acc, ribbon=sqrt.(acc_sig), label = "GPF", color = colors[1], xlabel = "# Particles", ylabel = "Accuracy")
+p = plot(xaxis = :log)
+scatter!.([[x] for x in n_parts[1:length(accs)]], accs, msize = 2.0, markerstrokewidth = 0.0, label="", color = :black, alpha= 0.5)
+plot!(n_parts, acc, ribbon=sqrt.(acc_sig), label = "GPF", color = colors[1], xlabel = "# Particles", ylabel = "Accuracy")
 hline!([acc_mc], label = "MCMC", color = colors[2])
 hline!([acc_vi], label = "VI", line = :dash, color = colors[3])
 isdir(plotsdir("gp")) ? nothing : mkpath(plotsdir("gp"))
 savefig(plotsdir("gp", "Accuracy.png"))
 
-plot(n_parts, nll, ribbon=sqrt.(nll_sig), label = "GPF", color = colors[1], xlabel = "# Particles", ylabel = "Neg. Log-Likelihood")
+p = plot(xaxis = :log)
+plot!(n_parts, nll, ribbon=sqrt.(nll_sig), label = "GPF", color = colors[1], xlabel = "# Particles", ylabel = "Neg. Log-Likelihood")
+scatter!.([[x] for x in n_parts[1:length(nlls)]], nlls, msize = 2.0, markerstrokewidth = 0.0, label="", color = :black, alpha= 0.5)
 hline!([nll_mc], label = "MCMC", color = colors[2])
 hline!([nll_vi], label = "VI", line = :dash, color = colors[3])
 isdir(plotsdir("gp")) ? nothing : mkpath(plotsdir("gp"))
 savefig(plotsdir("gp", "NLL.png"))
 
 plot(n_parts, wass, ribbon=sqrt.(wass_sig), label = "GPF", color = colors[1], xaxis = :log, xlabel = "# Particles", ylabel = L"W^2")
+scatter!.([[x] for x in n_parts[1:length(wasss)]], wasss, msize = 2.0, markerstrokewidth = 0.0, label="", color = :black, alpha= 0.5)
 hline!([wass_vi], label = "VI", line = :dash, color = colors[3])
 isdir(plotsdir("gp")) ? nothing : mkpath(plotsdir("gp"))
 savefig(plotsdir("gp", "Wasserstein.png"))
