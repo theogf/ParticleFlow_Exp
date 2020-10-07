@@ -5,11 +5,12 @@ using DataFrames
 using BSON
 using Flux
 using Plots
+using ProgressMeter
 using Distributions
 include(srcdir("utils", "tools.jl"))
 
-setadbackend(Val(:forward_diff))
-m0 = [0.1, 0]
+AVI.setadbackend(Val(:forward_diff))
+m0 = [1.0, 1.0]
 m1 = zeros(2)
 m2 = zeros(2)
 
@@ -29,6 +30,7 @@ totσ = 3
 d_init = MvNormal(zeros(2))
 ps = []
 # for n_p in n_particles
+opt = Descent(1.0)
 
 ## Running the n_particles
 n_p = 20
@@ -37,10 +39,10 @@ a = Animation()
 m1 = zeros(2)
 m2 = zeros(2)
 q = SamplesMvNormal(randn(2, n_p) .+ m0)
-@progress for i in 1:40
-    q = SamplesMvNormal(randn(2, n_p))
-    qvi = AVI.PFlowVI(200, false, false)
-    vi(logzygote, qvi, q; optimizer = Descent(0.01))
+@showprogress for i in 1:40
+    global q = SamplesMvNormal(randn(2, n_p) .+ m0)
+    qvi = AVI.PFlowVI(400, false, false)
+    vi(logzygote, qvi, q; optimizer = deepcopy(opt))
 
     ## Plotting
     p = plot(title = "$n_p particles", showaxis = false, legend = false)
@@ -61,12 +63,12 @@ m2 = zeros(2)
 θ = vcat(zeros(2), [1, 0, 1])
 q = TuringDenseMvNormal(zeros(2), Diagonal(ones(2)))
 a = Animation()
-@progress for i in 1:40
+@showprogress for i in 1:40
     θ = vcat(m0, [1, 0, 1])
 
     qvi = ADVI(5000, 10)
-    vi(logzygote, qvi, q, θ, optimizer = Descent(0.1))
-    q = AVI.update(q, θ)
+    vi(logzygote, qvi, q, θ, optimizer = deepcopy(opt))
+    global q = AVI.update(q, θ)
     p = plot(title = "Standard VI", showaxis =false)
     contourf!(p, xrange, yrange, zygote, colorbar = false)
     # scatter!(p, eachrow(q.x)..., label="")

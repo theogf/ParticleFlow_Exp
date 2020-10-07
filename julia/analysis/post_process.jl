@@ -12,8 +12,8 @@ using Flux
 using AdvancedVI; const AVI = AdvancedVI
 using StatsFuns
 algs = [:gpf, :advi, :steinvi]
-labels = Dict(:gpf => "GPF", :advi => "GVA", :steinvi => "SVGD")
-
+labels = Dict(:gpf => "GPF", :gflow => "GPF" :advi => "GVA", :steinvi => "SVGD")
+dcolors = Dict(:gpf => colors[1], :advi => colors[2], :steinvi => colors[3])
 
 #Takes an array of MVHistory and the true distribution and returns the average error and the variance of the error
 function process_means(hs, truth, metric = (x, y) -> norm(x - y))
@@ -51,6 +51,7 @@ end
 
 ## Extract timing in the format [s]
 function extract_time(h)
+    
     t_init = get(h, :t_tic)[2]
     t_end = get(h, :t_toc)[2]
     t_diff = cumsum(t_end-t_init)
