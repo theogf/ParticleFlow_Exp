@@ -44,10 +44,11 @@ function nn_forward(xs, θ)
 end
 ## Loading data
 train_loader, test_loader = get_data(dataset, 10_000);
-X_test, y_test = first(test_loader) |> device
+X_test, y_test = first(test_loader)
+X_test = X_test |> device
 N20 = size(X_test, 4) ÷ 20
 
-opt_pred = Flux.softmax(nn_forward(X_test, opt_θ))
+opt_pred = cpu(Flux.softmax(nn_forward(X_test, opt_θ)))
 
 function max_ps_ids(X)
     maxs = findmax.(eachcol(X))
@@ -73,7 +74,7 @@ preds = []
 @showprogress for i in 1:n_MC
     θ = SWA + SWA_sqrt_diag / sqrt(2f0) * randn(Float32, n_θ) + SWA_D / sqrt(2f0 * (K - 1)) * randn(Float32, K)
     pred = nn_forward(X_test, θ)
-    push!(preds, Flux.softmax(pred))
+    push!(preds, cpu(Flux.softmax(pred)))
 end
 SWAG_preds = mean(preds)
 
@@ -84,8 +85,7 @@ mf = :partial
 α = 0.1
 n_iter = 5000
 gpf_res = collect_results(datadir("results", "bnn", dataset, "GPF_LeNet", @savename start_layer n_particles α n_iter batchsize mf cond1 cond2))
-names(gpf_res)
-## 
+names(gpf_res) 
 particles = first(gpf_res.particles[gpf_res.i .== n_iter-100])
 preds = []
 @showprogress for θ in eachcol(particles)
@@ -101,9 +101,9 @@ gpf_conf, gpf_acc = conf_and_acc(gpf_preds)
 swag_conf, swag_acc = conf_and_acc(SWAG_preds)
 
 p = plot(title = "LeNet", xaxis = "Confidence - (max prob)", yaxis = "Confidence - Accuracy")
-plot!(opt_conf, opt_conf - opt_acc, marker = "o", label = "ML")
-plot!(gpf_conf, gpf_conf - gpf_acc, marker = "o", label = "GPF - $(n_particles)")
-plot!(swag_conf, swag_conf - swag_acc, marker = "o", label = "SWAG")
+plot!(opt_conf, opt_conf - opt_acc, marker = :o, label = "ML")
+plot!(gpf_conf, gpf_conf - gpf_acc, marker = :o, label = "GPF - $(n_particles)")
+plot!(swag_conf, swag_conf - swag_acc, marker = :o, label = "SWAG")
 hline!([0.0], linestyle = :dash, color = :black, label = "")
 savefig(plotsdir("bnn", "confidence_lenet.png"))
 display(p)

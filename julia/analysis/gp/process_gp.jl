@@ -67,6 +67,7 @@ for n_particles in n_parts
 end
 
 ## Plot accuracy
+overwrite = true
 p = plot(xaxis = :log)
 scatter!.([[x] for x in n_parts[1:length(accs)]], accs, msize = 2.0, markerstrokewidth = 0.0, label="", color = :black, alpha= 0.5)
 plot!(n_parts, acc, ribbon=sqrt.(acc_sig), label = "GPF", color = colors[1], xlabel = "# Particles", ylabel = "Accuracy")
@@ -74,6 +75,10 @@ hline!([acc_mc], label = "MCMC", color = colors[2])
 hline!([acc_vi], label = "VI", line = :dash, color = colors[3])
 isdir(plotsdir("gp")) ? nothing : mkpath(plotsdir("gp"))
 savefig(plotsdir("gp", "Accuracy.png"))
+display(p)
+if overwrite
+    cp(plotsdir("gp", "Accuracy.png"), joinpath("/home/theo","Tex Projects", "GaussianParticleFlow", "figures", "gp", "Accuracy.png"), force =true)
+end
 
 p = plot(xaxis = :log)
 plot!(n_parts, nll, ribbon=sqrt.(nll_sig), label = "GPF", color = colors[1], xlabel = "# Particles", ylabel = "Neg. Log-Likelihood")
@@ -82,9 +87,17 @@ hline!([nll_mc], label = "MCMC", color = colors[2])
 hline!([nll_vi], label = "VI", line = :dash, color = colors[3])
 isdir(plotsdir("gp")) ? nothing : mkpath(plotsdir("gp"))
 savefig(plotsdir("gp", "NLL.png"))
+display(p)
+if overwrite
+    cp(plotsdir("gp", "NLL.png"), joinpath("/home/theo","Tex Projects", "GaussianParticleFlow", "figures", "gp", "NLL.png"), force =true)
+end
 
-plot(n_parts, wass, ribbon=sqrt.(wass_sig), label = "GPF", color = colors[1], xaxis = :log, xlabel = "# Particles", ylabel = L"W^2")
+p = plot(n_parts, wass, ribbon=sqrt.(wass_sig), label = "GPF", color = colors[1], xaxis = :log, xlabel = "# Particles", ylabel = L"W^2")
 scatter!.([[x] for x in n_parts[1:length(wasss)]], wasss, msize = 2.0, markerstrokewidth = 0.0, label="", color = :black, alpha= 0.5)
 hline!([wass_vi], label = "VI", line = :dash, color = colors[3])
 isdir(plotsdir("gp")) ? nothing : mkpath(plotsdir("gp"))
 savefig(plotsdir("gp", "Wasserstein.png"))
+display(p)
+if overwrite
+    cp(plotsdir("gp", "Wasserstein.png"), joinpath("/home/theo","Tex Projects", "GaussianParticleFlow", "figures", "gp", "Wasserstein.png"), force= true)
+end

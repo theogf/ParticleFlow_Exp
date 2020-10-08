@@ -3,6 +3,7 @@ using DrWatson
 include(projectdir("analysis", "post_process.jl"))
 include(srcdir("utils", "linear.jl"))
 include(srcdir("utils", "tools.jl"))
+using AdvancedVI; const AVI = AdvancedVI
 using BlockDiagonals
 ## Load data
 dataset = "swarm_flocking"
@@ -16,7 +17,7 @@ ps = Dict(
     :σ_init => 1,
     :cond1 => false,
     :cond2 => false,
-    :n_iters => 101,
+    :n_iters => 2001,
     :use_gpu => false,
     :n_runs => 10,
     :seed => 42,
@@ -26,20 +27,20 @@ ps = Dict(
     :steinvi => true,
     )
 
-do_run
-n_particles = 2:2:10
-for n_p in n_particles
+# do_run
+# n_particles = 2:2:10
+# for n_p in n_particles
 ## Get partial MF
 ps[:advi] = true
 ps[:steinvi] = false
 mf = :partial
 prefix_folder = datadir("results", "linear", dataset, savename(merge(ps, @dict mf)))
-@assert isdir(prefix_folder)
+@assert isdir(prefix_folder) "$prefix_folder"
 partialmf = Dict()
-partialmf[:advi] = [Dict() for i in 1:ps[:n_runs]]
-partialmf[:gflow] = [Dict() for i in 1:ps[:n_runs]]
-for i in 1:ps[:n_runs]
-    for model in [:advi, :gflow]
+partialmodels = [:advi]
+for model in partialmodels
+    partialmf[model] = [Dict() for i in 1:ps[:n_runs]]
+    for i in 1:ps[:n_runs]
         model_path = joinpath(prefix_folder, savename(string(model), @dict i))
         res = collect_results!(model_path)
         # last_res = @linq res |> where(:i .== maximum(:i))
@@ -49,7 +50,7 @@ for i in 1:ps[:n_runs]
         partialmf[model][i][:iter] = sort(res.i)
     end
 end
-for model in [:advi, :gflow]
+for model in partialmodels
     res = partialmf[model]
     partialmf[model] = Dict()
     for metric in [:acc, :nll]
@@ -68,8 +69,9 @@ prefix_folder = datadir("results", "linear", dataset, savename(merge(ps, @dict m
 nonemf = Dict()
 nonemf[:stein] = [Dict() for i in 1:ps[:n_runs]]
 nonemf[:gflow] = [Dict() for i in 1:ps[:n_runs]]
+nonemodels = [:gflow, :stein]
 for i in 1:ps[:n_runs]
-    for model in [:stein, :gflow]
+    for model in nonemodels
         model_path = joinpath(prefix_folder, savename(string(model), @dict i))
         res = collect_results!(model_path)
         # last_res = @linq res |> where(:i .== maximum(:i))
@@ -79,7 +81,7 @@ for i in 1:ps[:n_runs]
         nonemf[model][i][:iter] = sort(res.i)
     end
 end
-for model in [:gflow, :stein]
+for model in nonemodels
     res = nonemf[model]
     nonemf[model] = Dict()
     for metric in [:acc, :nll]
@@ -96,8 +98,9 @@ prefix_folder = datadir("results", "linear", dataset, savename(merge(ps, @dict m
 fullmf = Dict()
 fullmf[:advi] = [Dict() for i in 1:ps[:n_runs]]
 fullmf[:gflow] = [Dict() for i in 1:ps[:n_runs]]
+fullmodels = [:gflow]
 for i in 1:ps[:n_runs]
-    for model in [:advi, :gflow]
+    for model in fullmodels
         model_path = joinpath(prefix_folder, savename(string(model), @dict i))
         res = collect_results!(model_path)
         # last_res = @linq res |> where(:i .== maximum(:i))
@@ -107,7 +110,7 @@ for i in 1:ps[:n_runs]
         fullmf[model][i][:iter] = sort(res.i)
     end
 end
-for model in [:gflow, :advi]
+for model in fullmodels
     res = fullmf[model]
     fullmf[model] = Dict()
     for metric in [:acc, :nll]
@@ -118,21 +121,21 @@ for model in [:gflow, :advi]
 end
 
 ## Plot the results
-ps = []
+plots = []
 for metric in [:acc, :nll]
     p = plot(xaxis = "Iteration", yaxis = string(metric))
     # Plotting Full-MF
-    for model in [:gflow, :advi]
+    for model in fullmodels
         plot!(fullmf[model][:iter], fullmf[model][Symbol(metric, "_m")], ribbon=sqrt.(fullmf[model][Symbol(metric, "_v")]), marker = :o, label = string(model, " - FullMF"))
     end
     # Plotting Partial-MF
-    for model in [:gflow, :advi]
+    for model in partialmodels
         plot!(partialmf[model][:iter], partialmf[model][Symbol(metric, "_m")], ribbon=sqrt.(partialmf[model][Symbol(metric, "_v")]), marker = :o, label = string(model, " - PartialMF"))
     end
-    # Plotting Partial-MF
-    for model in [:gflow, :stein]
+    # Plotting No-MF
+    for model in nonemodels
         plot!(nonemf[model][:iter], nonemf[model][Symbol(metric, "_m")], ribbon=sqrt.(nonemf[model][Symbol(metric, "_v")]), marker = :o, label = string(model, " - No MF"))
     end
-    push!(ps, p)
+    push!(plots, p)
     display(p)
 end
