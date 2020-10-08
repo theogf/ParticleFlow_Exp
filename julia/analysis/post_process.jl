@@ -12,7 +12,7 @@ using Flux
 using AdvancedVI; const AVI = AdvancedVI
 using StatsFuns
 algs = [:gpf, :advi, :steinvi]
-labels = Dict(:gpf => "GPF", :gflow => "GPF" :advi => "GVA", :steinvi => "SVGD")
+labels = Dict(:gpf => "GPF", :gflow => "GPF", :advi => "GVA", :steinvi => "SVGD")
 dcolors = Dict(:gpf => colors[1], :advi => colors[2], :steinvi => colors[3])
 
 #Takes an array of MVHistory and the true distribution and returns the average error and the variance of the error

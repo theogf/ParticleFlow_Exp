@@ -7,6 +7,8 @@ using Flux
 using StatsBase, LinearAlgebra
 using MLDataUtils
 using ProgressMeter
+use_gpu = true
+device = use_gpu ? gpu : cpu
 ## Load data and filter it
 dataset = "MNIST"
 model = "LeNet"
@@ -31,18 +33,18 @@ SWA_D = reduce(hcat, res[end-K+1:end] .- Ref(SWA))
 ## Load model and data
 modelfile = projectdir("bnn_models", model, "model.bson")
 m = BSON.load(modelfile)[:model]
-fixed_m = m[1:(start_layer-1)]
+fixed_m = m[1:(start_layer-1)] |> device
 opt_m = m[start_layer:end]
 opt_θ, opt_re = Flux.destructure(opt_m)
 n_θ = length(opt_θ)
 function nn_forward(xs, θ)
-    opt_m = opt_re(θ)
+    opt_m = opt_re(θ) |> device
     nn = Chain(fixed_m, opt_m)
     return nn(xs)
 end
 ## Loading data
 train_loader, test_loader = get_data(dataset, 10_000);
-X_test, y_test = first(test_loader)
+X_test, y_test = first(test_loader) |> device
 N20 = size(X_test, 4) ÷ 20
 
 opt_pred = Flux.softmax(nn_forward(X_test, opt_θ))
@@ -77,16 +79,18 @@ SWAG_preds = mean(preds)
 
 
 ## Predictions with GPF
-n_particles = 10
-mf = :none
+n_particles = 100
+mf = :partial
+α = 0.1
 n_iter = 5000
-gpf_res = collect_results(datadir("results", "bnn", dataset, "GPF", @savename start_layer n_particles n_iter batchsize mf cond1 cond2))
+gpf_res = collect_results(datadir("results", "bnn", dataset, "GPF_LeNet", @savename start_layer n_particles α n_iter batchsize mf cond1 cond2))
 names(gpf_res)
-particles = first(gpf_res.particles[gpf_res.i .== n_iter])
+## 
+particles = first(gpf_res.particles[gpf_res.i .== n_iter-100])
 preds = []
 @showprogress for θ in eachcol(particles)
     pred = nn_forward(X_test, θ)
-    push!(preds, Flux.softmax(pred))
+    push!(preds, cpu(Flux.softmax(pred)))
 end
 gpf_preds = mean(preds)
 
@@ -96,12 +100,13 @@ opt_conf, opt_acc = conf_and_acc(opt_pred)
 gpf_conf, gpf_acc = conf_and_acc(gpf_preds)
 swag_conf, swag_acc = conf_and_acc(SWAG_preds)
 
-plot(title = "LeNet", xaxis = "Confidence - (max prob)", yaxis = "Confidence - Accuracy")
+p = plot(title = "LeNet", xaxis = "Confidence - (max prob)", yaxis = "Confidence - Accuracy")
 plot!(opt_conf, opt_conf - opt_acc, marker = "o", label = "ML")
 plot!(gpf_conf, gpf_conf - gpf_acc, marker = "o", label = "GPF - $(n_particles)")
 plot!(swag_conf, swag_conf - swag_acc, marker = "o", label = "SWAG")
 hline!([0.0], linestyle = :dash, color = :black, label = "")
 savefig(plotsdir("bnn", "confidence_lenet.png"))
+display(p)
 ##
 # p_μ = plot(title = "Convergence Mean", xlabel = "Time [s]", ylabel =L"\|\mu - \mu_{true}\|", xaxis=:log)
 # p_Σ = plot(title = "Convergence Covariance", xlabel = "Time [s]", ylabel =L"\|\Sigma - \Sigma_{true}\|", xaxis=:log)

@@ -33,8 +33,8 @@ display(Plots.plot(p_μ, p_Σ, legend = false))
 
 ## Treating all dimensions at once
 
-fullcov = false
-n_particles = 0
+fullcov = true
+n_particles = 5
 overwrite = true
 
 res = @linq all_res |> where(:n_iters .== 2000) |> where(:n_runs .== 10) |> where(:full_cov .== fullcov)
@@ -92,5 +92,5 @@ savefig(plotsdir("gaussian", "plots_vs_dim_" * plotname * ".png"))
 display(p)
 #
 if overwrite
-    cp(plotsdir("gaussian", "plots_vs_dim_" * plotname * ".png"), joinpath("/home","theo", "Tex Projects", "GaussianParticleFlow", "figures", "gaussian", "plots_vs_dim_" * plotname * ".png"))
+    cp(plotsdir("gaussian", "plots_vs_dim_" * plotname * ".png"), joinpath("/home","theo", "Tex Projects", "GaussianParticleFlow", "figures", "gaussian", "plots_vs_dim_" * plotname * ".png"), force = true)
 end
