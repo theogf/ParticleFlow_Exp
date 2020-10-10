@@ -51,7 +51,7 @@ end
 
 ## Extract timing in the format [s]
 function extract_time(h)
-    
+
     t_init = get(h, :t_tic)[2]
     t_end = get(h, :t_toc)[2]
     t_diff = cumsum(t_end-t_init)
@@ -73,7 +73,7 @@ end
 
 function optim_v(μ::Distribution, y::AbstractVector, ν::AbstractVector, η::Real, N::Int, ϵ::Real, c)
     v = zero(ν); ṽ = zero(ν)
-    for k in 1:N
+    @showprogress for k in 1:N
         xₖ = rand(μ)
         ṽ .+= η /√(k) * gradient(ν->h(xₖ, ṽ, y, ν, ϵ, c), ν)[1]
         v = ṽ ./ k + (k - 1) / k * v
@@ -96,12 +96,16 @@ end
 
 function wasserstein_semidiscrete(μ, y, ν, ϵ; c=(x,y)->norm(x-y), η::Real = 0.1, N::Int = 100, N_MC::Int=2000)
     v = optim_v(μ, y, ν, η, N, ϵ, c)
-    return mean(x->h(x, v, y, ν, ϵ, c), eachcol(rand(μ, N_MC)))
+    return mean(eachcol(rand(μ, N_MC))) do x
+        h(x, v, y, ν, ϵ, c)
+    end
 end
 
 function wasserstein_discrete(x, μ, y, ν, ϵ; c=(x,y)->norm(x-y), η::Real = 0.1, N::Int = 100, N_MC::Int = 200 )
     v = optim_v(x, μ, y, ν, η, N, ϵ, c)
-    return mean(x->h(x, v, y, ν, ϵ, c), rand(x, N_MC))
+    return mean(rand(x, N_MC)) do x
+        h(x, v, y, ν, ϵ, c)
+    end
 end
 
 function treat_results(::Val{:advi}, res::DataFrame, X_test, y_test; nMC = 100)

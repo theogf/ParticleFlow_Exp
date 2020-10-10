@@ -5,6 +5,8 @@ include(srcdir("utils", "linear.jl"))
 include(srcdir("utils", "tools.jl"))
 using AdvancedVI; const AVI = AdvancedVI
 using BlockDiagonals
+using LinearAlgebra
+using DistributionsAD
 ## Load data
 dataset = "swarm_flocking"
 (X_train, y_train), (X_test, y_test) = load_logistic_data(dataset)
@@ -12,7 +14,7 @@ dataset = "swarm_flocking"
 ## Parameters used
 ps = Dict(
     :B => 200,
-    :n_particles => 8,
+    :n_particles => 10,
     :α => 0.1,
     :σ_init => 1,
     :cond1 => false,
@@ -37,7 +39,7 @@ mf = :partial
 prefix_folder = datadir("results", "linear", dataset, savename(merge(ps, @dict mf)))
 @assert isdir(prefix_folder) "$prefix_folder"
 partialmf = Dict()
-partialmodels = [:advi]
+partialmodels = [:advi, :gflow]
 for model in partialmodels
     partialmf[model] = [Dict() for i in 1:ps[:n_runs]]
     for i in 1:ps[:n_runs]
@@ -96,26 +98,31 @@ ps[:steinvi] = false
 mf = :full
 prefix_folder = datadir("results", "linear", dataset, savename(merge(ps, @dict mf)))
 fullmf = Dict()
-fullmf[:advi] = [Dict() for i in 1:ps[:n_runs]]
-fullmf[:gflow] = [Dict() for i in 1:ps[:n_runs]]
-fullmodels = [:gflow]
-for i in 1:ps[:n_runs]
-    for model in fullmodels
+fullmodels = [:advi, :gflow]
+for model in fullmodels
+    fullmf[model] = [Dict() for i in 1:ps[:n_runs]]
+    for i in 1:ps[:n_runs]
         model_path = joinpath(prefix_folder, savename(string(model), @dict i))
-        res = collect_results!(model_path)
-        # last_res = @linq res |> where(:i .== maximum(:i))
-        acc, nll = treat_results(Val(model), res, X_test, y_test)
-        fullmf[model][i][:acc] = acc
-        fullmf[model][i][:nll] = nll
-        fullmf[model][i][:iter] = sort(res.i)
+        if isdir(model_path)
+            res = collect_results!(model_path)
+            # last_res = @linq res |> where(:i .== maximum(:i))
+            acc, nll = treat_results(Val(model), res, X_test, y_test)
+            fullmf[model][i][:acc] = acc
+            fullmf[model][i][:nll] = nll
+            fullmf[model][i][:iter] = sort(res.i)
+        else
+            fullmf[model][i][:acc] = missing
+            fullmf[model][i][:nll] = missing
+            fullmf[model][i][:iter] = missing
+        end
     end
 end
 for model in fullmodels
     res = fullmf[model]
     fullmf[model] = Dict()
     for metric in [:acc, :nll]
-        fullmf[model][Symbol(metric, "_m")] = mean(x[metric] for x in res)
-        fullmf[model][Symbol(metric, "_v")] = vec(StatsBase.var(reduce(hcat,x[metric] for x in res), dims = 2))
+        fullmf[model][Symbol(metric, "_m")] = mean(skipmissing(x[metric] for x in res))
+        fullmf[model][Symbol(metric, "_v")] = vec(StatsBase.var(reduce(hcat, skipmissing(x[metric] for x in res)), dims = 2))
     end
     fullmf[model][:iter] = first(res)[:iter]
 end
