@@ -37,7 +37,7 @@ function run_gpf_bnn(exp_p)
     mf_option = if mf == :partial
         nn_id_layers
     elseif mf == :full
-        0:n_θ
+        Inf
     elseif mf == :none
         false
     else

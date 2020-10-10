@@ -119,6 +119,11 @@ function init_gflow(gflow_p, general_p)
                 rand(MvNormal(ones(n_dim)), gflow_p[:n_particles]) : gflow_p[:init],
             gflow_p[:mf],
         )
+    elseif gflow_p[:mf] == Inf
+        FullMFSamplesMvNormal(
+            isnothing(gflow_p[:init]) ?
+                rand(MvNormal(ones(n_dim)), gflow_p[:n_particles]) : gflow_p[:init]
+        )
     else
         SamplesMvNormal(
             isnothing(gflow_p[:init]) ?
