@@ -22,7 +22,7 @@ exp_ps = Dict(
     :cond2 => false,
     :σ_init => 1.0,
     :mf => [:full, :partial, :none],
-    :α => [1000.0 100.0, 50.0, 10.0, 5.0, 1.0, 0.5, 0.1], # Prior variance
+    :α => [1000.0, 100.0, 50.0, 10.0, 5.0, 1.0, 0.5, 0.1] # Prior variance
 )
 
 ps = dict_list(exp_ps)
