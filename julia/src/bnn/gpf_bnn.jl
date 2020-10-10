@@ -104,6 +104,3 @@ function run_gpf_bnn(exp_p)
     # Train all models
     train_model(meta_logjoint, general_p, gflow_p, no_run, no_run)
 end
-
-acc_50 = [accs[(α, :partial, 50)] for α in [0.05, 0.1, 1, 10, 100]]
-nll_50 = [nlls[(α, :partial, 50)] for α in [0.05, 0.1, 1, 10, 100]]

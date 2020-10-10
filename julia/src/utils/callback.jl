@@ -57,7 +57,7 @@ end
 function wrap_heavy_cb(; cb_hp = nothing, cb_val = nothing, path = nothing)
     return function base_heavy_cb(h::MVHistory)
         return function (i, q, hp)
-            if mod(i, 100) == 0
+            if mod(i, 1000) == 0
                 cb_tic(h, i)
                 if !isnothing(hp) && !isnothing(cb_hp)
                     cb_hp(h, i, hp)

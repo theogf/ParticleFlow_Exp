@@ -114,6 +114,9 @@ for n_particles in [10, 50, 100], α in [0.1, 0.05, 1, 10,100], mf in [:none, :p
     savefig(plotsdir("bnn", savename("confidencelenet", @dict(α, mf, n_particles), "png")))
     display(p)
 end
+
+acc_50 = [accs[(α, :partial, 50)] for α in [0.05, 0.1, 1, 10, 100]]
+nll_50 = [nlls[(α, :partial, 50)] for α in [0.05, 0.1, 1, 10, 100]]
 ##
 # p_μ = plot(title = "Convergence Mean", xlabel = "Time [s]", ylabel =L"\|\mu - \mu_{true}\|", xaxis=:log)
 # p_Σ = plot(title = "Convergence Covariance", xlabel = "Time [s]", ylabel =L"\|\Sigma - \Sigma_{true}\|", xaxis=:log)
