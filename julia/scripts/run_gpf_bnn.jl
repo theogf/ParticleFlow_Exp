@@ -5,6 +5,7 @@ using Pkg; Pkg.update()
 using DataFrames
 using BSON
 using Flux
+using CUDA
 include(srcdir("bnn", "gpf_bnn.jl"))
 
 exp_ps = Dict(
@@ -21,7 +22,7 @@ exp_ps = Dict(
     :cond2 => false,
     :σ_init => 1.0,
     :mf => [:full, :partial, :none],
-    :α => [100.0, 10.0, 1.0, 0.1], # Prior variance
+    :α => [1000.0 100.0, 10.0, 1.0, 0.1], # Prior variance
 )
 
 ps = dict_list(exp_ps)
@@ -31,5 +32,7 @@ ps = dict_list(exp_ps)
 
 for (i, p) in enumerate(ps)
     @info "Running dict $(i)/$(length(ps)) : $(savename(p))"
+    GC.gc(true)
+    CUDA.reclaim()
     run_gpf_bnn(p)
 end

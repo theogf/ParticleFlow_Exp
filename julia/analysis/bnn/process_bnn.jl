@@ -77,36 +77,43 @@ preds = []
     push!(preds, cpu(Flux.softmax(pred)))
 end
 SWAG_preds = mean(preds)
-
+SWAG_nll = Flux.Losses.crossentropy(SWAG_preds, y_test)
+SWAG_acc = mean(Flux.onecold(SWAG_preds) .== Flux.onecold(y_test))
 
 ## Predictions with GPF
-n_particles = 100
-mf = :partial
-α = 0.1
-n_iter = 5000
-gpf_res = collect_results(datadir("results", "bnn", dataset, "GPF_LeNet", @savename start_layer n_particles α n_iter batchsize mf cond1 cond2))
-names(gpf_res) 
-particles = first(gpf_res.particles[gpf_res.i .== n_iter-100])
-preds = []
-@showprogress for θ in eachcol(particles)
-    pred = nn_forward(X_test, θ)
-    push!(preds, cpu(Flux.softmax(pred)))
+accs = Dict()
+nlls = Dict()
+for n_particles in [10, 50, 100], α in [0.1, 0.05, 1, 10,100], mf in [:none, :partial, :full]
+# n_particles = 100
+# mf = :partial
+# α = 100
+    @show α, mf, n_particles
+    n_iter = 5000
+    gpf_res = collect_results(datadir("results", "bnn", dataset, "GPF_LeNet", @savename start_layer n_particles α n_iter batchsize mf cond1 cond2))
+    names(gpf_res) 
+    particles = first(gpf_res.particles[gpf_res.i .== n_iter-100])
+    preds = []
+    @showprogress for θ in eachcol(particles)
+        pred = nn_forward(X_test, θ)
+        push!(preds, cpu(Flux.softmax(pred)))
+    end
+    gpf_preds = mean(preds)
+
+    nlls[(α, mf, n_particles)] = Flux.Losses.crossentropy(gpf_preds, y_test)
+    accs[(α, mf, n_particles)] = mean(Flux.onecold(gpf_preds) .== Flux.onecold(y_test))
+    ## Plotting of confidence histogram
+
+    opt_conf, opt_acc = conf_and_acc(opt_pred)
+    gpf_conf, gpf_acc = conf_and_acc(gpf_preds)
+    swag_conf, swag_acc = conf_and_acc(SWAG_preds)
+    p = plot(title = "LeNet", xaxis = "Confidence - (max prob)", yaxis = "Confidence - Accuracy")
+    plot!([0.5, 1], identity, linestyle = :dash, color = :black, label = "")
+    plot!(opt_conf, opt_acc, marker = :o, label = "ML")
+    plot!(gpf_conf, gpf_acc, marker = :o, label = "GPF - $(n_particles)")
+    plot!(swag_conf, swag_acc, marker = :o, label = "SWAG")
+    savefig(plotsdir("bnn", savename("confidencelenet", @dict(α, mf, n_particles), "png")))
+    display(p)
 end
-gpf_preds = mean(preds)
-
-## Plotting of confidence histogram
-
-opt_conf, opt_acc = conf_and_acc(opt_pred)
-gpf_conf, gpf_acc = conf_and_acc(gpf_preds)
-swag_conf, swag_acc = conf_and_acc(SWAG_preds)
-
-p = plot(title = "LeNet", xaxis = "Confidence - (max prob)", yaxis = "Confidence - Accuracy")
-plot!(opt_conf, opt_conf - opt_acc, marker = :o, label = "ML")
-plot!(gpf_conf, gpf_conf - gpf_acc, marker = :o, label = "GPF - $(n_particles)")
-plot!(swag_conf, swag_conf - swag_acc, marker = :o, label = "SWAG")
-hline!([0.0], linestyle = :dash, color = :black, label = "")
-savefig(plotsdir("bnn", "confidence_lenet.png"))
-display(p)
 ##
 # p_μ = plot(title = "Convergence Mean", xlabel = "Time [s]", ylabel =L"\|\mu - \mu_{true}\|", xaxis=:log)
 # p_Σ = plot(title = "Convergence Covariance", xlabel = "Time [s]", ylabel =L"\|\Sigma - \Sigma_{true}\|", xaxis=:log)
