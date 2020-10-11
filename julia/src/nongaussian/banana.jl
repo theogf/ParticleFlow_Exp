@@ -31,6 +31,8 @@ totσ = 3
 d_init = MvNormal(zeros(2))
 ps = Vector{Any}(undef, length(n_particles) + 2)
 n_p = 1000
+gcolor = :dense
+mcolor = :red
 ## Training the particles
 for (i, n_p) in enumerate(n_particles)
     global q = SamplesMvNormal(randn(2, n_p))
@@ -40,11 +42,11 @@ for (i, n_p) in enumerate(n_particles)
 
     ## Plotting
     p = plot(title = "$n_p particles", showaxis =false, xlims = extrema(xrange), ylims= extrema(yrange))
-    contourf!(p, xrange, yrange, banana, colorbar = false)
-    scatter!(p, eachrow(q.x)..., label="")
+    contourf!(p, xrange, yrange, banana, colorbar = false, c=gcolor)
     for i in 1:totσ
-        plot!(p, eachrow(std_line(q, i))..., color = :white, label="", linewidth = 0.8)
+        plot!(p, eachrow(std_line(q, i))..., color = :black, label="", linewidth = 1.5)
     end
+    scatter!(p, eachrow(q.x)..., label="", color = mcolor)
     display(p)
     ps[i] = p
 end
@@ -55,10 +57,10 @@ qvi = ADVI(2000, 100)
 vi(logbanana, qvi, q, θ, optimizer=deepcopy(opt))
 q = AVI.update(q, θ)
 p = plot(title = "Standard VI", showaxis =false, xlims = extrema(xrange), ylims = extrema(yrange))
-contourf!(p, xrange, yrange, banana, colorbar = false)
+contourf!(p, xrange, yrange, banana, colorbar = false, c=gcolor)
 # scatter!(p, eachrow(q.x)..., label="")
 for i in 1:totσ
-    plot!(p, eachrow(std_line(q, i))..., color = :white, label="", linewidth = 0.5)
+    plot!(p, eachrow(std_line(q, i))..., color = :black, label="", linewidth = 1.5)
 end
 display(p)
 ps[end] = p
@@ -79,12 +81,12 @@ vi(logbanana, qvi, q; optimizer = ADAM(0.1))
 
 ##
 p = plot(title = "ADAM", showaxis =false, xlims = extrema(xrange), ylims = extrema(yrange))
-contourf!(p, xrange, yrange, banana, colorbar = false, c=:thermal)
-scatter!(p, eachrow(q.x)..., label="", color = :green, msw = 1.0, ms = 7.0)
+contourf!(p, xrange, yrange, banana, colorbar = false, c=:dense)
 for i in 1:totσ
     l = std_line(q, i)
-    plot!(p, eachrow(l)..., color = :white, label="", linewidth = 1.0)
+    plot!(p, eachrow(l)..., color = :black, label="", linewidth = 1.5)
 end
+scatter!(p, eachrow(q.x)..., label="", color = mcolor, msw = 0.5, ms = 5.0)
 display(p)
 ps[end-1] = p
 
@@ -93,3 +95,4 @@ p = plot(ps..., layout = (1, length(ps)), size = (1000, 200), dpi = 300)
 display(p)
 ispath(plotsdir("nongaussian")) ? nothing : mkpath(plotsdir("nongaussian"))
 savefig(plotsdir("nongaussian", "banana.png"))
+cp(plotsdir("nongaussian", "banana.png"), joinpath("/home/theo/Tex Projects/GaussianParticleFlow", "figures", "banana", "banana.png"), force = true)
