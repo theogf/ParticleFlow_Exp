@@ -147,15 +147,28 @@ function init_advi(advi_p, general_p)
         isnothing(advi_p[:init]) ? (zeros(n_dim), Matrix(I(n_dim))) : advi_p[:init] # Check that the size of the inital particles respect the model
     L_init = if mf isa AbstractVector
         BlockDiagonal([L_init[(mf[i]+1):mf[i+1], (mf[i]+1):mf[i+1]] for i in 1:length(mf)-1])
+    elseif mf == Inf
+        vec(L_init)
     else
         L_init
     end
-    advi_q = AVI.transformed(
+    device = general_p[:gpu] ? gpu : cpu
+    advi_q =
+    if mf == Inf
+        AVI.transformed(
+        TuringDiagMvNormal(mu_init, L_init),
+        AVI.Bijectors.Identity{1}(),
+    ) |> device
+    else
+        AVI.transformed(
         TuringDenseMvNormal(mu_init, L_init * L_init'),
         AVI.Bijectors.Identity{1}(),
     )
+    end
     if L_init isa BlockDiagonal
         return advi_vi, advi_q, vcat(mu_init, vec.(LowerTriangular.(blocks(L_init)))...)
+    elseif mf == Inf
+        return advi_vi, advi_q, device(vcat(mu_init, log.(L_init)))
     else
         return advi_vi, advi_q, vcat(mu_init, L_init[:]) # Return alg., distr. and var. params.
     end

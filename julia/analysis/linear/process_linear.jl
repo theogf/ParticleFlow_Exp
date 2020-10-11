@@ -8,7 +8,7 @@ using BlockDiagonals
 using LinearAlgebra
 using DistributionsAD
 ## Load data
-dataset = "swarm_flocking"
+dataset = "bioresponse"
 (X_train, y_train), (X_test, y_test) = load_logistic_data(dataset)
 
 ## Parameters used
@@ -39,7 +39,7 @@ mf = :partial
 prefix_folder = datadir("results", "linear", dataset, savename(merge(ps, @dict mf)))
 @assert isdir(prefix_folder) "$prefix_folder"
 partialmf = Dict()
-partialmodels = [:advi, :gflow]
+partialmodels = [:gflow, :advi]
 for model in partialmodels
     partialmf[model] = [Dict() for i in 1:ps[:n_runs]]
     for i in 1:ps[:n_runs]
@@ -69,11 +69,10 @@ prefix_folder = datadir("results", "linear", dataset, savename(merge(ps, @dict m
 @assert isdir(prefix_folder)
 @assert isdir(prefix_folder)
 nonemf = Dict()
-nonemf[:stein] = [Dict() for i in 1:ps[:n_runs]]
-nonemf[:gflow] = [Dict() for i in 1:ps[:n_runs]]
 nonemodels = [:gflow, :stein]
-for i in 1:ps[:n_runs]
-    for model in nonemodels
+for model in nonemodels
+    nonemf[model] = [Dict() for i in 1:ps[:n_runs]]
+    for i in 1:ps[:n_runs]
         model_path = joinpath(prefix_folder, savename(string(model), @dict i))
         res = collect_results!(model_path)
         # last_res = @linq res |> where(:i .== maximum(:i))
@@ -98,7 +97,7 @@ ps[:steinvi] = false
 mf = :full
 prefix_folder = datadir("results", "linear", dataset, savename(merge(ps, @dict mf)))
 fullmf = Dict()
-fullmodels = [:advi, :gflow]
+fullmodels = [:gflow, :advi]
 for model in fullmodels
     fullmf[model] = [Dict() for i in 1:ps[:n_runs]]
     for i in 1:ps[:n_runs]
@@ -132,14 +131,14 @@ plots = []
 for metric in [:acc, :nll]
     p = plot(xaxis = "Iteration", yaxis = string(metric))
     # Plotting Full-MF
-    for model in fullmodels
-        plot!(fullmf[model][:iter], fullmf[model][Symbol(metric, "_m")], ribbon=sqrt.(fullmf[model][Symbol(metric, "_v")]), marker = :o, label = string(model, " - FullMF"))
-    end
+    # for model in fullmodels
+    #     plot!(fullmf[model][:iter], fullmf[model][Symbol(metric, "_m")], ribbon=sqrt.(fullmf[model][Symbol(metric, "_v")]), marker = :o, label = string(model, " - Full MF"))
+    # end
     # Plotting Partial-MF
-    for model in partialmodels
-        plot!(partialmf[model][:iter], partialmf[model][Symbol(metric, "_m")], ribbon=sqrt.(partialmf[model][Symbol(metric, "_v")]), marker = :o, label = string(model, " - PartialMF"))
-    end
-    # Plotting No-MF
+    # for model in partialmodels
+    #     plot!(partialmf[model][:iter], partialmf[model][Symbol(metric, "_m")], ribbon=sqrt.(partialmf[model][Symbol(metric, "_v")]), marker = :o, label = string(model, " - Partial MF"))
+    # end
+    # # Plotting No-MF
     for model in nonemodels
         plot!(nonemf[model][:iter], nonemf[model][Symbol(metric, "_m")], ribbon=sqrt.(nonemf[model][Symbol(metric, "_v")]), marker = :o, label = string(model, " - No MF"))
     end
