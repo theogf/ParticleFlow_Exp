@@ -14,14 +14,30 @@ function treat_swarm(file_path)
     CSV.write(datadir("exp_raw", "linear", "swarm_flocking.csv"), data)
 end
 
+function treat_bioresponse(file_path)
+    data = CSV.read(file_path, DataFrame)
+    data = data[shuffle(axes(data, 1)), :] # Shuffle the data
+    CSV.write(datadir("exp_raw", "linear", "bioresponse.csv"), data)
+end
+
 register(DataDep("swarm_flocking",
     """
     Swarm Flocking dataset :
     Coming from the UCI repository : https://archive.ics.uci.edu/ml/datasets/Swarm+Behaviour
-    24016 Samples and 2400 Features with binary labels
+    24016 Samples and 24000 Features with binary labels
     """,
     "https://archive.ics.uci.edu/ml/machine-learning-databases/00524/Swarm%20Behavior%20Data.zip";
     post_fetch_method = treat_swarm)
+)
+
+register(DataDep("bioresponse",
+    """
+    BioResponse dataset :
+    Coming from the Kaggle challenge : https://www.kaggle.com/c/bioresponse
+    3751 Samples and 1776 Features with binary labels
+    """,
+    "https://www.openml.org/data/get_csv/1681097/phpSSK7iA";
+    post_fetch_method = treat_bioresponse)
 )
 
 function load_logistic_data(dataset)

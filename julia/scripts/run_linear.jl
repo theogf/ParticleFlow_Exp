@@ -4,7 +4,7 @@ using DrWatson;
 using Pkg; Pkg.update()
 include(srcdir("linear", "linear.jl"))
 
-dataset = "swarm_flocking"
+dataset = "bioresponse"
 
 preload(dataset, "linear")
 
@@ -23,7 +23,7 @@ end
 # Create a list of parameters
 exp_ps = Dict(
     :seed => 42,
-    :dataset => "swarm_flocking",
+    :dataset => dataset,
     :n_iters => 2001, # Number of iterations to run
     :n_particles => vcat(1:9, 10:10:99, 100:50:200),
     :n_runs => 10, # Number of repeated runs
@@ -38,7 +38,7 @@ exp_ps = Dict(
     :σ_init => 1.0, # Initial variance
     :B => 200, # Batchsize
     :use_gpu => false, # Use of the GPU (tends do be inefficient)
-    :mf => [:full, :partial, :none], # Which mean_field method should be used
+    :mf => [:full, :none], # Which mean_field method should be used
 
 )
 ps = dict_list(exp_ps)
