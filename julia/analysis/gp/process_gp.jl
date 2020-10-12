@@ -7,7 +7,7 @@ using AxisArrays, MCMCChains, PDMats, KernelFunctions
 using StatsFuns, AugmentedGaussianProcesses
 dataset = "ionosphere"
 (X_train, y_train), (X_test, y_test) = load_gp_data(dataset)
-
+N_train = size(X_train, 1)
 ρ = initial_lengthscale(X_train)
 k = KernelFunctions.transform(SqExponentialKernel(), 1 / ρ)
 K = kernelpdmat(k, X_train, obsdim = 1)
@@ -18,9 +18,10 @@ function pred_f(f)
 end
 
 base_res = collect_results(datadir("results", "gp", dataset))
-vi_res = @linq base_res |> where(:vi .=== true)
+vi_res = @linq base_res |> where(:gpvi .=== true)
 mc_res = @linq base_res |> where(:mcmc .=== true)
-m_vi = vi_res.m[1]
+m_vi =  VGP(X_train, y_train, k, LogisticLikelihood(), QuadratureVI(), optimiser=nothing, verbose = 0)
+m_vi.f[1].post = vi_res.post[1]
 m_mc = mc_res.m[1]
 
 mu_mc, sig_mc = predict_f(m_mc, X_test, cov = true); sig_mc = vec(sig_mc)
@@ -42,7 +43,7 @@ accs, acc, acc_sig = [], [], []
 nlls, nll, nll_sig = [], [], []
 mu_f, sig_f = [], []
 wasss, wass, wass_sig = [], [], []
-n_parts = vcat(1:9, 10:10:99, 100:50:300)
+n_parts = vcat(1:9, 10:10:99, 100:50:400)
 for n_particles in n_parts
     # n_particles = 10
     gpf_res = collect_results(datadir("results", "gp", dataset, @savename n_particles))
@@ -67,10 +68,11 @@ for n_particles in n_parts
 end
 
 ## Plot accuracy
-overwrite = true
-p = plot(xaxis = :log)
-scatter!.([[x] for x in n_parts[1:length(accs)]], accs, msize = 2.0, markerstrokewidth = 0.0, label="", color = :black, alpha= 0.5)
+overwrite = false
+p = plot()#xaxis = :log)
+# scatter!.([[x] for x in n_parts[1:length(accs)]], accs, msize = 2.0, markerstrokewidth = 0.0, label="", color = :black, alpha= 0.5)
 plot!(n_parts, acc, ribbon=sqrt.(acc_sig), label = "GPF", color = colors[1], xlabel = "# Particles", ylabel = "Accuracy")
+vline!([N_train], label="", line = :solid, color = :black, linewidth = 2.0)
 hline!([acc_mc], label = "MCMC", color = colors[2])
 hline!([acc_vi], label = "VI", line = :dash, color = colors[3])
 isdir(plotsdir("gp")) ? nothing : mkpath(plotsdir("gp"))
@@ -79,10 +81,11 @@ display(p)
 if overwrite
     cp(plotsdir("gp", "Accuracy.png"), joinpath("/home/theo","Tex Projects", "GaussianParticleFlow", "figures", "gp", "Accuracy.png"), force =true)
 end
-
-p = plot(xaxis = :log)
+##
+p = plot()#xaxis = :log)
 plot!(n_parts, nll, ribbon=sqrt.(nll_sig), label = "GPF", color = colors[1], xlabel = "# Particles", ylabel = "Neg. Log-Likelihood")
-scatter!.([[x] for x in n_parts[1:length(nlls)]], nlls, msize = 2.0, markerstrokewidth = 0.0, label="", color = :black, alpha= 0.5)
+# scatter!.([[x] for x in n_parts[1:length(nlls)]], nlls, msize = 2.0, markerstrokewidth = 0.0, label="", color = :black, alpha= 0.5)
+vline!([N_train], label="", line = :solid, color = :black, linewidth = 2.0)
 hline!([nll_mc], label = "MCMC", color = colors[2])
 hline!([nll_vi], label = "VI", line = :dash, color = colors[3])
 isdir(plotsdir("gp")) ? nothing : mkpath(plotsdir("gp"))
@@ -91,10 +94,12 @@ display(p)
 if overwrite
     cp(plotsdir("gp", "NLL.png"), joinpath("/home/theo","Tex Projects", "GaussianParticleFlow", "figures", "gp", "NLL.png"), force =true)
 end
-
-p = plot(n_parts, wass, ribbon=sqrt.(wass_sig), label = "GPF", color = colors[1], xaxis = :log, xlabel = "# Particles", ylabel = L"W^2")
-scatter!.([[x] for x in n_parts[1:length(wasss)]], wasss, msize = 2.0, markerstrokewidth = 0.0, label="", color = :black, alpha= 0.5)
-hline!([wass_vi], label = "VI", line = :dash, color = colors[3])
+##
+p = plot()
+plot!(n_parts, wass, ribbon=sqrt.(wass_sig), label = "GPF", color = colors[1], xlabel = "# Particles", ylabel = L"W^2")
+# scatter!.([[x] for x in n_parts[1:length(wasss)]], wasss, msize = 2.0, markerstrokewidth = 0.0, label="", color = :black, alpha= 0.5)
+vline!([N_train], label="", line = :solid, color = :black, linewidth = 2.0)
+# hline!([wass_vi], label = "VI", line = :dash, color = colors[3])
 isdir(plotsdir("gp")) ? nothing : mkpath(plotsdir("gp"))
 savefig(plotsdir("gp", "Wasserstein.png"))
 display(p)

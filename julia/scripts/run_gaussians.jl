@@ -6,13 +6,14 @@ include(srcdir("gaussian", "gaussian_target.jl"))
 
 # Use parallelism
 using Distributed
-nthreads = 32 # Number of threads to use
+nthreads = 60 # Number of threads to use
 if nprocs() < nthreads
     addprocs(nthreads-nprocs()+1) # Add the threads as workers
 end
 
 # Load all needed packages on every worker
 @everywhere using DrWatson
+@everywhere using Distributed
 @everywhere quickactivate(@__DIR__)
 @everywhere include(srcdir("gaussian", "gaussian_target.jl"))
 # Create a list of parameters

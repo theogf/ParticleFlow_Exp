@@ -14,7 +14,7 @@ exp_ps = Dict(
     :model => "LeNet",
     :dataset => "MNIST",
     :use_gpu => true,
-    :start_layer => [7, 8, 9],
+    :start_layer => 7,
     :n_particles => [10, 50, 100],
     :n_iter => 5001,
     :opt => Flux.Optimise.Optimiser(ClipNorm(10), Descent(0.1)),
@@ -22,7 +22,7 @@ exp_ps = Dict(
     :cond2 => false,
     :σ_init => 1.0,
     :mf => [:full, :partial, :none],
-    :α => [1000.0, 100.0, 50.0, 10.0, 5.0, 1.0, 0.5, 0.1] # Prior variance
+    :α => [0.05, 0.01] # Prior variance
 )
 
 ps = dict_list(exp_ps)

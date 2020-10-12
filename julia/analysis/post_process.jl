@@ -41,6 +41,7 @@ function process_fullcovs(hs, truth, metric = (x, y) -> norm(x -y))
     end
     return ΔΣ, varΣ
 end
+
 function process_time(ts::AbstractVector{<:AbstractVector})
     mean(ts), var(ts)
 end

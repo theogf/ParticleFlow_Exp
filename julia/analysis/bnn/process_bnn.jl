@@ -7,8 +7,8 @@ using Flux
 using StatsBase, LinearAlgebra
 using MLDataUtils
 using ProgressMeter
-use_gpu = false
-device = use_gpu ? gpu : cpu
+use_gpu = true
+dev = use_gpu ? gpu : cpu
 ## Load data and filter it
 dataset = "MNIST"
 model = "LeNet"
@@ -33,19 +33,19 @@ SWA_D = reduce(hcat, res[end-K+1:end] .- Ref(SWA))
 ## Load model and data
 modelfile = projectdir("bnn_models", model, "model.bson")
 m = BSON.load(modelfile)[:model]
-fixed_m = m[1:(start_layer-1)] |> device
+fixed_m = m[1:(start_layer-1)] |> dev
 opt_m = m[start_layer:end]
 opt_θ, opt_re = Flux.destructure(opt_m)
 n_θ = length(opt_θ)
 function nn_forward(xs, θ)
-    opt_m = opt_re(θ) |> device
+    opt_m = opt_re(θ) |> dev
     nn = Chain(fixed_m, opt_m)
     return nn(xs)
 end
 ## Loading data
 train_loader, test_loader = get_data(dataset, 10_000);
 X_test, y_test = first(test_loader)
-X_test = X_test |> device
+X_test = X_test |> dev
 N20 = size(X_test, 4) ÷ 20
 
 opt_pred = cpu(Flux.softmax(nn_forward(X_test, opt_θ)))
@@ -83,26 +83,36 @@ SWAG_acc = mean(Flux.onecold(SWAG_preds) .== Flux.onecold(y_test))
 ## Predictions with GPF and ADVI + Plotting
 accs = Dict()
 accs[:gpf] = Dict(); accs[:advi] = Dict()
+mfs = [:full, :partial, :none]
+for mf in mfs
+    accs[:gpf][mf] = Dict()
+end
 nlls = Dict()
 nlls[:gpf] = Dict(); nlls[:advi] = Dict()
-
+for mf in mfs
+    nlls[:gpf][mf] = Dict()
+end
+αs = [0.1, 1, 5, 10, 100]
 for n_particles in [10, 50, 100],
-    α in [0.1, 1, 10],
-    mf in [:partial]
-    @show α, mf, n_particles
-    n_iter = 5001
+    α in αs
+    @show α, n_particles
     # Deal with GPF
-    gpf_res = collect_results(datadir("results", "bnn", dataset, "GPF_LeNet", @savename start_layer n_particles α n_iter batchsize mf cond1 cond2))
-    particles = first(gpf_res.particles[gpf_res.i .== n_iter-1])
-    preds = []
-    @showprogress for θ in eachcol(particles)
-        pred = nn_forward(X_test, θ)
-        push!(preds, cpu(Flux.softmax(pred)))
+    gpf_conf = Dict()
+    gpf_acc = Dict()
+    for mf in mfs
+        n_iter = 5001
+        gpf_res = collect_results(datadir("results", "bnn", dataset, "GPF_LeNet", @savename start_layer n_particles α n_iter batchsize mf cond1 cond2))
+        particles = first(gpf_res.particles[gpf_res.i .== n_iter-1])
+        preds = []
+        @showprogress for θ in eachcol(particles)
+            pred = nn_forward(X_test, θ)
+            push!(preds, cpu(Flux.softmax(pred)))
+        end
+        gpf_preds = mean(preds)
+        nlls[:gpf][mf][(α, n_particles)] = Flux.Losses.crossentropy(gpf_preds, y_test)
+        accs[:gpf][mf][(α, n_particles)] = mean(Flux.onecold(gpf_preds) .== Flux.onecold(y_test))
+        gpf_conf[mf], gpf_acc[mf] = conf_and_acc(gpf_preds)
     end
-    gpf_preds = mean(preds)
-
-    nlls[:gpf][(α, mf, n_particles)] = Flux.Losses.crossentropy(gpf_preds, y_test)
-    accs[:gpf][(α, mf, n_particles)] = mean(Flux.onecold(gpf_preds) .== Flux.onecold(y_test))
 
     # Deal with ADVI
     n_iter = 5001
@@ -117,36 +127,68 @@ for n_particles in [10, 50, 100],
 
     nlls[:advi][(α, n_particles)] = Flux.Losses.crossentropy(advi_preds, y_test)
     accs[:advi][(α, n_particles)] = mean(Flux.onecold(advi_preds) .== Flux.onecold(y_test))
- 
+
     ## Plotting of confidence histogram
 
     opt_conf, opt_acc = conf_and_acc(opt_pred)
-    gpf_conf, gpf_acc = conf_and_acc(gpf_preds)
     advi_conf, advi_acc = conf_and_acc(advi_preds)
     swag_conf, swag_acc = conf_and_acc(SWAG_preds)
-    p = plot(title = "LeNet", xaxis = "Confidence - (max prob)", yaxis = "Confidence - Accuracy")
+    p = plot(title = "LeNet - α = $α", xaxis = "Confidence (max prob)", yaxis = "Accuracy")
     plot!([0.5, 1], identity, linestyle = :dash, color = :black, label = "")
     plot!(opt_conf, opt_acc, marker = :o, label = "ML")
-    plot!(gpf_conf, gpf_acc, marker = :o, label = "GPF - $(n_particles)")
+    for mf in mfs
+        plot!(gpf_conf[mf], gpf_acc[mf], marker = :o, label = "GPF - $mf - $(n_particles)")
+    end
     plot!(advi_conf, advi_acc, marker = :o, label = "GVA - $(n_particles)")
     plot!(swag_conf, swag_acc, marker = :o, label = "SWAG")
-    savefig(plotsdir("bnn", savename("confidencelenet", @dict(α, mf, n_particles), "png")))
+    savefig(plotsdir("bnn", savename("confidencelenet", @dict(α, n_particles), "png")))
     display(p)
 end
-
-n_ps = [10]
+## Collect nll and accs
+n_ps = [10, 50, 100]
 nll = Dict()
-nll[:gpf] = Vector(undef, length(n_ps))
+nll[:gpf] = Dict()
+for mf in mfs
+    nll[:gpf][mf] = Vector(undef, length(n_ps))
+end
 nll[:advi] = Vector(undef, length(n_ps))
+
 acc = Dict()
-acc[:gpf] = Vector(undef, length(n_ps))
+acc[:gpf] = Dict()
+for mf in mfs
+    acc[:gpf][mf] = Vector(undef, length(n_ps))
+end
 acc[:advi] = Vector(undef, length(n_ps))
+
 for (i, n_particles) in enumerate(n_ps)
-    nll[:gpf][i] = [nlls[:gpf][(α, :partial, n_particles)] for α in αs]
+    for mf in mfs
+        nll[:gpf][mf][i] = [nlls[:gpf][mf][(α, n_particles)] for α in αs]
+    end
     nll[:advi][i] = [nlls[:advi][(α, n_particles)] for α in αs]
-    acc[:gpf][i] = [accs[:gpf][(α, :partial, n_particles)] for α in αs]
+    for mf in mfs
+        acc[:gpf][mf][i] = [accs[:gpf][mf][(α, n_particles)] for α in αs]
+    end
     acc[:advi][i] = [accs[:advi][(α, n_particles)] for α in αs]
 end
+for (i, n_particles) in enumerate(n_ps)
+    p = plot(xlabel = "α", xaxis = :log, yaxis = "Neg. Log-Likelihood", title = "# particles : $n_particles")
+    for mf in mfs
+        plot!(αs, nll[:gpf][mf][i], label = "GPF - $mf")
+    end
+    plot!(αs, nll[:advi][i], label = "GVA")
+    hline!([SWAG_nll], label = "SWAG")
+    display(p)
+
+    p = plot(xlabel = "α", xaxis = :log, yaxis = "Accuracy", title = "# particles : $n_particles")
+    for mf in mfs
+        plot!(αs, acc[:gpf][mf][i], label = "GPF - $mf")
+    end
+    plot!(αs, acc[:advi][i], label = "GVA")
+    hline!([SWAG_acc], label = "SWAG")
+    display(p)
+
+end
+
 
 ##
 # p_μ = plot(title = "Convergence Mean", xlabel = "Time [s]", ylabel =L"\|\mu - \mu_{true}\|", xaxis=:log)

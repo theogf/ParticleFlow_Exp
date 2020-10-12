@@ -32,11 +32,11 @@ function run_gaussian_target(exp_p)
         return logpdf(d_target, θ)
     end
 
-    gpf = []
-    advi = []
-    steinvi = []
+    gpf = Vector{Any}(undef, n_runs)
+    advi = Vector{Any}(undef, n_runs)
+    steinvi = Vector{Any}(undef, n_runs)
 
-    for i in 1:n_runs
+    @sync @distributed for i in 1:n_runs
         @info "Run $i/$(n_runs)"
         opt = exp_p[:opt]
         μ_init = randn(dim)
@@ -79,9 +79,9 @@ function run_gaussian_target(exp_p)
         # Train all models
         _gpf, _advi, _steinvi =
             train_model(logπ_gauss, general_p, gflow_p, advi_p, stein_p)
-        push!(gpf, _gpf)
-        push!(advi, _advi)
-        push!(steinvi, _steinvi)
+        gpf[i] = _gpf
+        advi[i] =  _advi
+        steinvi[i] = _steinvi
     end
 
     file_prefix = savename(exp_p)
