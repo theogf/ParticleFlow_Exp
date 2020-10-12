@@ -13,7 +13,6 @@ end
 
 # Load all needed packages on every worker
 @everywhere using DrWatson
-@everywhere using Distributed
 @everywhere quickactivate(@__DIR__)
 @everywhere include(srcdir("gaussian", "gaussian_target.jl"))
 # Create a list of parameters

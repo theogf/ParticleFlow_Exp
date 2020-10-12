@@ -36,7 +36,7 @@ function run_gaussian_target(exp_p)
     advi = Vector{Any}(undef, n_runs)
     steinvi = Vector{Any}(undef, n_runs)
 
-    @sync @distributed for i in 1:n_runs
+    for i in 1:n_runs
         @info "Run $i/$(n_runs)"
         opt = exp_p[:opt]
         μ_init = randn(dim)
