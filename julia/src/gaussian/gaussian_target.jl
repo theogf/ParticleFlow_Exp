@@ -14,7 +14,7 @@ function run_gaussian_target(exp_p)
     μ = sort(randn(dim))
     Σ = if full_cov
         Q, _ = qr(rand(dim, dim)) # Create random unitary matrix
-        Λ = Diagonal(10.0.^(3 * ((1:dim) .- 1) ./ dim ))
+        Λ = Diagonal(10.0 .^ range(-1, 2, length = dim))
         Symmetric(Q * Λ * Q')
     else
         I(dim)
@@ -85,7 +85,7 @@ function run_gaussian_target(exp_p)
     end
 
     file_prefix = savename(exp_p)
-    tagsave(datadir("results", "gaussian", file_prefix * ".bson"),
+    tagsave(datadir("results", "gaussian_v2", file_prefix * ".bson"),
             @dict dim n_particles full_cov n_iters n_runs cond1 cond2 gpf advi steinvi exp_p d_target;
             safe=false, storepatch = false)
 end

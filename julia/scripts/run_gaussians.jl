@@ -17,11 +17,11 @@ end
 @everywhere include(srcdir("gaussian", "gaussian_target.jl"))
 # Create a list of parameters
 exp_ps = Dict(
-    :n_iters => 2000, # Number of iterations to run
-    :n_runs => 10, # Number of repeated runs
-    :dim => vcat(1:10, 10:10:99, 100:100:500), # Dimension of the target
-    :n_particles => [0, 10, 20, 50, 100], # Number of particles used, nothing will give dim + 1
-    :full_cov => [true, false], # If the covariance is identity or a full covariance with varying eigenvalues
+    :n_iters => 3000, # Number of iterations to run
+    :n_runs => 5, # Number of repeated runs
+    :dim => vcat(10:10:99, 100:100:500), # Dimension of the target
+    :n_particles => 0,#, 10, 20, 50, 100], # Number of particles used, nothing will give dim + 1
+    :full_cov => true,# false], # If the covariance is identity or a full covariance with varying eigenvalues
     :gpf => true, # Run GaussParticle Flow
     :advi => true, # Run Black Box VI
     :steinvi => true, # Run Stein VI
