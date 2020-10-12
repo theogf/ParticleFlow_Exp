@@ -61,7 +61,9 @@ function run_gpf_bnn(exp_p)
     ## Define prior
     Flux.@functor TuringDiagMvNormal
     prior_θ = TuringDiagMvNormal(zeros(n_θ), α .* ones(n_θ)) |> device
-
+    function logpdf(α::Real, θ::AbstractVector)
+        - sum(abs2, θ) / (2α^2)
+    end
     ## Define list of arguments and load the data
     train_loader, test_loader = get_data(dataset, batchsize)
     n_data = train_loader.imax
@@ -72,7 +74,7 @@ function run_gpf_bnn(exp_p)
         xs, ys = Random.nth(train_loader, rand(1:n_batch)) |> device
         return function logjoint(θ)
             # Computing logprior (this is kept fixed)
-            logprior = logpdf(prior_θ, θ)
+            logprior = logpdf(α, θ)
             # Making prediction on minibatch
             pred = nn_forward(xs, θ)
             # Scaled up loglikelihood (logitcrossentropy returns a mean)
