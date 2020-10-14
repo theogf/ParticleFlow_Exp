@@ -28,9 +28,9 @@ k = KernelFunctions.transform(SqExponentialKernel(), 1 / ρ)
 #     safe=false, storepatch = false)
 ## Training moodel via variational inference
 @info "Training model with VI"
-m = VGP(X_train, y_train, k, LogisticLikelihood(), QuadratureVI(optimiser = Descent(0.0001), natural = false), optimiser=nothing, verbose = 0)
+m = VGP(X_train, y_train, k, LogisticLikelihood(), QuadratureVI(optimiser = Descent(0.0001), natural = false), optimiser=nothing, verbose = 3)
 m.f[1].post.μ .= AGP.mean(m_mc.f[1])
-train!(m, 2000)
+train!(m, 20000)
 pred_vi, sig_vi = proba_y(m, X_test)
 nll_vi = Flux.Losses.binarycrossentropy(pred_vi, y_test)
 acc_vi = mean((pred_vi .> 0.5) .== y_test)

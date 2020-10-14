@@ -5,21 +5,21 @@ using Pkg; Pkg.update()
 include(srcdir("gaussian", "gaussian_target.jl"))
 
 # Use parallelism
-using Distributed
-nthreads = 60 # Number of threads to use
-if nprocs() < nthreads
-    addprocs(nthreads-nprocs()+1) # Add the threads as workers
-end
+# using Distributed
+# nthreads = 6 # Number of threads to use
+# if nprocs() < nthreads
+#     addprocs(nthreads-nprocs()+1) # Add the threads as workers
+# end
 
 # Load all needed packages on every worker
-@everywhere using DrWatson
-@everywhere quickactivate(@__DIR__)
-@everywhere include(srcdir("gaussian", "gaussian_target.jl"))
+# @everywhere using DrWatson
+# @everywhere quickactivate(@__DIR__)
+# @everywhere include(srcdir("gaussian", "gaussian_target.jl"))
 # Create a list of parameters
 exp_ps = Dict(
     :n_iters => 3000, # Number of iterations to run
     :n_runs => 5, # Number of repeated runs
-    :dim => vcat(10:10:99, 100:100:500), # Dimension of the target
+    :dim => vcat(2:9), # Dimension of the target
     :n_particles => 0,#, 10, 20, 50, 100], # Number of particles used, nothing will give dim + 1
     :full_cov => true,# false], # If the covariance is identity or a full covariance with varying eigenvalues
     :gpf => true, # Run GaussParticle Flow
@@ -35,4 +35,4 @@ exp_ps = Dict(
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
 # run for each dict the simulation
-pmap(run_gaussian_target, ps)
+map(run_gaussian_target, ps)

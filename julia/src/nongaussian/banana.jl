@@ -56,7 +56,7 @@ q = TuringDenseMvNormal(zeros(2), Diagonal(ones(2)))
 qvi = ADVI(2000, 100)
 vi(logbanana, qvi, q, θ, optimizer=deepcopy(opt))
 q = AVI.update(q, θ)
-p = plot(title = "Standard VI", showaxis =false, xlims = extrema(xrange), ylims = extrema(yrange))
+p = plot(title = "GVA", showaxis =false, xlims = extrema(xrange), ylims = extrema(yrange))
 contourf!(p, xrange, yrange, banana, colorbar = false, c=gcolor)
 # scatter!(p, eachrow(q.x)..., label="")
 for i in 1:totσ

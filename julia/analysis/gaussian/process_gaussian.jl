@@ -5,15 +5,15 @@ include(projectdir("analysis", "post_process.jl"))
 
 ## Load data
 all_res = collect_results(datadir("results", "gaussian"))
-
+all_res2 = collect_results(datadir("results", "gaussian_v2"))
 
 ## Treat one convergence file
 gdim = 80;
 n_p = 0;
 full_cov = true
-res = @linq all_res |>
+res = @linq all_res2 |>
       where(:dim .== gdim) |>
-      where(:n_iters .== 2000) |>
+      where(:n_iters .== 3000) |>
       where(:n_particles .== (iszero(n_p) ? gdim + 1 : n_p)) |>
       where(:full_cov .== full_cov)
 @assert nrow(res) == 1 "Number of rows is not unique or is empty"
@@ -67,13 +67,22 @@ display(Plots.plot(p_μ, p_Σ, legend = false))
 ## Treating all dimensions at once
 
 fullcov = false
-n_particles = 100
+n_particles = 0
 overwrite = true
 
-res = @linq all_res |>
-      where(:n_iters .== 2000) |>
-      where(:n_runs .== 10) |>
-      where(:full_cov .== fullcov)
+if fullcov
+    res = @linq all_res2 |>
+          where(:n_iters .== 3000) |>
+          where(:n_runs .== 5) |>
+          where(:full_cov .== fullcov)
+else
+    res = @linq all_res |>
+          where(:n_iters .== 2000) |>
+          where(:n_runs .== 10) |>
+          where(:full_cov .== fullcov)
+end
+
+
 res = if n_particles == 0
     @linq res |> where(:n_particles .== :dim .+ 1)
 else
@@ -83,23 +92,24 @@ dims = Float64.(Vector(res.dim))
 s = sortperm(dims)
 # Plot combined results
 p_t =
-    Plots.plot(title = "Time vs dims", xlabel = "Dim", ylabel = "Time [s]", legend = false, yaxis = :log)
+    Plots.plot(title = "",#Time vs dims", 
+    xlabel = "D", ylabel = "Time [s]", legend = false, yaxis = :log)
 p_μ = Plots.plot(
-    title = "Mean error vs dims",
-    xlabel = "Dim",
-    ylabel = L"\|\mu -\mu_{true}\|",
+    title = "",#Mean error vs dims",
+    xlabel = "D",
+    ylabel = L"\|\mu -\mu_{true}\|²",
     legend = false,
 )
 p_Σ = Plots.plot(
-    title = "Cov error vs dims",
-    xlabel = "Dim",
-    ylabel = L"\|\Sigma -\Sigma_{true}\|",
+    title = "",#Cov error vs dims",
+    xlabel = "D",
+    ylabel = L"\|\Sigma -\Sigma_{true}\|²",
     legend = false,
 )
 p_W = Plots.plot(
-    title = "Wasserstein distance",
-    xlabel = "Dim",
-    ylabel = "W²",
+    title = "",#Wasserstein distance",
+    xlabel = "D",
+    ylabel = "W₂",
     legend = false,
 )
 for (i, alg) in enumerate(algs)

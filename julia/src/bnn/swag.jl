@@ -17,13 +17,13 @@ function run_SWAG(exp_p)
     ispath(save_path) ? nothing : mkpath(save_path)
 
     function save_params(ps, i)
-        path = save_path * "i=$(i)" * ".bson"
+        path = joinpath(save_path, "i=$(i)" * ".bson")
         parameters = [cpu(p) for p in ps]
         tagsave(joinpath(save_path, savename(@dict i) * ".bson"), @dict parameters i)
     end
     ## Define prior
     logprior(θ::AbstractArray{<:Real}) = sum(abs2, θ)
-    logprior(θ, α) = - sum(logprior, θ) / α
+    logprior(θ, α) = - sum(logprior, θ) / α^2
 
     loss(ŷ, y) = Flux.Losses.logitcrossentropy(ŷ, y)
 
@@ -40,9 +40,6 @@ function run_SWAG(exp_p)
                 ŷ = m(x)
                 loss(ŷ, y) - logprior(ps, α)
             end
-            # for p in ps
-                # p .-= Flux.Optimise.apply!(opt, p, gs[p])
-            # end
             Flux.Optimise.update!(opt, ps, gs)
             # ProgressMeter.next!(p)   # comment out for no progress bar
             iter += 1
