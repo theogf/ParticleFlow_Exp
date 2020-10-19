@@ -5,13 +5,12 @@ include(projectdir("analysis", "post_process.jl"))
 
 ## Load data
 all_res = collect_results(datadir("results", "gaussian"))
-all_res2 = collect_results(datadir("results", "gaussian_v2"))
 
 ## Treat one convergence file
 gdim = 80;
 n_p = 0;
 full_cov = true
-res = @linq all_res2 |>
+res = @linq all_res |>
       where(:dim .== gdim) |>
       where(:n_iters .== 3000) |>
       where(:n_particles .== (iszero(n_p) ? gdim + 1 : n_p)) |>
@@ -70,17 +69,10 @@ fullcov = false
 n_particles = 0
 overwrite = true
 
-if fullcov
-    res = @linq all_res2 |>
-          where(:n_iters .== 3000) |>
-          where(:n_runs .== 5) |>
-          where(:full_cov .== fullcov)
-else
-    res = @linq all_res |>
-          where(:n_iters .== 2000) |>
-          where(:n_runs .== 10) |>
-          where(:full_cov .== fullcov)
-end
+res = @linq all_res |>
+      where(:n_iters .== 3000) |>
+      where(:n_runs .== 10) |>
+      where(:full_cov .== fullcov)
 
 
 res = if n_particles == 0
@@ -92,7 +84,7 @@ dims = Float64.(Vector(res.dim))
 s = sortperm(dims)
 # Plot combined results
 p_t =
-    Plots.plot(title = "",#Time vs dims", 
+    Plots.plot(title = "",#Time vs dims",
     xlabel = "D", ylabel = "Time [s]", legend = false, yaxis = :log)
 p_μ = Plots.plot(
     title = "",#Mean error vs dims",
@@ -112,78 +104,55 @@ p_W = Plots.plot(
     ylabel = "W₂",
     legend = false,
 )
+ft = Dict(:mean=>Dict(), :var=>Dict())
+fm = Dict(:mean=>Dict(), :var=>Dict())
+fw = Dict(:mean=>Dict(), :var=>Dict())
 for (i, alg) in enumerate(algs)
     @info "Processing $(alg)"
-    ft_alg = Symbol("ft_", alg)
-    ft_var_alg = Symbol("ft_var_", alg)
-    fm_alg = Symbol("fm_", alg)
-    fm_var_alg = Symbol("fm_var_", alg)
-    fv_alg = Symbol("fv_", alg)
-    fv_var_alg = Symbol("fv_var_", alg)
-    fw_alg = Symbol("fw_", alg)
-    fw_var_alg = Symbol("fw_var_", alg)
-    @eval begin
-        global $(ft_alg) = []
-        global $(ft_var_alg) = []
-        global $(fm_alg) = []
-        global $(fm_var_alg) = []
-        global $(fv_alg) = []
-        global $(fv_var_alg) = []
-        global $(fw_alg) = []
-        global $(fw_var_alg) = []
-    end
-    t_alg = Symbol("t_", alg)
-    t_var_alg = Symbol("t_var_", alg)
-    m_alg = Symbol("m_", alg)
-    m_var_alg = Symbol("m_var_", alg)
-    v_alg = Symbol("v_", alg)
-    v_var_alg = Symbol("v_var_", alg)
-    w_alg = Symbol("w_", alg)
-    w_var_alg = Symbol("w_var_", alg)
+    ft[:mean][alg] = []
+    ft[:var][alg] = []
+    fm[:mean][alg] = []
+    fm[:var][alg] = []
+    fw[:mean][alg] = []
+    fw[:var][alg] = []
     for j = 1:nrow(res)
         truth = res.d_target[j]
         @info "Row $j (dim = $(res.dim[j]))"
         @info res.path[j]
-        @eval begin
-            $(t_alg), $(t_var_alg) = process_time(res.$(alg)[$j])
-            $(m_alg), $(m_var_alg) = process_means(res.$(alg)[$j], $(truth.m))
-            $(v_alg), $(v_var_alg) =
-                process_fullcovs(res.$(alg)[$j], vec($(truth.C.L) * $(truth.C.U)))
-            # $(w_alg), $(w_var_alg) = process_wasserstein(res.$(alg)[$j], truth)
-        end
-        @eval begin
-            push!($(ft_alg), last($(t_alg)))
-            push!($(ft_var_alg), last($(t_var_alg)))
-            push!($(fm_alg), last($(m_alg)))
-            push!($(fm_var_alg), last($(m_var_alg)))
-            push!($(fv_alg), last($(v_alg)))
-            push!($(fv_var_alg), last($(v_var_alg)))
-        end
+        t_alg, t_var_alg = process_time(res.$(alg)[j])
+        m_alg, m_var_alg = process_means(res.$(alg)[j], truth.m)
+        v_alg, v_var_alg = process_fullcovs(res.$(alg)[j], vec(truth.C.L * truth.C.U))
+        push!(ft[:mean][alg], last(t_alg))
+        push!(ft[:var][alg], last(t_var_alg))
+        push!(fm[:mean][alg], last(m_alg))
+        push!(fm[:var][alg], last(m_var_alg))
+        push!(fv[:mean][alg], last(v_alg))
+        push!(fv[:var][alg], last(v_var_alg))
     end
     #
-    @eval Plots.plot!(
+    Plots.plot!(
         p_t,
         dims[s],
-        $(ft_alg)[s],
-        #ribbon = sqrt.($(ft_var_alg)[s]),
-        label = $(labels[alg]),
-        color = $(dcolors[alg]),
+        ft[:mean][alg][s],
+        #ribbon = sqrt.($(ft_var_alg)[s]),# removed because of logscale
+        label = labels[alg],
+        color = dcolors[alg],
     )
-    @eval Plots.plot!(
+    Plots.plot!(
         p_μ,
         dims[s],
-        $(fm_alg)[s],
-        ribbon = sqrt.($(fm_var_alg)[s]),
-        label = $(labels[alg]),
-        color = $(dcolors[alg]),
+        fm[:mean][alg][s],
+        ribbon = sqrt.(fm[:var][alg][s]),
+        label = labels[alg],
+        color = dcolors[alg],
     )
-    @eval Plots.plot!(
+    Plots.plot!(
         p_Σ,
         dims[s],
-        $(fv_alg)[s],
-        ribbon = sqrt.($(fv_var_alg)[s]),
-        label = $(labels[alg]),
-        color = $(dcolors[alg]),
+        fv[:mean][alg][s],
+        ribbon = sqrt.(fv[:var][alg][s]),
+        label = labels[alg],
+        color = dcolors[alg],
     )
 end
 pleg = Plots.plot(
@@ -197,21 +166,7 @@ pleg = Plots.plot(
 )
 p = Plots.plot(p_t, p_μ, p_Σ, pleg)
 plotname = @savename fullcov n_particles
-savefig(plotsdir("gaussian", "plots_vs_dim_" * plotname * ".png"))
+savepath = plotsdir("gaussian")
+mkpath(savepath)
+savefig(joinpath(savepath, "plots_vs_dim_" * plotname * ".png"))
 display(p)
-#
-if overwrite
-    cp(
-        plotsdir("gaussian", "plots_vs_dim_" * plotname * ".png"),
-        joinpath(
-            "/home",
-            "theo",
-            "Tex Projects",
-            "GaussianParticleFlow",
-            "figures",
-            "gaussian",
-            "plots_vs_dim_" * plotname * ".png",
-        ),
-        force = true,
-    )
-end
