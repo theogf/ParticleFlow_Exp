@@ -83,13 +83,9 @@ plot!(n_parts, acc, ribbon=sqrt.(acc_sig), label = "GPF", color = colors[1], xla
 vline!([N_train], label="", line = :solid, color = :black, linewidth = 2.0)
 hline!([acc_mc], label = "MCMC", color = colors[2])
 hline!([acc_vi], label = "VI", line = :dash, color = colors[3])
-isdir(plotsdir("gp")) ? nothing : mkpath(plotsdir("gp"))
+mkpath(plotsdir("gp"))
 savefig(plotsdir("gp", "Accuracy.png"))
 ylims!(0.8, 0.97)
-display(p)
-if overwrite
-    cp(plotsdir("gp", "Accuracy.png"), joinpath("/home/theo","Tex Projects", "GaussianParticleFlow", "figures", "gp", "Accuracy.png"), force =true)
-end
 ##
 p = plot(legend = :bottomright)#xaxis = :log)
 plot!(n_parts, nll, ribbon=sqrt.(nll_sig), label = "GPF", color = colors[1], xlabel = "# Particles", ylabel = "Neg. Log-Likelihood")
@@ -98,21 +94,15 @@ vline!([N_train], label="", line = :solid, color = :black, linewidth = 2.0)
 hline!([nll_mc], label = "MCMC", color = colors[2])
 hline!([0.44], label = "VI", line = :dash, color = colors[3])
 ylims!(0.3, 0.6)
-isdir(plotsdir("gp")) ? nothing : mkpath(plotsdir("gp"))
+mkpath(plotsdir("gp"))
 savefig(plotsdir("gp", "NLL.png"))
 display(p)
-if overwrite
-    cp(plotsdir("gp", "NLL.png"), joinpath("/home/theo","Tex Projects", "GaussianParticleFlow", "figures", "gp", "NLL.png"), force =true)
-end
 ##
 p = plot()
 plot!(n_parts, wass, ribbon=sqrt.(wass_sig), label = "GPF", color = colors[1], xlabel = "# Particles", ylabel = L"W_2")
 # scatter!.([[x] for x in n_parts[1:length(wasss)]], wasss, msize = 2.0, markerstrokewidth = 0.0, label="", color = :black, alpha= 0.5)
 vline!([N_train], label="", line = :solid, color = :black, linewidth = 2.0)
 # hline!([wass_vi], label = "VI", line = :dash, color = colors[3])
-isdir(plotsdir("gp")) ? nothing : mkpath(plotsdir("gp"))
+mkpath(plotsdir("gp"))
 savefig(plotsdir("gp", "Wasserstein.png"))
 display(p)
-if overwrite
-    cp(plotsdir("gp", "Wasserstein.png"), joinpath("/home/theo","Tex Projects", "GaussianParticleFlow", "figures", "gp", "Wasserstein.png"), force= true)
-end
