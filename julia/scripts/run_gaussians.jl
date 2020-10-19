@@ -5,8 +5,9 @@ using Pkg; Pkg.update()
 include(srcdir("gaussian", "gaussian_target.jl"))
 
 
-# Uncomment following lines for using parallelism
+# Set to true or false to use parallelism or not
 do_parallel = true
+
 # Use parallelism
 if do_parallel
     using Distributed
@@ -42,6 +43,7 @@ exp_ps = Dict(
 )
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
+
 # run for each dict the simulation
 if do_parallel
     pmap(run_gaussian_target, ps)
