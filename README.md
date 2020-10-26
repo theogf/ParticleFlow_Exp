@@ -10,7 +10,7 @@
 ```julia
 ] activate .
 ] instantiate
-] dev AdvancedVI
+] dev ./AdvancedVI
 ```
 
 - The `AdvancedVI` package is a fork of the original `Turing.jl` package.
@@ -21,4 +21,4 @@ Once everything has been installed you can run the scripts by either running `ju
 
 ## Datasets
 
-The used datasets will automatically be downloaded from their source, feel free to use anything!
+The used datasets will automatically be downloaded from their source, via `DataDeps.jl`  but feel free to add anything you want in `data/exp_raw`!
