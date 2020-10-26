@@ -1,4 +1,2 @@
-python/data/
-python/plots/
-python/.idea/
-__pycache__
+data/*
+plots/*
