@@ -1,7 +1,7 @@
 # Make sure that all packages are up to date
 using DrWatson;
 @quickactivate
-using Pkg; Pkg.update()
+# using Pkg; Pkg.update()
 include(srcdir("gaussian", "gaussian_target.jl"))
 
 # Use parallelism
@@ -19,10 +19,11 @@ include(srcdir("gaussian", "gaussian_target.jl"))
 exp_ps = Dict(
     :n_iters => 3000, # Number of iterations to run
     :n_runs => 5, # Number of repeated runs
-    :dim => vcat(2:9), # Dimension of the target
+    :dim => vcat(2:9, 10:10:100), # Dimension of the target
     :n_particles => 0,#, 10, 20, 50, 100], # Number of particles used, nothing will give dim + 1
     :full_cov => true,# false], # If the covariance is identity or a full covariance with varying eigenvalues
     :gpf => true, # Run GaussParticle Flow
+    :gaussf => true, # Run the sampled base Gauss Flow
     :advi => true, # Run Black Box VI
     :steinvi => true, # Run Stein VI
     :cond1 => false, # Use preconditionning on b

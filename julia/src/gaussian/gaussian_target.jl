@@ -33,6 +33,7 @@ function run_gaussian_target(exp_p)
     end
 
     gpf = Vector{Any}(undef, n_runs)
+    gaussflow = Vector{Any}(undef, n_runs)
     advi = Vector{Any}(undef, n_runs)
     steinvi = Vector{Any}(undef, n_runs)
 
@@ -58,6 +59,17 @@ function run_gaussian_target(exp_p)
             :mf => false,
             :init => x_init,
         )
+        gaussflow_p = Dict(
+            :run => exp_p[:gaussf],
+            :n_samples => n_particles,
+            :max_iters => n_iters,
+            :cond1 => cond1,
+            :cond2 => cond2,
+            :opt => deepcopy(opt),
+            :callback => wrap_cb(),
+            :mf => false,
+            :init => (μ_init, sqrt.(Σ_init)),
+        )
         advi_p = Dict(
             :run => exp_p[:advi] && !cond1 && !cond2,
             :n_samples => n_particles,
@@ -77,15 +89,16 @@ function run_gaussian_target(exp_p)
         )
 
         # Train all models
-        _gpf, _advi, _steinvi =
-            train_model(logπ_gauss, general_p, gflow_p, advi_p, stein_p)
+        _gpf, _gaussvi, _advi, _steinvi =
+            train_model(logπ_gauss, general_p, gflow_p, gaussflow_p, advi_p, stein_p)
         gpf[i] = _gpf
+        gaussflow[i] = _gaussvi
         advi[i] =  _advi
         steinvi[i] = _steinvi
     end
 
     file_prefix = savename(exp_p)
     tagsave(datadir("results", "gaussian_v2", file_prefix * ".bson"),
-            @dict dim n_particles full_cov n_iters n_runs cond1 cond2 gpf advi steinvi exp_p d_target;
+            @dict dim n_particles full_cov n_iters n_runs cond1 cond2 gpf gaussflow advi steinvi exp_p d_target;
             safe=false, storepatch = false)
 end

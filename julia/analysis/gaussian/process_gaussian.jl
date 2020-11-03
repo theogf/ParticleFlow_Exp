@@ -8,14 +8,15 @@ all_res = collect_results(datadir("results", "gaussian"))
 all_res2 = collect_results(datadir("results", "gaussian_v2"))
 
 ## Treat one convergence file
-gdim = 80;
+gdim = 8;
 n_p = 0;
 full_cov = true
 res = @linq all_res2 |>
       where(:dim .== gdim) |>
       where(:n_iters .== 3000) |>
       where(:n_particles .== (iszero(n_p) ? gdim + 1 : n_p)) |>
-      where(:full_cov .== full_cov)
+      where(:full_cov .== full_cov) |>
+      where(:gaussflow .!== missing)
 @assert nrow(res) == 1 "Number of rows is not unique or is empty"
 
 truth = first(res.d_target)
@@ -66,7 +67,7 @@ display(Plots.plot(p_μ, p_Σ, legend = false))
 
 ## Treating all dimensions at once
 
-fullcov = false
+fullcov = true
 n_particles = 0
 overwrite = true
 
@@ -74,7 +75,8 @@ if fullcov
     res = @linq all_res2 |>
           where(:n_iters .== 3000) |>
           where(:n_runs .== 5) |>
-          where(:full_cov .== fullcov)
+          where(:full_cov .== fullcov) |>
+          where(:gaussflow .!== missing)
 else
     res = @linq all_res |>
           where(:n_iters .== 2000) |>
@@ -199,7 +201,7 @@ p = Plots.plot(p_t, p_μ, p_Σ, pleg)
 plotname = @savename fullcov n_particles
 savefig(plotsdir("gaussian", "plots_vs_dim_" * plotname * ".png"))
 display(p)
-#
+## 
 if overwrite
     cp(
         plotsdir("gaussian", "plots_vs_dim_" * plotname * ".png"),

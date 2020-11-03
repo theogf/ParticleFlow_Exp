@@ -35,7 +35,7 @@ end
 cb_var(h, i::Int, q::TransformedDistribution) = cb_var(h, i, q.dist)
 
 # Store mean and covariance
-function cb_var(h, i::Int, q::Union{AVI.AbstractSamplesMvNormal,AVI.SteinDistribution})
+function cb_var(h, i::Int, q::Union{AVI.AbstractSamplesMvNormal,AVI.AbstractLowRankMvNormal, AVI.SteinDistribution})
     push!(h, :mu, i, Vector(mean(q)))
     push!(h, :sig, i, Vector(cov(q)[:]))
 end

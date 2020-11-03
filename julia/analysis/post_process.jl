@@ -11,9 +11,9 @@ colors = ColorSchemes.seaborn_colorblind
 using Flux
 using AdvancedVI; const AVI = AdvancedVI
 using StatsFuns
-algs = [:gpf, :advi, :steinvi]
-labels = Dict(:gpf => "GPF", :gflow => "GPF", :advi => "GVA", :steinvi => "SVGD")
-dcolors = Dict(:gpf => colors[1], :advi => colors[2], :steinvi => colors[3])
+algs = [:gpf, :advi, :steinvi, :gaussflow]
+labels = Dict(:gpf => "GPF", :gflow => "GPF", :advi => "GVA", :steinvi => "SVGD", :gaussflow =>"Gauss Flow")
+dcolors = Dict(:gpf => colors[1], :advi => colors[2], :steinvi => colors[3], :gaussflow => colors[4])
 
 #Takes an array of MVHistory and the true distribution and returns the average error and the variance of the error
 function process_means(hs, truth, metric = (x, y) -> norm(x - y))

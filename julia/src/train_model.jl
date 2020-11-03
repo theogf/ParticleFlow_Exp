@@ -20,14 +20,16 @@ include(joinpath("utils", "tools.jl"))
 # run the inference and return MVHistory objects for each alg.
 no_run = Dict(:run => false)
 
-function train_model(logπ, general_p, gflow_p, advi_p, stein_p;)
+function train_model(logπ, general_p, gflow_p, gaussflow_p, advi_p, stein_p;)
     ## Initialize algorithms
     gflow_vi, gflow_q = init_gflow(gflow_p, general_p)
+    gaussflow_vi, gaussflow_q = init_gaussflow(gaussflow_p, general_p)
     advi_vi, advi_q, advi_init = init_advi(advi_p, general_p)
     stein_vi, stein_q = init_stein(stein_p, general_p)
     device = general_p[:gpu] ? gpu : cpu
     ## Set up storage arrays
     gflow_h = MVHistory()
+    gaussflow_h = MVHistory()
     advi_h = MVHistory()
     stein_h = MVHistory()
 
@@ -44,6 +46,25 @@ function train_model(logπ, general_p, gflow_p, advi_p, stein_p;)
                 hyperparams = deepcopy(general_p[:hyper_params]),
                 hp_optimizer = deepcopy(general_p[:hp_optimizer]),
                 callback = gflow_p[:callback](gflow_h),
+            )
+        catch err
+            if err isa InterruptException || get!(general_p, :unsafe, true)
+                rethrow(err)
+            end
+        end
+    end
+    if !isnothing(gaussflow_vi)
+        try
+            @info "Running Gaussian Flow"
+            push!(gaussflow_h, :t_start, Float64(time_ns()) / 1e9)
+            AVI.vi(
+                logπ,
+                gaussflow_vi,
+                gaussflow_q |> device,
+                optimizer = gaussflow_p[:opt] |> device,
+                hyperparams = deepcopy(general_p[:hyper_params]),
+                hp_optimizer = deepcopy(general_p[:hp_optimizer]),
+                callback = gaussflow_p[:callback](gaussflow_h),
             )
         catch err
             if err isa InterruptException || get!(general_p, :unsafe, true)
@@ -90,11 +111,11 @@ function train_model(logπ, general_p, gflow_p, advi_p, stein_p;)
             end
         end
     end
-    return gflow_h, advi_h, stein_h
+    return gflow_h, gaussflow_h, advi_h, stein_h
 end
 
 # Allows to save the histories into a desired file
-function save_histories(gflow_h, advi_h, stein_h, general_p)
+function save_histories(gflow_h, gaussflow_h, advi_h, stein_h, general_p)
     names = ("gauss", "advi", "stein")
     for (h, name) in zip((gflow_h, advi_h, stein_h), names)
         if length(keys(h)) != 0
@@ -132,6 +153,36 @@ function init_gflow(gflow_p, general_p)
     end
 
     return gflow_vi, gflow_q # Return alg. and distr.
+end
+
+# Initialize distribution and algorithm for Gaussian Flow model
+function init_gaussflow(ps, general_p)
+    n_dim = general_p[:n_dim]
+    gaussflow_vi = if ps[:run]
+        AVI.GaussFlowVI(ps[:max_iters], ps[:n_samples], ps[:cond1], ps[:cond2])
+    else
+        return nothing, nothing
+    end
+    isnothing(ps[:init]) || size(ps[:init][2]) == (n_dim, n_dim) # Check that the size of the inital particles respect the model
+    gaussflow_q = if ps[:mf] isa AbstractVector
+        #MFSamplesMvNormal(
+        #    isnothing(gflow_p[:init]) ?
+        #        rand(MvNormal(ones(n_dim)), gflow_p[:n_particles]) : gflow_p[:init],
+        #    gflow_p[:mf],
+        #)
+    # elseif gflow_p[:mf] == Inf
+        #FullMFSamplesMvNormal(
+        #    isnothing(gflow_p[:init]) ?
+        #        rand(MvNormal(ones(n_dim)), gflow_p[:n_particles]) : gflow_p[:init]
+        #)
+    else
+        AVI.LowRankMvNormal(
+            (isnothing(ps[:init]) ?
+                (ones(n_dim), randn(n_dim, n_dim)) : ps[:init])...,
+        )
+    end
+
+    return gaussflow_vi, gaussflow_q # Return alg. and distr.
 end
 
 # Initialize distribution and algorithm for ADVI model
