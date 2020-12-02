@@ -1,16 +1,19 @@
-module VariationalInference
-
 using Distributions
 using LinearAlgebra
-using ForwardDiff: gradient, hessian
-using Flux.Optimise
+using Random
+using ForwardDiff: gradient, jacobian, derivative
+using Flux: Optimise, destructure
+
+export DSVI, FCS, NGD
+export XXt, update!
 
 abstract type VIScheme end
 
-MvNormal(d::VIScheme) = MvNormal(mean(d), cov(d))
+Distributions.MvNormal(d::VIScheme) = MvNormal(mean(d), cov(d))
 nSamples(d::VIScheme) = d.nSamples
 
+include("utils.jl")
 include(joinpath("algs", "dsvi.jl"))
+include(joinpath("algs", "fcs.jl"))
 include(joinpath("algs", "gvar.jl"))
-
-end
+include(joinpath("algs", "ngd.jl"))

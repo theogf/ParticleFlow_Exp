@@ -6,11 +6,12 @@ struct DSVI{T, Tμ<:AbstractVector{T}, TC<:AbstractMatrix{T}, Tφ<:MultivariateD
     μ::Tμ
     C::TC
     φ::Tφ
+    nSamples::Int
 end
 
-function DSVI(μ::AbstractVector, C::AbstractMatrix)
+function DSVI(μ::AbstractVector, C::AbstractMatrix, nSamples::Int=100)
     (C isa LowerTriangular || C isa Diagonal) || error("C should be a Diagonal or LowerTriangular matrix")
-    DSVI(μ, C, MvNormal(zeros(length(μ)), Diagonal(ones(length(μ)))))
+    DSVI(μ, C, MvNormal(zeros(length(μ)), ones(length(μ))), nSamples)
 end
 
 Distributions.dim(d::DSVI) = length(d.μ)
@@ -38,21 +39,21 @@ function Distributions._rand!(
 end
 
 function update!(d::DSVI, logπ, opt)
-    z = rand(d.φ)
-    θ = d.C * z + d.μ
-    g = ForwardDiff.gradient(logπ, θ)
-    Δμ = Optimise.apply!(opt, d.μ, g)
+    z = rand(d.φ, nSamples(d))
+    θ = d.C * z .+ d.μ
+    g = gradcol(logπ, θ)
+    Δμ = Optimise.apply!(opt, d.μ, vec(mean(g, dims=2)))
     ΔC = Optimise.apply!(opt, d.C, updateC(g, z, d.C))
     d.μ .+= Δμ
     d.C .+= ΔC
 end
 
 function updateC(g, z, C::Diagonal)
-    Diagonal(g .* z) + inv(C)
+    Diagonal(mean(g .* z, dims=2)) + inv(C)
 end
 
-function updateC(g, z, C::TC) where {TC<:AbstractTriangular}
-    TC(g * z' + inv(Diagonal(C)))
+function updateC(g, z, C::LowerTriangular)
+    LowerTriangular(g * z' / size(z, 2) + inv(Diagonal(C)))
 end
 
 function ELBO(d::DSVI, logπ; nSamples::Int=nSamples(d))
