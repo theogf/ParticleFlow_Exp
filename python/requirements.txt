@@ -1,5 +1,0 @@
-seaborn
-numpy
-pandas
-# required for feather
-pyarrow
