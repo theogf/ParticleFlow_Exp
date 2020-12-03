@@ -12,14 +12,6 @@ Distributions.dim(d::GVAR) = length(d.μ)
 Distributions.mean(d::GVAR) = d.μ
 Distributions.cov(d::GVAR) = d.Σ
 
-function Distributions._rand!(
-  rng::AbstractRNG,
-  d::GVAR,
-  x::AbstractVecOrMat,
-)
-  _rand!(rng, MvNormal(d), x)
-end
-
 function update!(d::GVAR, logπ, opt)
     g = ForwardDiff.gradient(logπ, θ)
     Δμ = Optimise.apply!(opt, d.μ, g)

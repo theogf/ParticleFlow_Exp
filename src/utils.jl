@@ -60,7 +60,7 @@ struct LogLinearIncreasingRate
     state
 end
 
-LogLinearIncreasingRate(γmax=1.0, γmin=1e-6) = LogLinearIncreasingRate(γmax, γmin, IdDict())
+LogLinearIncreasingRate(γmax=1.0, γmin=1e-6, K=100) = LogLinearIncreasingRate(γmax, γmin, K, IdDict())
 
 function Optimise.apply!(opt::LogLinearIncreasingRate, x, g)
     t = get!(()->1, opt.state, x)
