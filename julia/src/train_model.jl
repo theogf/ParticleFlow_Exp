@@ -242,3 +242,26 @@ function init_stein(stein_p, general_p)
 
     return stein_vi, stein_q # return alg. and distr.
 end
+
+
+ 
+mutable struct RobbinsMonro
+    κ::Float64
+    τ::Float64
+    state::IdDict
+  end
+  
+  function RobbinsMonro(κ::Real = 0.51,τ::Real = 1)
+    @assert 0.5 < κ <= 1 "κ should be in the interval (0.5,1]"
+    @assert τ > 0 "τ should be positive"
+    RobbinsMonro(κ, τ, IdDict())
+  end
+  
+  function Flux.Optimise.apply!(o::RobbinsMonro, x, Δ)
+    κ = o.κ
+    τ = o.τ
+    n = get!(o.state, x, 1)
+    o.state[x] = n + 1
+    return Δ .* 1 / (τ + n)^κ
+  end
+  

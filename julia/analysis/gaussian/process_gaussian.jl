@@ -67,22 +67,22 @@ display(Plots.plot(p_μ, p_Σ, legend = false))
 
 ## Treating all dimensions at once
 
-fullcov = true
+fullcov = false
 n_particles = 0
 overwrite = true
 
-if fullcov
+# if fullcov
     res = @linq all_res2 |>
           where(:n_iters .== 3000) |>
           where(:n_runs .== 5) |>
           where(:full_cov .== fullcov) |>
           where(:gaussflow .!== missing)
-else
-    res = @linq all_res |>
-          where(:n_iters .== 2000) |>
-          where(:n_runs .== 10) |>
-          where(:full_cov .== fullcov)
-end
+# else
+#     res = @linq all_res |>
+#           where(:n_iters .== 2000) |>
+#           where(:n_runs .== 10) |>
+#           where(:full_cov .== fullcov)
+# end
 
 
 res = if n_particles == 0
@@ -189,8 +189,8 @@ for (i, alg) in enumerate(algs)
     )
 end
 pleg = Plots.plot(
-    [[], [], []],
-    [[], [], []],
+    [[], [], [], []],
+    [[], [], [], []],
     ribbon = [],
     label = reshape(getindex.(Ref(labels), algs), 1, :),
     color = reshape(getindex.(Ref(dcolors), algs), 1, :),
@@ -199,6 +199,7 @@ pleg = Plots.plot(
 )
 p = Plots.plot(p_t, p_μ, p_Σ, pleg)
 plotname = @savename fullcov n_particles
+mkpath(plotsdir("gaussian"))
 savefig(plotsdir("gaussian", "plots_vs_dim_" * plotname * ".png"))
 display(p)
 ## 

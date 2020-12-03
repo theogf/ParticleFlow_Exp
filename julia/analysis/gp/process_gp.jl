@@ -55,6 +55,7 @@ nMC = 500
 for n_particles in n_parts
     # n_particles = 10
     gpf_res = collect_results(datadir("results", "gp", dataset, @savename n_particles))
+    gdp_res = collect_results(datadir("results", "gp", dataset, savename("gdp_", @dict(n_particles))))
     pred_gpf, sig_gpf, acc_gpf, nll_gpf, wass_gpf = [], [], [], [], []
     for q in gpf_res.q
         f = pred_f(q.x, nMC)
@@ -73,6 +74,7 @@ for n_particles in n_parts
     push!(nll, x); push!(nll_sig, y); push!(nlls, nll_gpf)
     x,y = mean_and_var(wass_gpf)
     push!(wass, x); push!(wass_sig, y); push!(wasss, wass_gpf)
+    pred_gdp, sig_gdp, acc_gdp, nll_gdp, wass_gdp = [], [], [], [], []
 end
 
 ## Plot accuracy

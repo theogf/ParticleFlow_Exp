@@ -21,7 +21,7 @@ exp_ps = Dict(
     :n_runs => 5, # Number of repeated runs
     :dim => vcat(2:9, 10:10:100), # Dimension of the target
     :n_particles => 0,#, 10, 20, 50, 100], # Number of particles used, nothing will give dim + 1
-    :full_cov => true,# false], # If the covariance is identity or a full covariance with varying eigenvalues
+    :full_cov => false,# false], # If the covariance is identity or a full covariance with varying eigenvalues
     :gpf => true, # Run GaussParticle Flow
     :gaussf => true, # Run the sampled base Gauss Flow
     :advi => true, # Run Black Box VI
@@ -31,7 +31,7 @@ exp_ps = Dict(
     :seed => 42, # Seed for experiments
     :cb_val => nothing, # Callback values
     # :opt => Flux.Optimise.Optimiser(ClipNorm(10.0), Descent(1.0)),#ADAGrad(0.1), # Common optimizer
-    :opt => Flux.Optimise.Optimiser(ClipNorm(10), Descent(0.1)), # Common optimizer
+    :opt => Flux.Optimise.Optimiser(ClipNorm(10), RobbinsMonro(0.1)), # Common optimizer
 )
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"

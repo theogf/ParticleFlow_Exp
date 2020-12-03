@@ -98,7 +98,7 @@ function run_gaussian_target(exp_p)
     end
 
     file_prefix = savename(exp_p)
-    tagsave(datadir("results", "gaussian_v2", file_prefix * ".bson"),
+    tagsave(datadir("results", "gaussian_v3", file_prefix * ".bson"),
             @dict dim n_particles full_cov n_iters n_runs cond1 cond2 gpf gaussflow advi steinvi exp_p d_target;
             safe=false, storepatch = false)
 end
