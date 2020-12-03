@@ -20,9 +20,9 @@ Distributions.cov(d::DSVI) = d.C * d.C'
 
 function Distributions._rand!(
   rng::AbstractRNG,
-  d::DSVI,
+  d::DSVI{T},
   x::AbstractVector,
-)
+) where {T<:Real}
   nDim = length(x)
   nDim == dim(d) || throw(DimensionMismatch("Wrong dimensions"))
   x .= mean(d) + d.C * randn(rng, T, dim(d))
@@ -30,9 +30,9 @@ end
 
 function Distributions._rand!(
   rng::AbstractRNG,
-  d::DSVI,
+  d::DSVI{T},
   x::AbstractMatrix,
-)
+) where {T<:Real}
   nDim, nPoints = size(x)
   nDim == dim(d) || throw(DimensionMismatch("Wrong dimensions"))
   x .= mean(d) .+ d.C * randn(rng, T, dim(d), nPoints)
@@ -43,7 +43,7 @@ function update!(d::DSVI, logπ, opt)
     θ = d.C * z .+ d.μ
     g = gradcol(logπ, θ)
     Δμ = Optimise.apply!(opt, d.μ, vec(mean(g, dims=2)))
-    ΔC = Optimise.apply!(opt, d.C, updateC(g, z, d.C))
+    ΔC = LowerTriangular(Optimise.apply!(opt, d.C.data, updateC(g, z, d.C)))
     d.μ .+= Δμ
     d.C .+= ΔC
 end
@@ -53,9 +53,9 @@ function updateC(g, z, C::Diagonal)
 end
 
 function updateC(g, z, C::LowerTriangular)
-    LowerTriangular(g * z' / size(z, 2) + inv(Diagonal(C)))
+    g * z' / size(z, 2) + inv(Diagonal(C))
 end
 
 function ELBO(d::DSVI, logπ; nSamples::Int=nSamples(d))
-    sum(logπ, eachcol(rand(d, nSamples))) + logdet(d.C)
+    sum(logπ, eachcol(rand(d, nSamples))) / nSamples + logdet(d.C)
 end

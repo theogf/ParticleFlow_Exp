@@ -41,5 +41,5 @@ function compute_cov_part(φ, d::GPF, X)
 end
 
 function ELBO(d::GPF, logπ; nSamples::Int=nSamples(d))
-    sum(logπ, eachcol(rand(d, nSamples))) + logdet(d.C)
+    sum(logπ, eachcol(rand(d, nSamples))) / nSamples + 0.5 * logdet(cov(d))
 end

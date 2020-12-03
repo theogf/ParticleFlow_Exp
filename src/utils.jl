@@ -37,34 +37,3 @@ function meanvar_to_expec(μ, L)
     μ, XXt(L) + XXt(μ)
 end
 
-
-
-struct IncreasingRate
-    α::Float64 # Maximum learning rate
-    γ::Float64 # Convergence rate to the maximum
-    state
-end
-
-IncreasingRate(α=1.0, γ=1e-8) = IncreasingRate(α, γ, IdDict())
-
-function Optimise.apply!(opt::IncreasingRate, x, g)
-    t = get!(()->0, opt.state, x)
-    opt.state[x] += 1
-    return g .* opt.α * (1 - exp(-opt.γ * t))
-end
-
-struct LogLinearIncreasingRate
-    γmax::Float64 # Maximum learning rate
-    γmin::Float64 # Convergence rate to the maximum
-    K::Int
-    state
-end
-
-LogLinearIncreasingRate(γmax=1.0, γmin=1e-6, K=100) = LogLinearIncreasingRate(γmax, γmin, K, IdDict())
-
-function Optimise.apply!(opt::LogLinearIncreasingRate, x, g)
-    t = get!(()->1, opt.state, x)
-    γ = 10^(((opt.K - min(t, opt.K)) * log10(opt.γmin) + min(t, opt.K) * log10(opt.γmax))/opt.K)
-    opt.state[x] += 1
-    return g .* γ
-end

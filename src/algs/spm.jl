@@ -2,7 +2,7 @@
     SPM : Sparse Precision Matrix, Titsias 2014
     θ=μ+L^{-1}z
 """
-struct SPM{T, Tμ<:AbstractVector{T}, TT<:AbstractMatrix{T}} <: VIScheme
+struct SPM{S, Tμ<:AbstractVector{S}, TT<:AbstractMatrix{S}} <: VIScheme
     μ::Tμ
     T::TT
     invT::TT
@@ -10,8 +10,10 @@ struct SPM{T, Tμ<:AbstractVector{T}, TT<:AbstractMatrix{T}} <: VIScheme
     nSamples::Int
 end
 
-function SPM(μ::AbstractVector, T::AbstractMatrix)
-    SPM(μ, T, inv(T), zero(T))
+function SPM(μ::AbstractVector, T::LowerTriangular, nSamples::Int=100)
+  T′ = copy(T)
+  setdiag!(T′, log.(diag(T)))
+  SPM(μ, T, inv(T), T′, nSamples)
 end
 
 Distributions.dim(d::SPM) = length(d.μ)
@@ -39,18 +41,21 @@ function Distributions._rand!(
 end
 
 function update!(d::SPM, logπ, opt)
-    s = rand(d.φ, nSamples(d))
-    θ = d.invT * s + d.μ
+    s = randn(dim(d), nSamples(d))
+    θ = d.invT * s .+ d.μ
     g = gradcol(logπ, θ)
-    Δμ = Optimise.apply!(opt, d.μ, mean(g) + mean(d.T * s, dims=2))
-    g′ = - mean(d.invT * s * (d.invT * g)', dims = 2)
-    muldiag!(g′, diag(d.T))
-    ΔT′ = Optimise.apply!(opt, d.T′, g′)
+    
+    gμ = vec(mean(g + d.T * s, dims=2))
+    Δμ = Optimise.apply!(opt, d.μ, gμ)
     d.μ .+= Δμ
-    d.T′ .+= ΔT′
-    d.T = d.T′
-    setdiag!(d.T, exp(diag(d.T′)))
-    d.invT = inv(d.T)
+
+    gT′ = - d.invT * s * g' * d.invT
+    muldiag!(gT′, diag(d.T))
+    ΔT′ = Optimise.apply!(opt, d.T′, gT′)
+    d.T′ .+= LowerTriangular(ΔT′)
+    d.T .= d.T′
+    setdiag!(d.T, exp.(diag(d.T′)))
+    d.invT .= inv(d.T)
 end
 
 function ELBO(d::SPM, logπ; nSamples::Int=nSamples(d))

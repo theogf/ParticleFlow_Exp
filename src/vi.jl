@@ -15,14 +15,20 @@ function Distributions._rand!(
   d::VIScheme,
   x::AbstractVecOrMat,
 )
-  _rand!(rng, MvNormal(d), x)
+  Distributions._rand!(rng, MvNormal(d), x)
 end
+
+function Random.rand(d::VIScheme, n::Int)
+  Distributions._rand!(Random.GLOBAL_RNG, d, zeros(dim(d), n))
+end
+
 nSamples(d::VIScheme) = d.nSamples
 
 include("utils.jl")
 include(joinpath("algs", "dsvi.jl"))
 include(joinpath("algs", "fcs.jl"))
+include(joinpath("algs", "gf.jl"))
+include(joinpath("algs", "gpf.jl"))
 include(joinpath("algs", "gvar.jl"))
 include(joinpath("algs", "ngd.jl"))
-include(joinpath("algs", "gpf.jl"))
-include(joinpath("algs", "gf.jl"))
+include(joinpath("algs", "spm.jl"))
