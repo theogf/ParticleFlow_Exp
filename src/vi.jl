@@ -1,7 +1,7 @@
 using Distributions
 using LinearAlgebra
 using Random
-using ForwardDiff: gradient, jacobian, derivative
+using ForwardDiff: gradient, jacobian, hessian, derivative
 using Flux: Optimise, destructure
 
 export DSVI, FCS, NGD
@@ -32,3 +32,4 @@ include(joinpath("algs", "gpf.jl"))
 include(joinpath("algs", "gvar.jl"))
 include(joinpath("algs", "ngd.jl"))
 include(joinpath("algs", "spm.jl"))
+include(joinpath("algs", "iblr.jl"))

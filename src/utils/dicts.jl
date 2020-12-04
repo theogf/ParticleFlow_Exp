@@ -4,4 +4,6 @@ acs = Dict(
     :dsvi => "DSVI",
     :fcs => "FCS",
     :spm => "SPM",
+    :iblr => "IBLR",
+    :ngd => "NGD",
     )
