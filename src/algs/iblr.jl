@@ -35,9 +35,9 @@ function update!(d::IBLR, logπ, opt)
     G = d.S - gS
     Δμ = S \ gμ
     d.μ .-= t * Δμ
-    d.S .= (1 - t) * d.S + t * gS + 0.5 * t^2 * G * (S \  G)
+    d.S .= Symmetric((1 - t) * d.S + t * gS + 0.5 * t^2 * G * (S \  G))
 end
 
 function ELBO(d::IBLR, logπ; nSamples::Int=nSamples(d))
-    sum(logπ, eachcol(rand(d, nSamples))) - 0.5 * logdet(d.S)
+    sum(logπ, eachcol(rand(d, nSamples))) / nSamples - 0.5 * logdet(d.S)
 end

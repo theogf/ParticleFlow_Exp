@@ -6,15 +6,21 @@ include(srcdir("utils", "optimisers.jl"))
 using Distributions, LinearAlgebra, Random
 using ProgressMeter
 using Flux.Optimise
+using StatsFuns: logistic
 
 Random.seed!(42)
 D = 2
+N = 30
+μs = [[-5, 1], [1, 5]]
+stds = [1^2, 1.1^2]
+s = shuffle(1:2N)
+y = vcat(zeros(N), ones(N))[s]
+x = hcat(rand.(MvNormal.(μs, stds), N)...)[:, s]
 
-logbanana(x1, x2) = -0.5(0.01 * x1^2 + 0.1(x2 + 0.1x1^2 - 10)^2)
-logbanana(x) = logbanana(first(x), last(x))
-banana(x1, x2) = exp(logbanana(x1, x2))
-banana(x) = exp(logbanana(x))
-logπ(x) = logbanana(x)
+prior = MvNormal(zeros(2), 100^2)
+likelihood(θ::Real) = Bernoulli(logistic(θ))
+likelihood(θ::AbstractVector) = Product(likelihood.(θ))
+logπ(θ) = logpdf(likelihood(x' * θ), y) + logpdf(prior, θ)
 
 C₀ = Matrix(I(D))
 μ₀ = zeros(D)
@@ -66,30 +72,45 @@ end
 
 # Plotting difference
 using Plots
-p_L = plot(title = "ELBO")
+p_L = plot(title = "Free Energy", yaxis=:log)
 for (name, alg) in algs
     cut = findfirst(x->x==0, ELBOs[name])
     cut = isnothing(cut) ? T : cut
-    plot!(p_L, 1:cut, ELBOs[name][1:cut], lab = acs[name])
+    plot!(p_L, 1:cut, -ELBOs[name][1:cut], lab = acs[name], color=dcolors[name])
 end
 
 p_L |> display
-savefig(plotsdir("Banana" * @savename(S, NGmu) * ".png"))
+savefig(plotsdir("Classification" * @savename(S, NGmu) * ".png"))
 ## Plot the final status
 lim = 20
-xrange = range(-lim, lim, length = 200)
-yrange = range(-lim, lim, length = 200)
-ptruth = contour(xrange, yrange, banana, title = "truth", colorbar=false)
-ps = [ptruth]
+xrange = range(-lim, lim, length = 300)
+yrange = range(-lim, lim, length = 300)
+ps = []
+logπ([minimum(xrange), minimum(yrange)])
+ptruth = contour(xrange, yrange, (w1, w2)->logπ([w1, w2]), title = "truth", colorbar=false)
+ptruth = heatmap(xrange, yrange, (w1, w2)->logπ([w1, w2]), title = "truth", colorbar=false)
+plike = contour!(xrange, yrange, (w1, w2)->logpdf(likelihood(x' * [w1, w2]), y), title = "likelihood", colorbar=false)
+pprior = contour!(xrange, yrange, (w1, w2)->logpdf(prior, [w1, w2]), title = "prior", colorbar=false)
+push!(ps, ptruth)
 for (name, alg) in algs
-    p = contour(xrange, yrange, (x,y)->pdf(MvNormal(alg), [x, y]), title = acs[name], colorbar=false)
+    d = MvNormal(alg)
+    p_contour = contour(xrange, yrange, (x,y)->logpdf(d, [x, y]), title = acs[name], colorbar=false)
     if alg isa GPF
-        scatter!(p, eachrow(alg.X)..., lab="", msw=0.0, alpha = 0.6)
+        scatter!(p_contour, eachrow(alg.X)..., lab="", msw=0.0, alpha = 0.6, color=1)
     end
-    push!(ps, p)
+    push!(ps, p_contour)
 end
 plot(ps...) |> display
 
+
+
+## Show the data and separation
+p_data = scatter(eachrow(x)..., group=Int.(y))
+for (name, alg) in algs
+    m = mean(alg)
+    plot!(p_data, x->- x * m[1] / m[2], label=acs[name], color=dcolors[name])
+end
+p_data |> display
 ## Showing evolution 
 
 # q = GPF(rand(MvNormal(μ₀, C₀), S), NGmu)
