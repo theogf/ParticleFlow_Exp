@@ -28,7 +28,7 @@ algs[:dsvi] = DSVI(copy(μ₀), cholesky(C₀).L, S)
 algs[:fcs] = FCS(copy(μ₀), Matrix(sqrt(0.5) * Diagonal(cholesky(C₀).L)), sqrt(0.5) * ones(D), S)
 algs[:gpf] = GPF(rand(MvNormal(μ₀, C₀), S), NGmu)
 algs[:gf] = GF(copy(μ₀), Matrix(cholesky(C₀).L), S, NGmu)
-algs[:iblr] = IBLR(copy(μ₀), inv(C₀), S)
+# algs[:iblr] = IBLR(copy(μ₀), inv(C₀), S)
 
 # algs[:spm] = SPM(copy(μ₀), inv(cholesky(C₀).L), S)
 # algs[:ngd] = NGD(copy(μ₀), cholesky(C₀).L)
@@ -49,10 +49,11 @@ opt = Optimiser(LogLinearIncreasingRate(0.1, 1e-6, 100), ClipNorm(sqrt(D)))
 opt = Optimiser( Descent(0.01), ClipNorm(1.0))
 opt = Optimiser(InverseDecay(), ClipNorm(1.0))
 opt = Optimiser(Descent(0.01), InverseDecay())
-opt = Momentum(0.001)
+# opt = Momentum(0.001)
 # opt = ScalarADADelta(0.9)
-opt = Descent(0.01)
+# opt = Descent(0.01)
 # opt = ADAM(0.1)
+opt = MatADAGrad(0.1)
 @showprogress for i in 1:T
     for (name, alg) in algs
         t = @elapsed update!(alg, logπ, opt)
@@ -92,14 +93,18 @@ plot(ps...) |> display
 
 ## Showing evolution 
 
-# q = GPF(rand(MvNormal(μ₀, C₀), S), NGmu)
-# a = Animation()
-# opt = Momentum(0.1)
-# @showprogress for i in 1:200
-#     p = contour(xrange, yrange, logbanana, title = "i=$i", colorbar=false)
-#     contour!(p, xrange, yrange, (x,y)->logpdf(MvNormal(q), [x, y]), colorbar=false)
-#     scatter!(p, eachrow(q.X)..., lab="", msw=0.0, alpha = 0.9)
-#     frame(a)
-#     update!(q, logπ, opt)
-# end
-# gif(a, plotsdir("Banana - Momentum.gif"), fps = 20)
+q = GPF(rand(MvNormal(μ₀, C₀), S), NGmu)
+a = Animation()
+opt = Momentum(0.1)
+opt = Descent(1.0)
+opt = MatADAGrad(1.0)
+@showprogress for i in 1:200
+    if i % 10 == 0
+        p = contour(xrange, yrange, logbanana, title = "i=$i", colorbar=false)
+        contour!(p, xrange, yrange, (x,y)->logpdf(MvNormal(q), [x, y]), colorbar=false)
+        scatter!(p, eachrow(q.X)..., lab="", msw=0.0, alpha = 0.9)
+        frame(a)
+    end
+    update!(q, logπ, opt)
+end
+gif(a, plotsdir("Banana - Momentum.gif"), fps = 10)

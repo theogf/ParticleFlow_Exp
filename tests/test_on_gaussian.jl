@@ -24,13 +24,13 @@ C₀ = Matrix(I(D))
 ## Run alg
 T = 10000
 S = 10
-NGmu = true
+NGmu = true # Natural gradient on mu
 algs = Dict()
 algs[:dsvi] = DSVI(copy(μ₀), cholesky(C₀).L, S)
 algs[:fcs] = FCS(copy(μ₀), Matrix(sqrt(0.5) * Diagonal(cholesky(C₀).L)), sqrt(0.5) * ones(D), S)
 algs[:gpf] = GPF(rand(MvNormal(μ₀, C₀), S), NGmu)
 algs[:gf] = GF(copy(μ₀), Matrix(cholesky(C₀).L), S, NGmu)
-algs[:iblr] = IBLR(copy(μ₀), inv(C₀), S)
+# algs[:iblr] = IBLR(copy(μ₀), inv(C₀), S)
 # algs[:spm] = SPM(copy(μ₀), inv(cholesky(C₀).L), S)
 # algs[:ngd] = NGD(copy(μ₀), cholesky(C₀).L)
 
@@ -52,9 +52,9 @@ opt = Optimiser(LogLinearIncreasingRate(0.1, 1e-6, 100), ClipNorm(sqrt(D)))
 opt = Optimiser( Descent(0.01), ClipNorm(1.0))
 opt = Optimiser(InverseDecay(), ClipNorm(1.0))
 opt = Optimiser(Descent(0.01), InverseDecay())
-# opt = ADAGrad(0.1)
+opt = ADAGrad(0.1)
 # opt = ScalarADADelta(0.9)
-opt = Descent(0.01)
+# opt = Descent(0.01)
 # opt = ADAM(0.1)
 @showprogress for i in 1:T
     for (name, alg) in algs

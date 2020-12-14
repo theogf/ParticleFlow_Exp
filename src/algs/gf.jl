@@ -16,7 +16,7 @@ end
 
 Distributions.dim(d::GF) = length(d.μ)
 Distributions.mean(d::GF) = d.μ
-Distributions.cov(d::GF) = XXt(d.Γ)
+Distributions.cov(d::GF) = XXt(d.Γ) + 1e-8 * I
 
 function update!(d::GF, logπ, opt)
     z = randn(size(d.Γ, 2), nSamples(d))
