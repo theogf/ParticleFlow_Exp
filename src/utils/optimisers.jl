@@ -63,3 +63,35 @@ function Optimise.apply!(o::ScalarADADelta, x, Δ)
   Δacc = ρ * Δacc + (1 - ρ) * mean(Δ)^2
   return Δ
 end
+
+mutable struct MatADAGrad
+  eta::Float64
+  ϵ::Float64
+  state::IdDict
+end
+
+MatADAGrad(η = 0.9, ϵ=1e-9) = MatADAGrad(η, ϵ, IdDict())
+
+function Optimise.apply!(o::MatADAGrad, x, Δ)
+  η = o.eta
+  acc = get!(o.state, x, fill!(zeros(size(x, 1)), o.ϵ))
+  acc .+= diag_ABt(Δ)
+  return Diagonal(η / (sqrt.(acc .+ o.ϵ))) * Δ
+end
+
+mutable struct MatRMSProp
+  eta::Float64
+  gamma::Float64
+  ϵ::Float64
+  state::IdDict
+end
+
+MatRMSProp(η = 0.9, γ = 0.9, ϵ=1e-9) = MatRMSProp(η, γ, ϵ, IdDict())
+
+function Optimise.apply!(o::MatRMSProp, x, Δ)
+  η = o.eta
+  γ = o.gamma
+  acc = get!(o.state, x, fill!(zeros(size(x, 1)), o.ϵ))
+  acc .= γ * acc + (1 - γ) * diag_ABt(Δ)
+  return Diagonal(η / (sqrt.(acc .+ o.ϵ))) * Δ
+end

@@ -17,7 +17,7 @@ s = shuffle(1:2N)
 y = vcat(zeros(N), ones(N))[s]
 x = hcat(rand.(MvNormal.(μs, stds), N)...)[:, s]
 
-prior = MvNormal(zeros(2), 100^2)
+prior = MvNormal(zeros(2), 10^2)
 likelihood(θ::Real) = Bernoulli(logistic(θ))
 likelihood(θ::AbstractVector) = Product(likelihood.(θ))
 logπ(θ) = logpdf(likelihood(x' * θ), y) + logpdf(prior, θ)
@@ -27,7 +27,7 @@ C₀ = Matrix(I(D))
 ## Run alg
 T = 1000
 S = 100
-Stest = 1000
+Stest = 100
 NGmu = true
 algs = Dict()
 algs[:dsvi] = DSVI(copy(μ₀), cholesky(C₀).L, S)
@@ -41,12 +41,13 @@ algs[:iblr] = IBLR(copy(μ₀), inv(C₀), S)
 
 
 ELBOs = Dict()
-# err_cov = Dict()
 times = Dict()
+opts = Dict()
 for (name, alg) in algs
     ELBOs[name] = zeros(T+1)
     ELBOs[name][1] = ELBO(alg, logπ, nSamples = Stest)
     times[name] = 0
+    opts[name] = RMSProp(0.1)
 end
 
 
@@ -58,10 +59,13 @@ opt = Optimiser(Descent(0.01), InverseDecay())
 opt = Momentum(0.001)
 # opt = ScalarADADelta(0.9)
 opt = Descent(0.01)
+opts[:gpf] = MatADAGrad(0.1)
+opts[:gpf] = MatRMSProp(0.1)
+opts[:iblr] = Descent(0.1)
 # opt = ADAM(0.1)
 @showprogress for i in 1:T
     for (name, alg) in algs
-        t = @elapsed update!(alg, logπ, opt)
+        t = @elapsed update!(alg, logπ, opts[name])
         times[name] += t
         ELBOs[name][i+1] = ELBO(alg, logπ, nSamples = Stest)
     end
@@ -70,17 +74,18 @@ for (name, alg) in algs
     @info "$name :\nELBO = $(ELBO(alg, logπ, nSamples = Stest))\nTime : $(times[name])"
 end
 
-# Plotting difference
+## Plotting difference
 using Plots
+pyplot()
 p_L = plot(title = "Free Energy", yaxis=:log)
 for (name, alg) in algs
     cut = findfirst(x->x==0, ELBOs[name])
-    cut = isnothing(cut) ? T : cut
+    cut = isnothing(cut) ? T : cut - 1
     plot!(p_L, 1:cut, -ELBOs[name][1:cut], lab = acs[name], color=dcolors[name])
 end
 
 p_L |> display
-savefig(plotsdir("Classification" * @savename(S, NGmu) * ".png"))
+# savefig(plotsdir("Classification - " * @savename(S, NGmu) * ".png"))
 ## Plot the final status
 lim = 20
 xrange = range(-lim, lim, length = 300)
@@ -88,9 +93,9 @@ yrange = range(-lim, lim, length = 300)
 ps = []
 logπ([minimum(xrange), minimum(yrange)])
 ptruth = contour(xrange, yrange, (w1, w2)->logπ([w1, w2]), title = "truth", colorbar=false)
-ptruth = heatmap(xrange, yrange, (w1, w2)->logπ([w1, w2]), title = "truth", colorbar=false)
-plike = contour!(xrange, yrange, (w1, w2)->logpdf(likelihood(x' * [w1, w2]), y), title = "likelihood", colorbar=false)
-pprior = contour!(xrange, yrange, (w1, w2)->logpdf(prior, [w1, w2]), title = "prior", colorbar=false)
+# ptruth = heatmap(xrange, yrange, (w1, w2)->logπ([w1, w2]), title = "truth", colorbar=false)
+# plike = contour!(xrange, yrange, (w1, w2)->logpdf(likelihood(x' * [w1, w2]), y), title = "likelihood", colorbar=false)
+# pprior = contour!(xrange, yrange, (w1, w2)->logpdf(prior, [w1, w2]), title = "prior", colorbar=false)
 push!(ps, ptruth)
 for (name, alg) in algs
     d = MvNormal(alg)
