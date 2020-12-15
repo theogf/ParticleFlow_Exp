@@ -22,13 +22,13 @@ C₀ = Matrix(I(D))
 T = 1000
 S = 100
 Stest = 1000
-NGmu = true
+NGmu = false # Preconditionner on the mean
 algs = Dict()
 algs[:dsvi] = DSVI(copy(μ₀), cholesky(C₀).L, S)
 algs[:fcs] = FCS(copy(μ₀), Matrix(sqrt(0.5) * Diagonal(cholesky(C₀).L)), sqrt(0.5) * ones(D), S)
 algs[:gpf] = GPF(rand(MvNormal(μ₀, C₀), S), NGmu)
 algs[:gf] = GF(copy(μ₀), Matrix(cholesky(C₀).L), S, NGmu)
-# algs[:iblr] = IBLR(copy(μ₀), inv(C₀), S)
+algs[:iblr] = IBLR(copy(μ₀), inv(C₀), S)
 
 # algs[:spm] = SPM(copy(μ₀), inv(cholesky(C₀).L), S)
 # algs[:ngd] = NGD(copy(μ₀), cholesky(C₀).L)
@@ -37,10 +37,12 @@ algs[:gf] = GF(copy(μ₀), Matrix(cholesky(C₀).L), S, NGmu)
 ELBOs = Dict()
 # err_cov = Dict()
 times = Dict()
+opts = Dict()
 for (name, alg) in algs
     ELBOs[name] = zeros(T+1)
     ELBOs[name][1] = ELBO(alg, logπ, nSamples = Stest)
     times[name] = 0
+    opts[name] = RMSProp(0.1)
 end
 
 
@@ -53,10 +55,11 @@ opt = Optimiser(Descent(0.01), InverseDecay())
 # opt = ScalarADADelta(0.9)
 # opt = Descent(0.01)
 # opt = ADAM(0.1)
-opt = MatADAGrad(0.1)
+opts[:gpf] = MatRMSProp(0.1)
+opts[:iblr] = Descent(0.1)
 @showprogress for i in 1:T
     for (name, alg) in algs
-        t = @elapsed update!(alg, logπ, opt)
+        t = @elapsed update!(alg, logπ, opts[name])
         times[name] += t
         ELBOs[name][i+1] = ELBO(alg, logπ, nSamples = Stest)
     end

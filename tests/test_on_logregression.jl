@@ -47,7 +47,7 @@ for (name, alg) in algs
     ELBOs[name] = zeros(T+1)
     ELBOs[name][1] = ELBO(alg, logπ, nSamples = Stest)
     times[name] = 0
-    opts[name] = ADAGrad(0.1)
+    opts[name] = RMSProp(0.1)
 end
 
 
@@ -80,12 +80,12 @@ pyplot()
 p_L = plot(title = "Free Energy", yaxis=:log)
 for (name, alg) in algs
     cut = findfirst(x->x==0, ELBOs[name])
-    cut = isnothing(cut) ? T : cut
+    cut = isnothing(cut) ? T : cut - 1
     plot!(p_L, 1:cut, -ELBOs[name][1:cut], lab = acs[name], color=dcolors[name])
 end
 
 p_L |> display
-savefig(plotsdir("Classification - " * @savename(S, NGmu) * ".png"))
+# savefig(plotsdir("Classification - " * @savename(S, NGmu) * ".png"))
 ## Plot the final status
 lim = 20
 xrange = range(-lim, lim, length = 300)

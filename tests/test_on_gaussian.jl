@@ -24,13 +24,14 @@ C₀ = Matrix(I(D))
 ## Run alg
 T = 10000
 S = 10
+η = 0.1
 NGmu = true # Natural gradient on mu
 algs = Dict()
 algs[:dsvi] = DSVI(copy(μ₀), cholesky(C₀).L, S)
 algs[:fcs] = FCS(copy(μ₀), Matrix(sqrt(0.5) * Diagonal(cholesky(C₀).L)), sqrt(0.5) * ones(D), S)
 algs[:gpf] = GPF(rand(MvNormal(μ₀, C₀), S), NGmu)
 algs[:gf] = GF(copy(μ₀), Matrix(cholesky(C₀).L), S, NGmu)
-# algs[:iblr] = IBLR(copy(μ₀), inv(C₀), S)
+algs[:iblr] = IBLR(copy(μ₀), inv(C₀), S)
 # algs[:spm] = SPM(copy(μ₀), inv(cholesky(C₀).L), S)
 # algs[:ngd] = NGD(copy(μ₀), cholesky(C₀).L)
 
@@ -38,12 +39,14 @@ algs[:gf] = GF(copy(μ₀), Matrix(cholesky(C₀).L), S, NGmu)
 err_mean = Dict()
 err_cov = Dict()
 times = Dict()
+opts = Dict()
 for (name, alg) in algs
     err_mean[name] = zeros(T+1)
     err_mean[name][1] = norm(mean(alg) - μ)
     err_cov[name] = zeros(T+1)
     err_cov[name][1] = norm(cov(alg) - C)
     times[name] = 0
+    opts[name] = RMSProp(η)
 end
 
 
@@ -53,12 +56,14 @@ opt = Optimiser( Descent(0.01), ClipNorm(1.0))
 opt = Optimiser(InverseDecay(), ClipNorm(1.0))
 opt = Optimiser(Descent(0.01), InverseDecay())
 opt = ADAGrad(0.1)
+opts[:gpf] = MatRMSProp(η)
+opts[:iblr] = Descent(η)
 # opt = ScalarADADelta(0.9)
 # opt = Descent(0.01)
 # opt = ADAM(0.1)
 @showprogress for i in 1:T
     for (name, alg) in algs
-        t = @elapsed update!(alg, logπ, opt)
+        t = @elapsed update!(alg, logπ, opts[name])
         times[name] += t
         err_mean[name][i+1] = norm(mean(alg) - μ)
         err_cov[name][i+1] = norm(cov(alg) - C)
