@@ -41,7 +41,7 @@ end
 function update!(d::DSVI, logπ, opt)
     z = rand(d.φ, nSamples(d))
     θ = d.C * z .+ d.μ
-    g = gradcol(logπ, θ)
+    g = gradcol(d, logπ, θ)
     Δμ = Optimise.apply!(opt, d.μ, vec(mean(g, dims=2)))
     ΔC = LowerTriangular(Optimise.apply!(opt, d.C.data, updateC(g, z, d.C)))
     d.μ .+= Δμ

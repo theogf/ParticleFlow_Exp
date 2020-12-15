@@ -41,7 +41,7 @@ function update!(d::FCS, logπ, opt)
     ϵ = randn(dim(d), nSamples(d))
     z = randn(size(d.B, 2), nSamples(d))
     θ = d.D * ϵ + d.B * z .+ d.μ
-    g = gradcol(logπ, θ)
+    g = gradcol(d, logπ, θ)
     A = computeA(d.B, d.D)
     Δμ = Optimise.apply!(opt, d.μ, vec(mean(g, dims=2)))
     ΔB = Optimise.apply!(opt, d.B, gradB(g, ϵ, z, d.B, d.D, A))

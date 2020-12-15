@@ -29,7 +29,7 @@ function update!(d::IBLR, logπ, opt)
     t = opt.eta
     θ = rand(d, nSamples(d))
 
-    gμ = -vec(mean(gradcol(logπ, θ), dims=2))
+    gμ = -vec(mean(gradcol(d, logπ, θ), dims=2))
     gS = -mean(hessian.(logπ, eachcol(θ)))
 
     G = d.S - gS

@@ -4,8 +4,8 @@ using Random
 using ForwardDiff: gradient, jacobian, hessian, derivative
 using Flux: Optimise, destructure
 
-export DSVI, FCS, NGD
-export XXt, update!
+# export XXt, update!
+# export DSVI, FCS, NGD
 
 abstract type VIScheme end
 
@@ -22,6 +22,9 @@ function Random.rand(d::VIScheme, n::Int)
   Distributions._rand!(Random.GLOBAL_RNG, d, zeros(dim(d), n))
 end
 
+AD_VI = :Zygote
+
+ad(d::VIScheme) = Val(AD_VI)
 nSamples(d::VIScheme) = d.nSamples
 
 include("utils.jl")

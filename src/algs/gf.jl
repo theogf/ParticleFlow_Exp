@@ -21,7 +21,7 @@ Distributions.cov(d::GF) = XXt(d.Γ) + 1e-8 * I
 function update!(d::GF, logπ, opt)
     z = randn(size(d.Γ, 2), nSamples(d))
     θ = d.Γ * z .+ d.μ
-    φ = -gradcol(logπ, θ)
+    φ = -gradcol(d, logπ, θ)
     φ̄ = vec(mean(φ, dims=2))
     d.μ .-= Optimise.apply!(opt, d.μ, d.Pμ ? cov(d) * φ̄ : φ̄)
     d.Γ .-= Optimise.apply!(opt, d.Γ, compute_cov_part(φ, d, θ .- mean(d)))
