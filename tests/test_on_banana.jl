@@ -3,6 +3,7 @@ using DrWatson
 include(srcdir("vi.jl"))
 include(srcdir("utils", "dicts.jl"))
 include(srcdir("utils", "optimisers.jl"))
+include(srcdir("utils", "tools.jl"))
 using Distributions, LinearAlgebra, Random
 using ProgressMeter
 using Flux.Optimise
@@ -20,9 +21,10 @@ C₀ = Matrix(I(D))
 μ₀ = zeros(D)
 ## Run alg
 T = 1000
+η = 0.1
 S = 100
 Stest = 1000
-NGmu = false # Preconditionner on the mean
+NGmu = !true # Preconditionner on the mean
 algs = Dict()
 algs[:dsvi] = DSVI(copy(μ₀), cholesky(C₀).L, S)
 algs[:fcs] = FCS(copy(μ₀), Matrix(sqrt(0.5) * Diagonal(cholesky(C₀).L)), sqrt(0.5) * ones(D), S)
@@ -42,7 +44,7 @@ for (name, alg) in algs
     ELBOs[name] = zeros(T+1)
     ELBOs[name][1] = ELBO(alg, logπ, nSamples = Stest)
     times[name] = 0
-    opts[name] = RMSProp(0.1)
+    opts[name] = RMSProp(η)
 end
 
 
@@ -55,8 +57,9 @@ opt = Optimiser(Descent(0.01), InverseDecay())
 # opt = ScalarADADelta(0.9)
 # opt = Descent(0.01)
 # opt = ADAM(0.1)
-opts[:gpf] = MatRMSProp(0.1)
-opts[:iblr] = Descent(0.1)
+opts[:gpf] = Descent(η)
+opts[:gpf] = MatRMSProp(η)
+opts[:iblr] = Descent(η)
 @showprogress for i in 1:T
     for (name, alg) in algs
         t = @elapsed update!(alg, logπ, opts[name])
@@ -78,7 +81,9 @@ for (name, alg) in algs
 end
 
 p_L |> display
-savefig(plotsdir("Banana" * @savename(S, NGmu) * ".png"))
+opt_s = nameof(typeof(opts[:gf]))
+opt_d = nameof(typeof(opts[:gpf]))
+savefig(plotsdir("Banana - " * @savename(S, NGmu, opt_s, opt_d, η) * ".png"))
 ## Plot the final status
 lim = 20
 xrange = range(-lim, lim, length = 200)
@@ -96,18 +101,18 @@ plot(ps...) |> display
 
 ## Showing evolution 
 
-q = GPF(rand(MvNormal(μ₀, C₀), S), NGmu)
-a = Animation()
-opt = Momentum(0.1)
-opt = Descent(1.0)
-opt = MatADAGrad(1.0)
-@showprogress for i in 1:200
-    if i % 10 == 0
-        p = contour(xrange, yrange, logbanana, title = "i=$i", colorbar=false)
-        contour!(p, xrange, yrange, (x,y)->logpdf(MvNormal(q), [x, y]), colorbar=false)
-        scatter!(p, eachrow(q.X)..., lab="", msw=0.0, alpha = 0.9)
-        frame(a)
-    end
-    update!(q, logπ, opt)
-end
-gif(a, plotsdir("Banana - Momentum.gif"), fps = 10)
+# q = GPF(rand(MvNormal(μ₀, C₀), S), NGmu)
+# a = Animation()
+# opt = Momentum(0.1)
+# opt = Descent(1.0)
+# opt = MatADAGrad(1.0)
+# @showprogress for i in 1:200
+#     if i % 10 == 0
+#         p = contour(xrange, yrange, logbanana, title = "i=$i", colorbar=false)
+#         contour!(p, xrange, yrange, (x,y)->logpdf(MvNormal(q), [x, y]), colorbar=false)
+#         scatter!(p, eachrow(q.X)..., lab="", msw=0.0, alpha = 0.9)
+#         frame(a)
+#     end
+#     update!(q, logπ, opt)
+# end
+# gif(a, plotsdir("Banana - Momentum.gif"), fps = 10)

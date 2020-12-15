@@ -25,10 +25,12 @@ logπ(θ) = logpdf(likelihood(x' * θ), y) + logpdf(prior, θ)
 C₀ = Matrix(I(D))
 μ₀ = zeros(D)
 ## Run alg
+Random.seed!(42)
 T = 1000
 S = 100
 Stest = 100
-NGmu = true
+η = 0.01
+NGmu = false
 algs = Dict()
 algs[:dsvi] = DSVI(copy(μ₀), cholesky(C₀).L, S)
 algs[:fcs] = FCS(copy(μ₀), Matrix(sqrt(0.5) * Diagonal(cholesky(C₀).L)), sqrt(0.5) * ones(D), S)
@@ -37,7 +39,6 @@ algs[:gf] = GF(copy(μ₀), Matrix(cholesky(C₀).L), S, NGmu)
 algs[:iblr] = IBLR(copy(μ₀), inv(C₀), S)
 
 # algs[:spm] = SPM(copy(μ₀), inv(cholesky(C₀).L), S)
-# algs[:ngd] = NGD(copy(μ₀), cholesky(C₀).L)
 
 
 ELBOs = Dict()
@@ -47,7 +48,7 @@ for (name, alg) in algs
     ELBOs[name] = zeros(T+1)
     ELBOs[name][1] = ELBO(alg, logπ, nSamples = Stest)
     times[name] = 0
-    opts[name] = RMSProp(0.1)
+    opts[name] = Descent(η)
 end
 
 
@@ -59,9 +60,8 @@ opt = Optimiser(Descent(0.01), InverseDecay())
 opt = Momentum(0.001)
 # opt = ScalarADADelta(0.9)
 opt = Descent(0.01)
-opts[:gpf] = MatADAGrad(0.1)
-opts[:gpf] = MatRMSProp(0.1)
-opts[:iblr] = Descent(0.1)
+opts[:gpf] = Descent(η)
+opts[:iblr] = Descent(η)
 # opt = ADAM(0.1)
 @showprogress for i in 1:T
     for (name, alg) in algs
@@ -74,7 +74,7 @@ for (name, alg) in algs
     @info "$name :\nELBO = $(ELBO(alg, logπ, nSamples = Stest))\nTime : $(times[name])"
 end
 
-## Plotting difference
+# Plotting difference
 using Plots
 pyplot()
 p_L = plot(title = "Free Energy", yaxis=:log)
@@ -85,7 +85,9 @@ for (name, alg) in algs
 end
 
 p_L |> display
-# savefig(plotsdir("Classification - " * @savename(S, NGmu) * ".png"))
+opt_s = nameof(typeof(opts[:gf]))
+opt_d = nameof(typeof(opts[:gpf]))
+savefig(plotsdir("Classification - " * @savename(opt_s, opt_d, S, NGmu, η) * ".png"))
 ## Plot the final status
 lim = 20
 xrange = range(-lim, lim, length = 300)

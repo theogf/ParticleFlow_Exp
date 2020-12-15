@@ -8,7 +8,7 @@ using ProgressMeter
 using Flux.Optimise
 
 Random.seed!(42)
-D = 2
+D = 3
 
 μ = randn(D)
 λ = rand(D)
@@ -23,9 +23,9 @@ C₀ = Matrix(I(D))
 μ₀ = zeros(D)
 ## Run alg
 T = 10000
-S = 10
-η = 0.1
-NGmu = true # Natural gradient on mu
+S = D + 1
+η = 0.01
+NGmu = !false # Natural gradient on mu
 algs = Dict()
 algs[:dsvi] = DSVI(copy(μ₀), cholesky(C₀).L, S)
 algs[:fcs] = FCS(copy(μ₀), Matrix(sqrt(0.5) * Diagonal(cholesky(C₀).L)), sqrt(0.5) * ones(D), S)
@@ -46,7 +46,7 @@ for (name, alg) in algs
     err_cov[name] = zeros(T+1)
     err_cov[name][1] = norm(cov(alg) - C)
     times[name] = 0
-    opts[name] = RMSProp(η)
+    opts[name] = Descent(η)
 end
 
 
@@ -84,33 +84,37 @@ for (name, alg) in algs
     plot!(p_C, 1:cut, err_cov[name][1:cut], lab = acs[name])
 end
 
+opt_s = nameof(typeof(opts[:gf]))
+opt_d = nameof(typeof(opts[:gpf]))
 plot(p_m, p_C) |> display
-savefig(plotsdir("Gaussian" * @savename(S, D, NGmu) * ".png"))
+savefig(plotsdir("Gaussian - " * @savename(opt_s, opt_d, S, D, NGmu) * ".png"))
 ## Plot the final status
-lim = 3
-xrange = range(-lim, lim, length = 200)
-yrange = range(-lim, lim, length = 200)
-ptruth = contour(xrange, yrange, (x,y)->pdf(target, [x, y]), title = "truth", colorbar=false)
-ps = [ptruth]
-for (name, alg) in algs
-    p = contour(xrange, yrange, (x,y)->pdf(MvNormal(alg), [x, y]), title = acs[name], colorbar=false)
-    if alg isa GPF
-        scatter!(p, eachrow(alg.X)..., lab="", msw=0.0, alpha = 0.6)
+if D == 2
+    lim = 3
+    xrange = range(-lim, lim, length = 200)
+    yrange = range(-lim, lim, length = 200)
+    ptruth = contour(xrange, yrange, (x,y)->pdf(target, [x, y]), title = "truth", colorbar=false)
+    ps = [ptruth]
+    for (name, alg) in algs
+        p = contour(xrange, yrange, (x,y)->pdf(MvNormal(alg), [x, y]), title = acs[name], colorbar=false)
+        if alg isa GPF
+            scatter!(p, eachrow(alg.X)..., lab="", msw=0.0, alpha = 0.6)
+        end
+        push!(ps, p)
     end
-    push!(ps, p)
+    plot(ps...) |> display
 end
-plot(ps...) |> display
 
 ## Showing evolution 
 
-q = GPF(rand(MvNormal(μ₀, C₀), S), NGmu)
-a = Animation()
-opt = ADAGrad(1.0)
-@showprogress for i in 1:200
-    p = contour(xrange, yrange, (x,y)->pdf(target, [x, y]), title = "i=$i", colorbar=false)
-    p = contour!(xrange, yrange, (x,y)->pdf(MvNormal(q), [x, y]), colorbar=false)
-    scatter!(p, eachrow(q.X)..., lab="", msw=0.0, alpha = 0.9)
-    frame(a)
-    update!(q, logπ, opt)
-end
-gif(a, plotsdir("ADAGrad.gif"), fps = 20)
+# q = GPF(rand(MvNormal(μ₀, C₀), S), NGmu)
+# a = Animation()
+# opt = ADAGrad(1.0)
+# @showprogress for i in 1:200
+#     p = contour(xrange, yrange, (x,y)->pdf(target, [x, y]), title = "i=$i", colorbar=false)
+#     p = contour!(xrange, yrange, (x,y)->pdf(MvNormal(q), [x, y]), colorbar=false)
+#     scatter!(p, eachrow(q.X)..., lab="", msw=0.0, alpha = 0.9)
+#     frame(a)
+#     update!(q, logπ, opt)
+# end
+# gif(a, plotsdir("ADAGrad.gif"), fps = 20)
