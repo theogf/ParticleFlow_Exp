@@ -11,13 +11,19 @@ function run_gaussian_target(exp_p)
     ## Create target distribution
     @unpack dim, n_particles, n_iters, n_runs, cond1, cond2, full_cov = exp_p
     n_particles = iszero(n_particles) ? dim + 1 : n_particles # If nothing is given use dim+1 particlesz`
-    μ = sort(randn(dim))
-    Σ = if full_cov
-        Q, _ = qr(rand(dim, dim)) # Create random unitary matrix
-        Λ = Diagonal(10.0 .^ range(-1, 2, length = dim))
-        Symmetric(Q * Λ * Q')
+    
+    @unpack Σ, μ = exp_p
+    μ = isnothing(μ) ? sort(randn(dim)) : μ
+    Σ = if isnothing(Σ)
+        if full_cov
+            Q, _ = qr(rand(dim, dim)) # Create random unitary matrix
+            Λ = Diagonal(10.0 .^ range(-1, 2, length = dim))
+            Symmetric(Q * Λ * Q')
+        else
+            I(dim)
+        end
     else
-        I(dim)
+        Σ
     end
     α = eps(Float64)
     while !isposdef(Σ)
@@ -25,7 +31,6 @@ function run_gaussian_target(exp_p)
         α *= 10
     end
 
-    # Flux.@functor TuringDenseMvNormal
     d_target = TuringDenseMvNormal(μ, Σ)
     ## Create the model
     function logπ_gauss(θ)
@@ -33,8 +38,10 @@ function run_gaussian_target(exp_p)
     end
 
     gpf = Vector{Any}(undef, n_runs)
-    advi = Vector{Any}(undef, n_runs)
-    steinvi = Vector{Any}(undef, n_runs)
+    gf = Vector{Any}(undef, n_runs)
+    dsvi = Vector{Any}(undef, n_runs)
+    iblr = Vector{Any}(undef, n_runs)
+    fcs = Vector{Any}(undef, n_runs)
 
     for i in 1:n_runs
         @info "Run $i/$(n_runs)"
@@ -46,28 +53,27 @@ function run_gaussian_target(exp_p)
 
         ## Create dictionnaries of parameters
         general_p =
-            Dict(:hyper_params => nothing, :hp_optimizer => ADAGrad(0.1), :n_dim => dim, :gpu => false)
-        gflow_p = Dict(
+            Dict(:hyper_params => nothing, :hp_optimizer => nothing, :n_dim => dim, :gpu => false)
+        gpf_p = Dict(
             :run => exp_p[:gpf],
             :n_particles => n_particles,
             :max_iters => n_iters,
-            :cond1 => cond1,
-            :cond2 => cond2,
+            :precond => precond,
             :opt => deepcopy(opt),
             :callback => wrap_cb(),
             :mf => false,
             :init => x_init,
         )
-        advi_p = Dict(
-            :run => exp_p[:advi] && !cond1 && !cond2,
+        gf_p = Dict(
+            :run => exp_p[:gf] && !precond,
             :n_samples => n_particles,
             :max_iters => n_iters,
             :opt => deepcopy(opt),
             :callback => wrap_cb(),
             :init => (μ_init, sqrt.(Σ_init)),
         )
-        stein_p = Dict(
-            :run => exp_p[:steinvi] && !cond1 && !cond2,
+        dsvi_p = Dict(
+            :run => exp_p[:dsvi] && !precond,
             :n_particles => n_particles,
             :max_iters => n_iters,
             :kernel => KernelFunctions.transform(SqExponentialKernel(), 1.0),
