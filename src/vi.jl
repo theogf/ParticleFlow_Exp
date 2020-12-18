@@ -1,8 +1,9 @@
 using Distributions
 using LinearAlgebra
 using Random
-using ForwardDiff: gradient, jacobian, hessian, derivative
+using ForwardDiff: ForwardDiff, gradient, jacobian, hessian, derivative
 using Flux: Optimise, destructure
+using Zygote
 
 # export XXt, update!
 # export DSVI, FCS, NGD

@@ -1,12 +1,12 @@
 invquad(A::AbstractMatrix, x::AbstractVecOrMat) = dot(x, A \ x)
 XXt(X::AbstractVecOrMat) = X * X'
-gradcol(alg, f, X) = gradcol(ad(alg), f, X)
+gradcol(alg::VIScheme, f::Function, X::AbstractMatrix) = gradcol(ad(alg), f, X)
 function gradcol(::Val{:ForwardDiff}, f, X)
-    ForwardDiff.gradient(x->sum(f.(eachcol(x))), X)
+    ForwardDiff.gradient(x->sum(f, eachcol(x)), X)
 end
 
-function gradcol(::Val{:Zygote}, f, X)
-    first(Zygote.gradient(x->sum(f.(eachcol(x))), X))
+function gradcol(::Val{:Zygote}, f::Function, X::AbstractMatrix)
+    first(Zygote.gradient(x->sum(f, eachcol(x)), X))
 end
 
 function muldiag!(A, v)

@@ -18,7 +18,7 @@ end
 
 Distributions.dim(d::GPF) = length(d.μ)
 Distributions.mean(d::GPF) = d.μ
-Distributions.cov(d::GPF) = cov(d.X, dims=2, corrected=false) + 1e-8 * I
+Distributions.cov(d::GPF) = cov(d.X, dims=2, corrected=false) + 1e-5 * I
 
 function update!(d::GPF, logπ, opt)
     φ = -gradcol(d, logπ, d.X)
@@ -28,6 +28,7 @@ function update!(d::GPF, logπ, opt)
     Δ₂ = Optimise.apply!(opt, d.X, compute_cov_part(φ, d, ΔX))
     @. d.X = d.X - Δ₁ - Δ₂
     d.μ .= vec(mean(d.X, dims=2))
+    return nothing
 end
 
 function compute_cov_part(φ, d::GPF, X)
