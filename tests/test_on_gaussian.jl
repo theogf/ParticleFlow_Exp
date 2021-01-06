@@ -3,6 +3,7 @@ using DrWatson
 include(srcdir("vi.jl"))
 include(srcdir("utils", "dicts.jl"))
 include(srcdir("utils", "optimisers.jl"))
+include(srcdir("utils", "tools.jl"))
 using Distributions, LinearAlgebra, Random
 using ProgressMeter
 using Flux.Optimise
