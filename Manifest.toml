@@ -37,10 +37,10 @@ uuid = "5b7e9947-ddc0-4b3f-9b55-0d8042f74170"
 version = "0.5.6"
 
 [[AdvancedVI]]
-deps = ["Bijectors", "Distributions", "DistributionsAD", "DocStringExtensions", "ForwardDiff", "LinearAlgebra", "ProgressMeter", "Random", "Requires", "StatsBase", "StatsFuns", "Tracker"]
-git-tree-sha1 = "aef4965fa9362b3e82207ef7722fad01793b6c45"
+deps = ["Bijectors", "BlockDiagonals", "Distances", "Distributions", "DistributionsAD", "DocStringExtensions", "FastGaussQuadrature", "ForwardDiff", "Functors", "KernelFunctions", "LinearAlgebra", "ProgressMeter", "Random", "Requires", "StatsBase", "StatsFuns", "Tracker"]
+path = "/home/theo/.julia/dev/AdvancedVI"
 uuid = "b5ca4192-6429-45e5-a2d9-87aec30a685c"
-version = "0.1.1"
+version = "0.1.0"
 
 [[Animations]]
 deps = ["Colors"]
@@ -453,9 +453,15 @@ version = "1.2.4"
 
 [[FFTW_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "f10c3009373a2d5c4349b8a2932d8accb892892d"
+git-tree-sha1 = "5a0d4b6a22a34d17d53543bd124f4b08ed78e8b0"
 uuid = "f5851436-0d7a-5f13-b9de-f02708fd171a"
-version = "3.3.9+6"
+version = "3.3.9+7"
+
+[[FastGaussQuadrature]]
+deps = ["LinearAlgebra", "SpecialFunctions"]
+git-tree-sha1 = "3a4939db42fbed6d52c81190ca39afc5017c9841"
+uuid = "442a2c76-b920-505d-bb47-c5924d526838"
+version = "0.4.4"
 
 [[FileIO]]
 deps = ["Pkg"]

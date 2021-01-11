@@ -5,22 +5,23 @@ using Distributions, LinearAlgebra, Random
 using ProgressMeter
 using Flux.Optimise
 using StatsFuns: logistic
+using DelimitedFiles
+using ReverseDiff
 include(srcdir("utils", "optimisers.jl"))
 include(srcdir("utils", "dicts.jl"))
 
+AdvancedVI.setadbackend(:reversediff)
 Random.seed!(42)
-D = 2
-N = 30
-μs = [[-5, 1], [1, 5]]
-stds = [1^2, 1.1^2]
-s = shuffle(1:2N)
-y = vcat(zeros(N), ones(N))[s]
-x = hcat(rand.(MvNormal.(μs, stds), N)...)[:, s]
+data,_ = readdlm(datadir("exp_raw", "logistic", "ionosphere.csv"), ',', header=true)
+X = hcat(ones(size(data, 1)), data[:, 1:end-1]) # Adding bias
+y = data[:, end] # Getting labels
 
-prior = MvNormal(zeros(D), 10^2)
+N, D = size(X)
+
+prior = MvNormal(zeros(D), 10)
 likelihood(θ::Real) = Bernoulli(logistic(θ))
 likelihood(θ::AbstractVector) = Product(likelihood.(θ))
-logπ(θ) = logpdf(likelihood(x' * θ), y) + logpdf(prior, θ)
+logπ(θ) = logpdf(likelihood(X * θ), y) + logpdf(prior, θ)
 
 C₀ = Matrix(I(D))
 μ₀ = zeros(D)
@@ -29,13 +30,13 @@ Random.seed!(42)
 T = 1000
 S = 100
 Stest = 100
-η = 0.01
+η = 0.001
 NGmu = false
 algs = Dict(
-    :dsvi => DSVI(T, S),
+    # :dsvi => DSVI(T, S),
     :gpf => GaussPFlow(T, NGmu, false),
-    :fcs => FCS(T, S),
-    :gf => GaussFlow(T, S, NGmu, false),
+    # :fcs => FCS(T, S),
+    # :gf => GaussFlow(T, S, NGmu, false),
     :iblr => IBLR(T, S, :hess),
 )
 
@@ -57,7 +58,6 @@ for (name, alg) in algs
     opts[name] = RMSProp(η)
 end
 
-
 opt = Optimiser(ADAM(1.0), IncreasingRate(0.1, 1e-4))
 opt = Optimiser(LogLinearIncreasingRate(0.1, 1e-6, 100), ClipNorm(sqrt(D)))
 opt = Optimiser( Descent(0.01), ClipNorm(1.0))
@@ -65,6 +65,7 @@ opt = Optimiser(InverseDecay(), ClipNorm(1.0))
 opt = Optimiser(Descent(0.01), InverseDecay())
 opt = Momentum(0.001)
 # opt = ScalarADADelta(0.9)
+# @profview vi(logπ, DSVI(10, 100), qs[:dsvi], optimizer=RMSProp(η))
 opt = Descent(0.01)
 opts[:gpf] = Descent(η)
 opts[:iblr] = Descent(η)
