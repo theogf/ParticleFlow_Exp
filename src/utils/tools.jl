@@ -23,8 +23,3 @@ function preload(dataset::String, folder::String)
     isdir(datadir("exp_raw", folder)) ? nothing : mkpath(datadir("exp_raw", folder)) # Check the path exists and creates it if not
     isfile(datadir("exp_raw", folder, dataset * ".csv")) ? nothing : resolve(dataset, @__FILE__) # Check the dataset have been loaded and download it if not
 end
-
-
-function diag_ABt(A, B=A)
-    vec(sum(A .* B, dims=2))
-end
