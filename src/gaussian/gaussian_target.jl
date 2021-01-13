@@ -9,7 +9,7 @@ function run_gaussian_target(exp_p)
     AVI.setadbackend(:reversediff)
 
     ## Create target distribution
-    @unpack dim, n_particles, n_iters, n_runs, cond1, cond2, full_cov = exp_p
+    @unpack dim, n_particles, n_iters, n_runs, natmu, full_cov = exp_p
     n_particles = iszero(n_particles) ? dim + 1 : n_particles # If nothing is given use dim+1 particlesz`
     
     @unpack Σ, μ = exp_p
@@ -47,44 +47,63 @@ function run_gaussian_target(exp_p)
         @info "Run $i/$(n_runs)"
         opt = exp_p[:opt]
         μ_init = randn(dim)
-        Σ_init = Matrix(Diagonal(exp.(randn(dim))))
+        Q, _ = qr(rand(dim, dim)) # Create random unitary matrix
+        Λ = Diagonal(exp.(randn(dim)))
+        Σ_init = Symmetric(Q * Λ * Q')
+        L_init = cholesky(Σ_init).L
         p_init = MvNormal(μ_init, Σ_init)
         x_init = rand(p_init, n_particles)
 
         ## Create dictionnaries of parameters
         general_p =
             Dict(:hyper_params => nothing, :hp_optimizer => nothing, :n_dim => dim, :gpu => false)
-        gpf_p = Dict(
+        params = Dict{Symbol, Dict}()
+        params[:gpf] = Dict(
             :run => exp_p[:gpf],
             :n_particles => n_particles,
             :max_iters => n_iters,
-            :precond => precond,
+            :natmu => natmu,
             :opt => deepcopy(opt),
             :callback => wrap_cb(),
             :mf => false,
             :init => x_init,
         )
-        gf_p = Dict(
-            :run => exp_p[:gf] && !precond,
+        params[:gf] = Dict(
+            :run => exp_p[:gf] && !natmu,
             :n_samples => n_particles,
             :max_iters => n_iters,
             :opt => deepcopy(opt),
             :callback => wrap_cb(),
-            :init => (μ_init, sqrt.(Σ_init)),
+            :init => (copy(μ_init), Matrix(L_init)),
         )
-        dsvi_p = Dict(
-            :run => exp_p[:dsvi] && !precond,
-            :n_particles => n_particles,
+        params[:dsvi] = Dict(
+            :run => exp_p[:dsvi] && !natmu,
+            :n_samples => n_particles,
             :max_iters => n_iters,
-            :kernel => KernelFunctions.transform(SqExponentialKernel(), 1.0),
             :opt => deepcopy(opt),
             :callback => wrap_cb(),
-            :init => x_init,
+            :init => (copy(μ_init), deepcopy(L_init)),
+        )
+        params[:fcs] = Dict(
+            :run => exp_p[:fcs] && !natmu,
+            :n_samples => n_particles,
+            :max_iters => n_iters,
+            :opt => deepcopy(opt),
+            :callback => wrap_cb(),
+            :init => (copy(μ_init), Matrix(L_init - Diagonal(L_init) / sqrt(2)), diag(L_init) / sqrt(2)),
+        )
+        params[:iblr] = Dict(
+            :run => exp_p[:iblr] && !natmu,
+            :n_samples => n_particles,
+            :max_iters => n_iters,
+            :opt => deepcopy(opt),
+            :callback => wrap_cb(),
+            :init => (copy(μ_init), inv(Σ_init)),
         )
 
         # Train all models
-        _gpf, _advi, _steinvi =
-            train_model(logπ_gauss, general_p, gflow_p, advi_p, stein_p)
+        hists, params =
+            train_model(logπ_gauss, params, stein_p)
         gpf[i] = _gpf
         advi[i] =  _advi
         steinvi[i] = _steinvi
