@@ -23,16 +23,20 @@ exp_ps = Dict(
     :n_particles => 0,#, 10, 20, 50, 100], # Number of particles used, nothing will give dim + 1
     :full_cov => true,# false], # If the covariance is identity or a full covariance with varying eigenvalues
     :gpf => true, # Run GaussParticle Flow
-    :advi => true, # Run Black Box VI
-    :steinvi => true, # Run Stein VI
-    :cond1 => false, # Use preconditionning on b
-    :cond2 => false, # Use preconditionning on A
+    :gf => true, # Run Gauss Flow
+    :dsvi => true, # Run Black Box VI
+    :fcs => true, # Run Stein VI
+    :iblr => true, # Run Stein VI
+    :natmu => false, # Use preconditionning on b
     :seed => 42, # Seed for experiments
     :cb_val => nothing, # Callback values
-    # :opt => Flux.Optimise.Optimiser(ClipNorm(10.0), Descent(1.0)),#ADAGrad(0.1), # Common optimizer
-    :opt => Flux.Optimise.Optimiser(ClipNorm(10), Descent(0.1)), # Common optimizer
+    :eta => 0.1,
+    :opt_det => Descent,
+    :opt_stoch => RMSProp,
+    :comp_hess => :hess,
 )
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
 # run for each dict the simulation
-map(run_gaussian_target, ps)
+run_gaussian_target(ps[1])
+# map(run_gaussian_target, ps)

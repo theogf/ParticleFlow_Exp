@@ -9,10 +9,10 @@ function run_gaussian_target(exp_p)
     AVI.setadbackend(:reversediff)
 
     ## Create target distribution
-    @unpack dim, n_particles, n_iters, n_runs, natmu, full_cov = exp_p
+    @unpack dim, n_particles, n_iters, n_runs, natmu, full_cov, eta, opt_det, opt_stoch, comp_hess = exp_p
     n_particles = iszero(n_particles) ? dim + 1 : n_particles # If nothing is given use dim+1 particlesz`
-    
-    @unpack Σ, μ = exp_p
+    Σ =  get!(exp_p, :Σ, nothing)
+    μ = get!(exp_p, :μ, nothing)
     μ = isnothing(μ) ? sort(randn(dim)) : μ
     Σ = if isnothing(Σ)
         if full_cov
@@ -37,15 +37,10 @@ function run_gaussian_target(exp_p)
         return logpdf(d_target, θ)
     end
 
-    gpf = Vector{Any}(undef, n_runs)
-    gf = Vector{Any}(undef, n_runs)
-    dsvi = Vector{Any}(undef, n_runs)
-    iblr = Vector{Any}(undef, n_runs)
-    fcs = Vector{Any}(undef, n_runs)
+    hists = Vector{Dict}(undef, n_runs)
 
     for i in 1:n_runs
         @info "Run $i/$(n_runs)"
-        opt = exp_p[:opt]
         μ_init = randn(dim)
         Q, _ = qr(rand(dim, dim)) # Create random unitary matrix
         Λ = Diagonal(exp.(randn(dim)))
@@ -63,7 +58,7 @@ function run_gaussian_target(exp_p)
             :n_particles => n_particles,
             :max_iters => n_iters,
             :natmu => natmu,
-            :opt => deepcopy(opt),
+            :opt => opt_det(eta),
             :callback => wrap_cb(),
             :mf => false,
             :init => x_init,
@@ -72,45 +67,53 @@ function run_gaussian_target(exp_p)
             :run => exp_p[:gf] && !natmu,
             :n_samples => n_particles,
             :max_iters => n_iters,
-            :opt => deepcopy(opt),
+            :natmu => natmu,
+            :opt => opt_stoch(eta),
             :callback => wrap_cb(),
+            :mf => false,
             :init => (copy(μ_init), Matrix(L_init)),
         )
         params[:dsvi] = Dict(
             :run => exp_p[:dsvi] && !natmu,
             :n_samples => n_particles,
             :max_iters => n_iters,
-            :opt => deepcopy(opt),
+            :opt => opt_stoch(eta),
             :callback => wrap_cb(),
+            :mf => false,
             :init => (copy(μ_init), deepcopy(L_init)),
         )
         params[:fcs] = Dict(
             :run => exp_p[:fcs] && !natmu,
             :n_samples => n_particles,
             :max_iters => n_iters,
-            :opt => deepcopy(opt),
+            :opt => opt_stoch(eta),
             :callback => wrap_cb(),
+            :mf => false,
             :init => (copy(μ_init), Matrix(L_init - Diagonal(L_init) / sqrt(2)), diag(L_init) / sqrt(2)),
         )
         params[:iblr] = Dict(
             :run => exp_p[:iblr] && !natmu,
             :n_samples => n_particles,
             :max_iters => n_iters,
-            :opt => deepcopy(opt),
+            :opt => Descent(eta),
             :callback => wrap_cb(),
-            :init => (copy(μ_init), inv(Σ_init)),
+            :comp_hess => comp_hess,
+            :mf => false,
+            :init => (copy(μ_init), Matrix(inv(Σ_init))),
         )
 
         # Train all models
-        hists, params =
-            train_model(logπ_gauss, params, stein_p)
-        gpf[i] = _gpf
-        advi[i] =  _advi
-        steinvi[i] = _steinvi
+        hist, params =
+            train_model(logπ_gauss, general_p, params)
+        hists[i] = hist
     end
 
     file_prefix = savename(exp_p)
-    tagsave(datadir("results", "gaussian_v2", file_prefix * ".bson"),
-            @dict dim n_particles full_cov n_iters n_runs cond1 cond2 gpf advi steinvi exp_p d_target;
-            safe=false, storepatch = false)
+    for alg in algs
+        vals = [hist[alg] for hist in hists]
+        DrWatson.save(
+            datadir("results", "gaussian", file_prefix * string(alg) * ".bson"),
+            @dict vals dim n_particles full_cov n_iters n_runs natmu exp_p d_target;
+                safe=false, storepatch = false)
+    end
 end

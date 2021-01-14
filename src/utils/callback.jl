@@ -35,20 +35,15 @@ end
 cb_var(h, i::Int, q::TransformedDistribution) = cb_var(h, i, q.dist)
 
 # Store mean and covariance
-function cb_var(h, i::Int, q::Union{AVI.AbstractSamplesMvNormal,AVI.SteinDistribution})
+function cb_var(h, i::Int, q::Union{AVI.AbstractPosteriorMvNormal})
     push!(h, :mu, i, Vector(mean(q)))
     push!(h, :sig, i, Vector(cov(q)[:]))
 end
 
-function cb_var(h, i::Int, q::AVI.MFSamplesMvNormal)
+function cb_var(h, i::Int, q::AVI.BlockMFSamplesMvNormal)
     push!(h, :mu, i, Vector(mean(q)))
     push!(h, :sig, i, Vector(vcat(vec.(blocks(cov(q)))...)))
     push!(h, :indices, i, Vector(q.id))
-end
-
-function cb_var(h, i::Int, q::TuringDenseMvNormal)
-    push!(h, :mu, i, q.m)
-    push!(h, :sig, i, Matrix(q.C)[:])
 end
 
 # Second callback is for NN which require to write on file to avoid allocation
@@ -76,7 +71,7 @@ end
 cb_heavy_var(h, i::Int, q::TransformedDistribution, path::String) = cb_heavy_var(h, i, q.dist, path)
 
 # Store particles
-function cb_heavy_var(h, i::Int, q::Union{AVI.AbstractSamplesMvNormal, AVI.SteinDistribution}, path::String)
+function cb_heavy_var(h, i::Int, q::Union{AVI.AbstractSamplesMvNormal, AVI.EmpiricalDistribution}, path::String)
     @info "Saving model at iteration $i in $path"
     isdir(path) ? nothing : mkpath(path)
     new_path = joinpath(path, string("model_iter_", i, ".bson"))

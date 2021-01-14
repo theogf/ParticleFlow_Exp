@@ -37,23 +37,23 @@ function train_model(logπ, general_p, params)
         :fcs,
         :iblr,
     ]
-    vi = Dict{:Symbol, Any}()
-    q = Dict{:Symbol, Any}()
-    h = Dict{:Symbol, Any}()
+    vi_alg = Dict{Symbol,Any}()
+    q = Dict{Symbol,Any}()
+    h = Dict{Symbol,Any}()
     device = general_p[:gpu] ? gpu : cpu
     
     for alg in algs
         # Initialize setup
-        vi[alg], q[alg] = init_alg(Val(alg), params[alg], general_p)
+        vi_alg[alg], q[alg] = init_alg(Val(alg), params[alg], general_p)
         h[alg] = MVHistory()
         ## Run algorithm
-        if !isnothing(vi[alg])
+        if !isnothing(vi_alg[alg])
             try
-                @info "Running $(AVI.name(alg))"
+                @info "Running $(AVI.alg_str(vi_alg[alg]))"
                 push!(h[alg], :t_start, Float64(time_ns()) / 1e9)
                 AVI.vi(
                     logπ,
-                    vi[alg],
+                    vi_alg[alg],
                     q[alg] |> device,
                     optimizer = params[alg][:opt] |> device,
                     hyperparams = deepcopy(general_p[:hyper_params]),
@@ -84,7 +84,7 @@ end
 function init_alg(::Val{:gpf}, params, general_p)
     n_dim = general_p[:n_dim]
     alg_vi = if params[:run]
-        AVI.GaussPFlowVI(params[:max_iters], params[:natmu], false)
+        AVI.GaussPFlow(params[:max_iters], params[:natmu], false)
     else
         return nothing, nothing
     end
@@ -114,15 +114,14 @@ end
 function init_alg(::Val{:gf}, params, general_p)
     n_dim = general_p[:n_dim]
     alg_vi = if params[:run]
-        AVI.GaussFlow(params[:max_iters], params[:n_particles], params[:natmu], false)
+        AVI.GaussFlow(params[:max_iters], params[:n_samples], params[:natmu], false)
     else
         return nothing, nothing
     end
-    isnothing(params[:init]) || size(params[:init]) == (n_dim, params[:n_particles]) # Check that the size of the inital particles respect the model
     alg_q = if params[:mf] isa AbstractVector
         AVI.BlockMFMvNormal(
             isnothing(params[:init]) ?
-                rand(MvNormal(ones(n_dim)), params[:n_particles]) :
+                rand(MvNormal(ones(n_dim)), params[:n_samples]) :
                 params[:init],
             params[:mf],
         )
@@ -134,9 +133,9 @@ function init_alg(::Val{:gf}, params, general_p)
         )
     else
         AVI.LowRankMvNormal(
-            isnothing(params[:init]) ?
+            (isnothing(params[:init]) ?
                 (zeros(n_dim), Matrix{Float32}(I(n_dim))) :
-                params[:init]
+                params[:init])...
         )
     end
 
@@ -147,22 +146,21 @@ end
 function init_alg(::Val{:dsvi}, params, general_p)
     n_dim = general_p[:n_dim]
     alg_vi = if params[:run]
-        AVI.DSVI(params[:max_iters], params[:n_particles])
+        AVI.DSVI(params[:max_iters], params[:n_samples])
     else
         return nothing, nothing
     end
-    isnothing(params[:init]) || size(params[:init]) == (n_dim, params[:n_particles]) # Check that the size of the inital particles respect the model
     alg_q = if params[:mf] == Inf
         AVI.MFMvNormal(
-            isnothing(params[:init]) ?
+            (isnothing(params[:init]) ?
                 (zeros(n_dim), ones(n_dim)) :
-                params[:init]
+                params[:init])...
         )
     else
         AVI.CholMvNormal(
-            isnothing(params[:init]) ?
+            (isnothing(params[:init]) ?
                 (zeros(n_dim), cholesky(I(n_dim)).L) :
-                params[:init]
+                params[:init])...
         )
     end
 
@@ -172,16 +170,15 @@ end
 function init_alg(::Val{:fcs}, params, general_p)
     n_dim = general_p[:n_dim]
     alg_vi = if params[:run]
-        AVI.FCS(params[:max_iters], params[:n_particles])
+        AVI.FCS(params[:max_iters], params[:n_samples])
     else
         return nothing, nothing
     end
-    isnothing(params[:init]) || size(params[:init]) == (n_dim, params[:n_particles]) # Check that the size of the inital particles respect the model
     !isa(params[:mf], AbstractVector) || params[:mf] != Inf || error("FCS cannot be used with Mean-Field")
     alg_q = AVI.FCSMvNormal(
-            isnothing(params[:init]) ?
-                (zeros(n_dim), cholesky(I(n_dim)).L) / sqrt(2), ones(n_dim) / sqrt(2)) :
-                params[:init]
+            (isnothing(params[:init]) ?
+            (zeros(n_dim), cholesky(I(n_dim)).L / sqrt(2), ones(n_dim) / sqrt(2)) :
+            params[:init])...
         )
 
     return alg_vi, alg_q # Return alg. and distr.
@@ -190,22 +187,21 @@ end
 function init_alg(::Val{:iblr}, params, general_p)
     n_dim = general_p[:n_dim]
     alg_vi = if params[:run]
-        AVI.IBLR(params[:max_iters], params[:n_particles], params[:comp_hess])
+        AVI.IBLR(params[:max_iters], params[:n_samples], params[:comp_hess])
     else
         return nothing, nothing
     end
-    isnothing(params[:init]) || size(params[:init]) == (n_dim, params[:n_particles]) # Check that the size of the inital particles respect the model
     alg_q = if params[:mf] == Inf
         AVI.DiagPrecisionMvNormal(
-            isnothing(params[:init]) ?
+            (isnothing(params[:init]) ?
                 (zeros(n_dim), ones(n_dim)) :
-                params[:init]
+                params[:init])...
         )
     else
         AVI.PrecisionMvNormal(
-            isnothing(params[:init]) ?
+            (isnothing(params[:init]) ?
                 (zeros(n_dim), Matrix{Float32}(I(n_dim))) :
-                params[:init]
+                params[:init])...
         )
     end
 
