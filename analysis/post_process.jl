@@ -108,7 +108,7 @@ function wasserstein_discrete(x, μ, y, ν, ϵ; c=(x,y)->norm(x-y), η::Real = 0
     end
 end
 
-function treat_results(::Val{:advi}, res::DataFrame, X_test, y_test; nMC = 100)
+function treat_results(::Union{Val{:gf},Val{:fcs},Val{:dsvi},Val{:iblr}}, res::DataFrame, X_test, y_test; nMC = 100)
     acc = zeros(length(res.i))
     nll = zeros(length(res.i))
     for (i, q) in enumerate(res.q[sortperm(res.i)])
@@ -119,7 +119,7 @@ function treat_results(::Val{:advi}, res::DataFrame, X_test, y_test; nMC = 100)
     return acc, nll
 end
 
-function treat_results(::Union{Val{:gflow}, Val{:stein}}, res::DataFrame, X_test, y_test; nMC = 100)
+function treat_results(::Val{:gpf}, res::DataFrame, X_test, y_test; nMC = 100)
     acc = zeros(length(res.i))
     nll = zeros(length(res.i))
     for (i, ps) in enumerate(res.particles[sortperm(res.i)])

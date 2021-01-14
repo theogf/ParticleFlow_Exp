@@ -16,8 +16,8 @@ function run_logistic_regression(exp_p)
 
     ## Load the data
     @unpack dataset, use_gpu = exp_p
-    dataset = endswith(dataset, ".csv") ? dataset : dataset * ".csv"
-    data = CSV.read(datadir("exp_raw", "logistic", dataset), DataFrame; header=true)
+    dataset_file = endswith(dataset, ".csv") ? dataset : dataset * ".csv"
+    data = CSV.read(datadir("exp_raw", "logistic", dataset_file), DataFrame; header=true)
     X = Matrix(data[1:end-1])
     y = Vector(data[end])
     # (X_train, y_train), (X_test, y_test) = load_logistic_data(dataset)

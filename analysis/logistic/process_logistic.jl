@@ -6,66 +6,44 @@ include(srcdir("utils", "tools.jl"))
 using AdvancedVI; const AVI = AdvancedVI
 using BlockDiagonals
 using LinearAlgebra
-using DistributionsAD
+using MLDataUtils
+# using DistributionsAD
 ## Load data
-dataset = "bioresponse"
-(X_train, y_train), (X_test, y_test) = load_logistic_data(dataset)
+dataset = "ionosphere"
+dataset_file = endswith(dataset, ".csv") ? dataset : dataset * ".csv"
+data = CSV.read(datadir("exp_raw", "logistic", dataset_file), DataFrame; header=true)
+X = Matrix(data[1:end-1])
+y = Vector(data[end])
 
 ## Parameters used
 ps = Dict(
-    :B => 200,
-    :n_particles => 40,
-    :α => 0.1,
-    :σ_init => 1,
-    :cond1 => false,
-    :cond2 => false,
+    :B => -1,
+    :n_particles => 1,
+    :alpha => 0.1,
+    :σ_init => 1.0,
+    :natmu => false,
     :n_iters => 2001,
     :use_gpu => false,
-    :n_runs => 10,
+    :k => 10,
     :seed => 42,
     :dataset => dataset,
-    :advi => true,
     :gpf => true,
-    :steinvi => true,
+    :gf => true,
+    :dsvi => true,
+    :fcs => true,
+    :iblr => true,
+    :eta => 0.01,
+    :opt_det => Descent,
+    :opt_stoch => RMSProp,
+    :comp_hess => :hess,
+    :mf => :full,
     )
 
-# do_run
-# n_particles = 2:2:10
-# for n_p in n_particles
-## Get partial MF
-# ps[:advi] = true
-# ps[:steinvi] = false
-# mf = :partial
-# prefix_folder = datadir("results", "linear", dataset, savename(merge(ps, @dict mf)))
-# @assert isdir(prefix_folder) "$prefix_folder"
-# partialmf = Dict()
-# partialmodels = [:gflow, :advi]
-# for model in partialmodels
-#     partialmf[model] = [Dict() for i in 1:ps[:n_runs]]
-#     for i in 1:ps[:n_runs]
-#         model_path = joinpath(prefix_folder, savename(string(model), @dict i))
-#         res = collect_results!(model_path)
-#         # last_res = @linq res |> where(:i .== maximum(:i))
-#         acc, nll = treat_results(Val(model), res, X_test, y_test)
-#         partialmf[model][i][:acc] = acc
-#         partialmf[model][i][:nll] = nll
-#         partialmf[model][i][:iter] = sort(res.i)
-#     end
-# end
-# for model in partialmodels
-#     res = partialmf[model]
-#     partialmf[model] = Dict()
-#     for metric in [:acc, :nll]
-#         partialmf[model][Symbol(metric, "_m")] = mean(x[metric] for x in res)
-#         partialmf[model][Symbol(metric, "_v")] = vec(StatsBase.var(reduce(hcat,x[metric] for x in res), dims = 2))
-#     end
-#     partialmf[model][:iter] = first(res)[:iter]
-# end
+
 ## Get no-Mean field data
-ps[:advi] = false
-ps[:steinvi] = true
-mf = :none
-prefix_folder = datadir("results", "linear", dataset, savename(merge(ps, @dict mf)))
+p_nomf = deepcopy(ps)
+p_nomf[:mf] = :none
+prefix_folder = datadir("results", "logistic", dataset, savename(merge(ps, @dict mf)))
 @assert isdir(prefix_folder)
 @assert isdir(prefix_folder)
 nonemf = Dict()
@@ -104,18 +82,20 @@ for model in nonemodels
     nonemf[model][:iter] = first(res)[:iter]
 end
 ## Load full-mean field data
-ps[:advi] = true
-ps[:steinvi] = false
-mf = :full
-prefix_folder = datadir("results", "linear", dataset, savename(merge(ps, @dict mf)))
+p_mf = deepcopy(ps)
+p_mf[:fcs] = true
+p_mf[:mf] = :full
+prefix_folder = datadir("results", "logistic", dataset, savename(p_mf))
+isdir(prefix_folder) || error("Prefix folder $(prefix_folder) does not exist")
 fullmf = Dict()
-fullmodels = [:gflow, :advi]
+fullmodels = [:gpf, :gf, :dsvi, :iblr]
 for model in fullmodels
-    fullmf[model] = [Dict() for i in 1:ps[:n_runs]]
-    for i in 1:ps[:n_runs]
+    fullmf[model] = [Dict() for i in 1:ps[:k]]
+    for (i, ((X_train, y_train), (X_test, y_test))) in enumerate(kfolds((X, y), obsdim=1, k=ps[:k]))
         model_path = joinpath(prefix_folder, savename(string(model), @dict i))
         if isdir(model_path)
             res = collect_results!(model_path)
+            @show res
             # last_res = @linq res |> where(:i .== maximum(:i))
             acc, nll = treat_results(Val(model), res, X_test, y_test)
             if nrow(res) == 3
@@ -129,6 +109,7 @@ for model in fullmodels
                 fullmf[model][i][:iter] = missing
             end
         else
+            @warn "$(model_path) is not existing"
             fullmf[model][i][:acc] = missing
             fullmf[model][i][:nll] = missing
             fullmf[model][i][:iter] = missing
