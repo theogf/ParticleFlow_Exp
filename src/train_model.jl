@@ -1,9 +1,8 @@
 using AdvancedVI;
 const AVI = AdvancedVI;
-using Turing
 using BlockDiagonals
 using Flux
-using Distributions, DistributionsAD
+using Distributions
 using Bijectors: TransformedDistribution
 using KernelFunctions
 using ValueHistories
@@ -37,8 +36,8 @@ function train_model(logπ, general_p, params)
         :fcs,
         :iblr,
     ]
-    vi_alg = Dict{Symbol,Any}()
-    q = Dict{Symbol,Any}()
+    global vi_alg = Dict{Symbol,Any}()
+    global q = Dict{Symbol,Any}()
     h = Dict{Symbol,Any}()
     device = general_p[:gpu] ? gpu : cpu
     
@@ -119,17 +118,17 @@ function init_alg(::Val{:gf}, params, general_p)
         return nothing, nothing
     end
     alg_q = if params[:mf] isa AbstractVector
-        AVI.BlockMFMvNormal(
-            isnothing(params[:init]) ?
+        AVI.BlockMFMvLowRankNormal(
+            (isnothing(params[:init]) ?
                 rand(MvNormal(ones(n_dim)), params[:n_samples]) :
-                params[:init],
+                params[:init])...,
             params[:mf],
         )
     elseif params[:mf] == Inf
         AVI.MFMvNormal(
-            isnothing(params[:init]) ?
+            (isnothing(params[:init]) ?
                 (zeros(n_dim), ones(n_dim)) :
-                params[:init]
+                params[:init])...,
         )
     else
         AVI.LowRankMvNormal(

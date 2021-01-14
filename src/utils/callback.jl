@@ -77,7 +77,7 @@ function cb_heavy_var(h, i::Int, q::Union{AVI.AbstractSamplesMvNormal, AVI.Empir
     new_path = joinpath(path, string("model_iter_", i, ".bson"))
     q = cpu(q)
     particles = Float32.(q.x)
-    tagsave(new_path, @dict i particles; safe=false, storepatch = false)
+    save(new_path, @dict i particles)
 end
 
 function cb_heavy_var(h, i::Int, q, path::String)
@@ -85,5 +85,5 @@ function cb_heavy_var(h, i::Int, q, path::String)
     isdir(path) ? nothing : mkpath(path)
     new_path = joinpath(path, string("model_iter_", i, ".bson"))
     q = cpu(q)
-    tagsave(new_path, @dict i q; safe=false, storepatch = false)
+    save(new_path, @dict i q)
 end

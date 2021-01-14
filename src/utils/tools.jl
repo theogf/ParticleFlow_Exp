@@ -23,3 +23,23 @@ function preload(dataset::String, folder::String)
     isdir(datadir("exp_raw", folder)) ? nothing : mkpath(datadir("exp_raw", folder)) # Check the path exists and creates it if not
     isfile(datadir("exp_raw", folder, dataset * ".csv")) ? nothing : resolve(dataset, @__FILE__) # Check the dataset have been loaded and download it if not
 end
+
+function meancov_to_gf(μ, Σ, mf=false)
+    S = mf == Inf ? sqrt.(diag(Σ)) : Matrix(cholesky(Σ).L)
+    return (copy(μ), S)
+end
+
+function meancov_to_dsvi(μ, Σ, mf=false)
+    S = mf == Inf ? sqrt.(diag(Σ)) : cholesky(Σ).L
+    return (copy(μ), S)
+end
+
+function meancov_to_fcs(μ, Σ, mf=false)
+    L = cholesky(Σ).L
+    return (copy(μ), Matrix(L - Diagonal(L) / sqrt(2)), diag(L) / sqrt(2))
+end
+
+function meancov_to_iblr(μ, Σ, mf=false)
+    S = mf == Inf ? sqrt.(inv.(diag(Σ))) : Matrix(Symmetric(inv(Σ)))
+    return (copy(μ), S)
+end

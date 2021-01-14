@@ -113,7 +113,6 @@ function run_gaussian_target(exp_p)
         vals = [hist[alg] for hist in hists]
         DrWatson.save(
             datadir("results", "gaussian", file_prefix * string(alg) * ".bson"),
-            @dict vals dim n_particles full_cov n_iters n_runs natmu exp_p d_target;
-                safe=false, storepatch = false)
+            merge(exp_p, @dict vals dim n_particles full_cov n_iters n_runs natmu d_target))
     end
 end
