@@ -49,9 +49,14 @@ function process_time(hs::AbstractVector)
     process_time(extract_time.(hs))
 end
 
+function get_mean_and_var(hs::AbstractVector, s::Symbol)
+    val = [get(h, s)[2] for h in hs]
+    return mean(val), var(val)
+end
+
+
 ## Extract timing in the format [s]
 function extract_time(h)
-
     t_init = get(h, :t_tic)[2]
     t_end = get(h, :t_toc)[2]
     t_diff = cumsum(t_end-t_init)
