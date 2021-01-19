@@ -28,11 +28,11 @@ exp_ps = Dict(
     :dataset => dataset,
     :n_iters => 2001, # Number of iterations to run
     :n_particles => vcat(1:9, 10:10:99, 100:50:200),
-    :k => 10, # Number of repeated runs
+    :k => 3, # Number of repeated runs
     :gpf => true, # Run GaussParticle Flow
     :gf => true,# Run Gauss Flow
     :dsvi => true,# Run DSVI
-    :iblr => true,# Run IBLR
+    :iblr => false,# Run IBLR
     :fcs => true,# Run FCS
     :natmu => false, # Natural gradient on mu
     :cb_val => nothing, # Callback values
@@ -44,10 +44,10 @@ exp_ps = Dict(
     :σ_init => 1.0, # Initial variance
     :B => -1, # Batchsize (-1 to use full batch)
     :use_gpu => false, # Use of the GPU (tends do be inefficient)
-    :mf => :full, # Which mean_field method should be used
+    :mf => :none, # Which mean_field method should be used
 )
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
 # run for each dict the simulation
-run_logistic_regression(ps[1])
+run_logistic_regression(ps[10])
 # pmap(run_logistic_regression, ps)

@@ -1,11 +1,12 @@
 using DataFrames
 using BSON
+using ForwardDiff
 using Flux
 using Flux: Optimise
 using Optim
 using MLDataUtils
 include(srcdir("train_model.jl"))
-include(srcdir("utils", "linear.jl"))
+# include(srcdir("utils", "linear.jl"))
 include(srcdir("utils", "tools.jl"))
 
 
@@ -66,7 +67,7 @@ function run_logistic_regression(exp_p)
         end
         function logπ_logistic(θ)
             loglikelihood = -Flux.Losses.logitbinarycrossentropy(X_train * θ, y_train; agg=sum)
-            return -(logprior(θ) + loglikelihood)
+            return logprior(θ) + loglikelihood
         end
 
         n_train = size(X_train, 1)
@@ -75,18 +76,20 @@ function run_logistic_regression(exp_p)
         MAP_n_iters = 1000
         θ = randn(n_dim) |> device
         @info "Finding map via SGD"
-        @info "Init loss : $(logπ_logistic(θ))"
+        @info "Init loss : $(-logπ_logistic(θ))"
         for i in 1:MAP_n_iters
             g = Flux.gradient(logπ_logistic, θ)
-            Flux.update!(MAP_opt, θ, first(g))
+            Flux.update!(MAP_opt, θ, -first(g))
             if mod(i, 50) == 0
-                @info "i=$i, loss : $(logπ_logistic(θ))"
+                @info "i=$i, loss : $(-logπ_logistic(θ))"
             end
         end
-        @info "Final loss : $(logπ_logistic(θ))"
+        @info "Final loss : $(-logπ_logistic(θ))"
         
         μ_init = θ #Optim.minimizer(opt_MAP)
+        μ_init = randn(n_dim)
         Σ_init = Matrix(σ_init^2 * I(n_dim))
+        # Σ_init = Matrix(Symmetric(-inv(ForwardDiff.hessian(logπ_logistic, θ)))) 
         p_init = MvNormal(μ_init, Σ_init)
         x_init = rand(p_init, n_particles)
         prefix = datadir("results", "logistic", dataset, savename(exp_p))
@@ -126,7 +129,7 @@ function run_logistic_regression(exp_p)
             :mf => mf_vals,
         )
         params[:fcs] = Dict(
-            :run => exp_p[:dsvi] && !natmu,
+            :run => exp_p[:fcs] && !natmu && mf == :none,
             :n_samples => n_particles,
             :max_iters => n_iters,
             :opt => opt_stoch(eta),
@@ -135,7 +138,7 @@ function run_logistic_regression(exp_p)
             :mf => mf_vals,
         )
         params[:iblr] = Dict(
-            :run => exp_p[:dsvi] && natmu,
+            :run => exp_p[:iblr],
             :n_samples => n_particles,
             :max_iters => n_iters,
             :opt => Descent(eta),

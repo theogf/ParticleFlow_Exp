@@ -52,7 +52,7 @@ end
 function wrap_heavy_cb(; cb_hp = nothing, cb_val = nothing, path = nothing)
     return function base_heavy_cb(h::MVHistory)
         return function (i, q, hp)
-            if mod(i, 1000) == 0
+            if mod(i, 250) == 0
                 cb_tic(h, i)
                 if !isnothing(hp) && !isnothing(cb_hp)
                     cb_hp(h, i, hp)
@@ -72,7 +72,7 @@ cb_heavy_var(h, i::Int, q::TransformedDistribution, path::String) = cb_heavy_var
 
 # Store particles
 function cb_heavy_var(h, i::Int, q::Union{AVI.AbstractSamplesMvNormal, AVI.EmpiricalDistribution}, path::String)
-    @info "Saving model at iteration $i in $path"
+    # @info "Saving model at iteration $i in $path"
     isdir(path) ? nothing : mkpath(path)
     new_path = joinpath(path, string("model_iter_", i, ".bson"))
     q = cpu(q)
@@ -81,7 +81,7 @@ function cb_heavy_var(h, i::Int, q::Union{AVI.AbstractSamplesMvNormal, AVI.Empir
 end
 
 function cb_heavy_var(h, i::Int, q, path::String)
-    @info "Saving model at iteration $i in $path"
+    # @info "Saving model at iteration $i in $path"
     isdir(path) ? nothing : mkpath(path)
     new_path = joinpath(path, string("model_iter_", i, ".bson"))
     q = cpu(q)

@@ -13,7 +13,7 @@ exp_dir = datadir("exp_raw")
 
 ## Processing datasets for logistic experiments
 
-isdir(joinpath(exp_dir, "logistic")) ? mkpath(joinpath(exp_dir, "logistic")) : nothing
+isdir(joinpath(exp_dir, "logistic")) ? nothing : mkpath(joinpath(exp_dir, "logistic"))
 
 ## Processing Mushroom dataset
 
