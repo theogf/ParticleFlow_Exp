@@ -17,22 +17,22 @@ include(srcdir("gaussian", "gaussian_target.jl"))
 # @everywhere include(srcdir("gaussian", "gaussian_target.jl"))
 # Create a list of parameters
 exp_ps = Dict(
-    :n_iters => 3000, # Number of iterations to run
-    :n_runs => 5, # Number of repeated runs
-    :dim => vcat(2:9), # Dimension of the target
+    :n_iters => 5000, # Number of iterations to run
+    :n_runs => 10, # Number of repeated runs
+    :n_dim => [10, 50, 100], # Dimension of the target
     :n_particles => 0,#, 10, 20, 50, 100], # Number of particles used, nothing will give dim + 1
-    :full_cov => true,# false], # If the covariance is identity or a full covariance with varying eigenvalues
+    :cond => [1, 10, 100],
     :gpf => true, # Run GaussParticle Flow
     :gf => true, # Run Gauss Flow
-    :dsvi => true, # Run Black Box VI
-    :fcs => true, # Run Stein VI
-    :iblr => true, # Run Stein VI
+    :dsvi => true, # Run Doubly Stochastic VI
+    :fcs => true, # Run Factorized Structure Covariance
+    :iblr => true, # Run i Bayesian Rule
     :natmu => false, # Use preconditionning on b
     :seed => 42, # Seed for experiments
     :cb_val => nothing, # Callback values
     :eta => 0.1,
-    :opt_det => Descent,
-    :opt_stoch => RMSProp,
+    :opt_det => :Descent,
+    :opt_stoch => [:Descent, :RMSProp],
     :comp_hess => :hess,
 )
 ps = dict_list(exp_ps)

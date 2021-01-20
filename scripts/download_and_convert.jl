@@ -2,8 +2,11 @@ using DrWatson
 @quickactivate
 using DataFrames
 using CSV
+using BSON
 using MLDataUtils
 using HTTP
+using Random
+using LinearAlgebra
 
 function categorical_to_binary(x)
     X = convertlabel(LabelEnc.OneOfK{Float64}, x, obsdim=1)
@@ -64,3 +67,30 @@ HTTP.download("https://archive.ics.uci.edu/ml/machine-learning-databases/spambas
 data = CSV.read(local_path, DataFrame, header=false)
 data = Tables.table(shuffleobs(Matrix(data), obsdim=1))
 CSV.write(joinpath(exp_dir, "logistic", "spam.csv"), data)
+
+## Creating initial / target Gaussian
+for cond in [1, 10, 100]
+    for n_dim in [10, 20, 50, 100]
+        μ_target = randn(n_dim)
+        Σ_target = if cond > 1
+            Q, _ = qr(rand(n_dim, n_dim)) # Create random unitary matrix
+            Λ = Diagonal(10.0 .^ range(-1, -1 + log10(cond), length = n_dim))
+            Symmetric(Q * Λ * Q')
+        else
+            Matrix(I(n_dim))
+        end
+        α = eps(Float64)
+        while !isposdef(Σ_target)
+            Σ_target = Σ_target + α * I
+            α *= 2
+        end
+        μs_init = [randn(n_dim) for _ in 1:10]
+        Σs_init = [ begin 
+            Q, _ = qr(rand(n_dim, n_dim)) # Create random unitary matrix
+            Λ = Diagonal(exp.(randn(n_dim)))
+            Symmetric(Q * Λ * Q')
+        end for _ in 1:10]
+        mkpath(datadir("exp_raw", "gaussian"))
+        DrWatson.save(datadir("exp_raw", "gaussian", @savename(n_dim, cond) * ".bson"), @dict(μ_target, Σ_target, μs_init, Σs_init))
+    end
+end
