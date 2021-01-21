@@ -83,6 +83,7 @@ mkpath(gauss_dir)
         μ_target = randn(n_dim)
         Σ_target = if cond > 1
             Q, _ = qr(rand(n_dim, n_dim)) # Create random unitary matrix
+            Q = Matrix(Q)
             Λ = Diagonal(10.0 .^ range(-1, -1 + log10(cond), length = n_dim))
             Symmetric(Q * Λ * Q')
         else
@@ -93,12 +94,15 @@ mkpath(gauss_dir)
             Σ_target = Σ_target + α * I
             α *= 2
         end
+        @info "Target done"
         μs_init = [randn(n_dim) for _ in 1:10]
         Σs_init = [ begin 
             Q, _ = qr(rand(n_dim, n_dim)) # Create random unitary matrix
+            Q = Matrix(Q)
             Λ = Diagonal(exp.(randn(n_dim)))
             Symmetric(Q * Λ * Q')
         end for _ in 1:10]
+        @info "Init done"
         DrWatson.save(joinpath(gauss_dir, file_name), @dict(μ_target, Σ_target, μs_init, Σs_init))
     end
 end
