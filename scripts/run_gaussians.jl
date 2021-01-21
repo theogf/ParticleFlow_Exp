@@ -5,16 +5,16 @@ using DrWatson;
 include(srcdir("gaussian", "gaussian_target.jl"))
 
 # Use parallelism
-# using Distributed
-# nthreads = 6 # Number of threads to use
-# if nprocs() < nthreads
-#     addprocs(nthreads-nprocs()+1) # Add the threads as workers
-# end
+using Distributed
+nthreads = 6 # Number of threads to use
+if nprocs() < nthreads
+    addprocs(nthreads-nprocs()+1) # Add the threads as workers
+end
 
 # Load all needed packages on every worker
-# @everywhere using DrWatson
-# @everywhere quickactivate(@__DIR__)
-# @everywhere include(srcdir("gaussian", "gaussian_target.jl"))
+@everywhere using DrWatson
+@everywhere quickactivate(@__DIR__)
+@everywhere include(srcdir("gaussian", "gaussian_target.jl"))
 # Create a list of parameters
 exp_ps = Dict(
     :n_iters => 5000, # Number of iterations to run
@@ -22,11 +22,11 @@ exp_ps = Dict(
     :n_dim => [10, 20, 50, 100], # Dimension of the target
     :n_particles => 0,#, 10, 20, 50, 100], # Number of particles used, nothing will give dim + 1
     :cond => [1, 10, 100],
-    :gpf => !true, # Run GaussParticle Flow
-    :gf => !true, # Run Gauss Flow
-    :dsvi => !true, # Run Doubly Stochastic VI
-    :fcs => !true, # Run Factorized Structure Covariance
-    :iblr => !true, # Run i Bayesian Rule
+    :gpf => true, # Run GaussParticle Flow
+    :gf => true, # Run Gauss Flow
+    :dsvi => true, # Run Doubly Stochastic VI
+    :fcs => true, # Run Factorized Structure Covariance
+    :iblr => true, # Run i Bayesian Rule
     :svgd => true, # Run linear SVGD
     :natmu => false, # Use preconditionning on b
     :seed => 42, # Seed for experiments
@@ -41,3 +41,4 @@ ps = dict_list(exp_ps)
 # run for each dict the simulation
 run_gaussian_target(ps[1])
 # map(run_gaussian_target, ps)
+pmap(run_gaussian_target, ps)
