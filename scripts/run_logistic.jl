@@ -6,7 +6,7 @@ include(srcdir("logistic", "logistic.jl"))
 
 parallelize = false
 
-dataset = "spam"
+dataset = ["spam", "mushroom", "ionosphere", "krkp"]
 
 # Use parallelism
 # if parallelize
@@ -26,7 +26,8 @@ exp_ps = Dict(
     :seed => 42,
     :dataset => dataset,
     :n_iters => 2001, # Number of iterations to run
-    :n_particles => vcat(1:9, 10:10:99, 100:50:200),
+    :n_particles => 100,
+    :p => 100
     :k => 10, # Number of repeated runs
     :gpf => true, # Run GaussParticle Flow
     :gf => true,# Run Gauss Flow

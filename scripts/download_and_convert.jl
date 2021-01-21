@@ -6,6 +6,7 @@ using BSON
 using MLDataUtils
 using HTTP
 using Random
+using ProgressMeter
 using LinearAlgebra
 
 function categorical_to_binary(x)
@@ -69,8 +70,16 @@ data = Tables.table(shuffleobs(Matrix(data), obsdim=1))
 CSV.write(joinpath(exp_dir, "logistic", "spam.csv"), data)
 
 ## Creating initial / target Gaussian
-for cond in [1, 10, 100]
-    for n_dim in [10, 20, 50, 100]
+gauss_dir = datadir("exp_raw", "gaussian")
+mkpath(gauss_dir)
+
+@showprogress for cond in [1, 5, 10, 50, 100]
+    for n_dim in [10, 20, 50, 100, 500, 1000]
+        @info "Cond = $cond, Dim = $n_dim"
+        file_name = @savename(n_dim, cond) * ".bson"
+        if isfile(joinpath(gauss_dir, file_name)) # If file exists already we skip the process
+            continue
+        end
         μ_target = randn(n_dim)
         Σ_target = if cond > 1
             Q, _ = qr(rand(n_dim, n_dim)) # Create random unitary matrix
@@ -90,7 +99,6 @@ for cond in [1, 10, 100]
             Λ = Diagonal(exp.(randn(n_dim)))
             Symmetric(Q * Λ * Q')
         end for _ in 1:10]
-        mkpath(datadir("exp_raw", "gaussian"))
-        DrWatson.save(datadir("exp_raw", "gaussian", @savename(n_dim, cond) * ".bson"), @dict(μ_target, Σ_target, μs_init, Σs_init))
+        DrWatson.save(joinpath(gauss_dir, file_name), @dict(μ_target, Σ_target, μs_init, Σs_init))
     end
 end
