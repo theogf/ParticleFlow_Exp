@@ -1,7 +1,7 @@
 # Make sure that all packages are up to date
 using DrWatson;
 @quickactivate
-using Pkg; Pkg.update()
+# using Pkg; Pkg.update()
 include(srcdir("gaussian", "gaussian_target.jl"))
 
 # Use parallelism
@@ -19,14 +19,15 @@ include(srcdir("gaussian", "gaussian_target.jl"))
 exp_ps = Dict(
     :n_iters => 5000, # Number of iterations to run
     :n_runs => 10, # Number of repeated runs
-    :n_dim => [10, 50, 100], # Dimension of the target
+    :n_dim => [10, 20, 50, 100], # Dimension of the target
     :n_particles => 0,#, 10, 20, 50, 100], # Number of particles used, nothing will give dim + 1
     :cond => [1, 10, 100],
-    :gpf => true, # Run GaussParticle Flow
-    :gf => true, # Run Gauss Flow
-    :dsvi => true, # Run Doubly Stochastic VI
-    :fcs => true, # Run Factorized Structure Covariance
-    :iblr => true, # Run i Bayesian Rule
+    :gpf => !true, # Run GaussParticle Flow
+    :gf => !true, # Run Gauss Flow
+    :dsvi => !true, # Run Doubly Stochastic VI
+    :fcs => !true, # Run Factorized Structure Covariance
+    :iblr => !true, # Run i Bayesian Rule
+    :svgd => true, # Run linear SVGD
     :natmu => false, # Use preconditionning on b
     :seed => 42, # Seed for experiments
     :cb_val => nothing, # Callback values

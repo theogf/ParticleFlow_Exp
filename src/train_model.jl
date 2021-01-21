@@ -24,6 +24,7 @@ algs = [
     :dsvi,
     :fcs,
     :iblr,
+    :svgd,
 ]
 
 
@@ -35,6 +36,7 @@ function train_model(logπ, general_p, params)
         :dsvi,
         :fcs,
         :iblr,
+        :svgd,
     ]
     global vi_alg = Dict{Symbol,Any}()
     global q = Dict{Symbol,Any}()
@@ -204,5 +206,21 @@ function init_alg(::Val{:iblr}, params, general_p)
         )
     end
 
+    return alg_vi, alg_q # Return alg. and distr.
+end
+
+function init_alg(::Val{:svgd}, params, general_p)
+    n_dim = general_p[:n_dim]
+    alg_vi = if params[:run]
+        AVI.SVGD(params[:max_iters], LinearKernel(c=1))
+    else
+        return nothing, nothing
+    end
+    isnothing(params[:init]) || size(params[:init]) == (n_dim, params[:n_particles]) # Check that the size of the inital particles respect the model
+    alg_q = AVI.EmpiricalDistribution(
+                isnothing(params[:init]) ?
+                rand(MvNormal(ones(n_dim)), params[:n_particles]) : 
+                params[:init],
+        )
     return alg_vi, alg_q # Return alg. and distr.
 end

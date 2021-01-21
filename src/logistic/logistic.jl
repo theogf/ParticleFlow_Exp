@@ -116,9 +116,9 @@ function run_logistic_regression(exp_p)
             :callback => wrap_cb(;cb_val=cb_val),
             # :callback => wrap_heavy_cb(;path=joinpath(prefix, savename("gpf", @dict i))),
             :mf => mf_vals,
-            :init => x_init,
+            :init => copy(x_init),
             :gpu => false,
-            )
+        )
         params[:gf] = Dict(
             :run => exp_p[:gf],
             :n_samples => n_particles,
@@ -160,6 +160,17 @@ function run_logistic_regression(exp_p)
             # :callback => wrap_heavy_cb(;path=joinpath(prefix, savename("iblr", @dict i))),
             :init => meancov_to_iblr(μ_init, Σ_init, mf),
             :mf => mf_vals,
+        )
+        params[:svgd] = Dict(
+            :run => exp_p[:svgd],
+            :n_particles => n_particles,
+            :max_iters => n_iters,
+            :opt => (@eval $opt_det($eta)),
+            :callback => wrap_cb(;cb_val=cb_val),
+            # :callback => wrap_heavy_cb(;path=joinpath(prefix, savename("gpf", @dict i))),
+            :mf => mf_vals,
+            :init => copy(x_init),
+            :gpu => false,
         )
 
         # Train all models

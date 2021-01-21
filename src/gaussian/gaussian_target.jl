@@ -44,7 +44,7 @@ function run_gaussian_target(exp_p)
             :opt => @eval($opt_det($eta)),
             :callback => wrap_cb(),
             :mf => false,
-            :init => x_init,
+            :init => copy(x_init),
         )
         params[:gf] = Dict(
             :run => exp_p[:gf] && !natmu,
@@ -84,6 +84,15 @@ function run_gaussian_target(exp_p)
             :mf => false,
             :init => (copy(μ_init), Matrix(inv(Σ_init))),
         )
+        params[:svgd] = Dict(
+            :run => exp_p[:svgd] && !natmu,
+            :n_particles => n_particles,
+            :max_iters => n_iters,
+            :opt => @eval($opt_det($eta)),
+            :callback => wrap_cb(),
+            :mf => false,
+            :init => copy(x_init),
+        )
 
         # Train all models
         hist, params =
@@ -94,14 +103,17 @@ function run_gaussian_target(exp_p)
     file_prefix = @savename n_iters n_runs n_dim n_particles cond eta
     for alg in algs
         vals = [hist[alg] for hist in hists]
-        alg_string = "_" * string(alg) * "_" * if alg == :gpf
-                @savename(natmu, opt_det)
+        alg_string = "_" * string(alg) * "_" * 
+        if alg == :gpf
+            @savename(natmu, opt_det)
         elseif alg == :gf
-                @savename(natmu, opt_stoch)
-        elseif alg == :dsvi && alg == :fcs
-                @savename(opt_stoch)
+            @savename(natmu, opt_stoch)
+        elseif alg == :dsvi || alg == :fcs
+            @savename(opt_stoch)
         elseif alg == :iblr
-                @savename(comp_hess)
+            @savename(comp_hess)
+        elseif alg == :svgd
+            @savename(opt_det)
         end
 
         DrWatson.save(
