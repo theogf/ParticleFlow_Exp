@@ -1,14 +1,14 @@
 # Make sure that all packages are up to date
-using DrWatson;
+using DrWatson
 @quickactivate
 # using Pkg; Pkg.update()
 include(srcdir("gaussian", "gaussian_target.jl"))
 
 # Use parallelism
 using Distributed
-nthreads = 6 # Number of threads to use
+nthreads = 60 # Number of threads to use
 if nprocs() < nthreads
-    addprocs(nthreads-nprocs()+1) # Add the threads as workers
+    addprocs(nthreads - nprocs() + 1) # Add the threads as workers
 end
 
 # Load all needed packages on every worker
@@ -20,7 +20,7 @@ exp_ps = Dict(
     :n_iters => 5000, # Number of iterations to run
     :n_runs => 10, # Number of repeated runs
     :n_dim => [100, 500, 1000], # Dimension of the target
-    :n_particles => vcat(2:9, 10:10:100, @onlyif(:n_dim > 100, 200:500), @onlyif(:n_dim > 500, 600:1000)),
+    :n_particles => [collect(2:9)..., collect(10:10:100)..., @onlyif(:n_dim > 100, collect(200:100:500))..., @onlyif(:n_dim > 500, collect(600:100:1000))...],
     :cond => [1, 5, 10, 50, 100],
     :gpf => true, # Run GaussParticle Flow
     :gf => false, # Run Gauss Flow
