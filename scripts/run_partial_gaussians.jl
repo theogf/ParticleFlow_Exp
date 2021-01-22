@@ -19,7 +19,8 @@ end
 exp_ps = Dict(
     :n_iters => 5000, # Number of iterations to run
     :n_runs => 10, # Number of repeated runs
-    :n_dim => [100], # Dimension of the target
+    :n_dim => [100, 500, 1000], # Dimension of the target
+    :n_particles => vcat(2:9, 10:10:100, @onlyif(:n_dim > 100, 200:500), @onlyif(:n_dim > 500, 600:1000)),
     :cond => [1, 5, 10, 50, 100],
     :gpf => true, # Run GaussParticle Flow
     :gf => false, # Run Gauss Flow
@@ -32,7 +33,7 @@ exp_ps = Dict(
     :cb_val => nothing, # Callback values
     :eta => 0.1,
     :opt_det => :Descent,
-    :opt_stoch => [:Descent, :RMSProp],
+    :opt_stoch => :Descent,
     :comp_hess => :hess,
 )
 ps = dict_list(exp_ps)
