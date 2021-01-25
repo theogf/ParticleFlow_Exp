@@ -11,10 +11,23 @@ function run_gaussian_target(exp_p)
     ## Create target distribution
     @unpack n_dim, n_particles, n_iters, n_runs, natmu, cond, eta, opt_det, opt_stoch, comp_hess = exp_p
     n_particles = iszero(n_particles) ? n_dim + 1 : n_particles # If nothing is given use dim+1 particlesz`
+    f = if partial_exp
+        function (h::MvHistory)
+            return function (i, q, hp)
+                if i == (n_iters - 1)
+                    cb_tic(h, i)
+                    push!(h, :x, i, q.dist.x)
+                    cb_toc(h, i)
+                end
+            end
+        end
+    else
+        wrap_cb()
+    end
     
     parameters = BSON.load(datadir("exp_raw", "gaussian", @savename(cond, n_dim) * ".bson"))
     @unpack μ_target, Σ_target = parameters
-
+    partial_exp = get!(exp_p, :partial, false)
     d_target = MvNormal(μ_target, Σ_target)
     ## Create the model
     function logπ_gauss(θ)
@@ -101,6 +114,7 @@ function run_gaussian_target(exp_p)
     end
 
     file_prefix = @savename n_iters n_runs n_dim n_particles cond eta
+    file_prefix = partial_exp ? joinpath("partial", file_prefix) : file_prefix
     for alg in algs
         vals = [hist[alg] for hist in hists]
         alg_string = "_" * string(alg) * "_" * 
@@ -115,9 +129,10 @@ function run_gaussian_target(exp_p)
         elseif alg == :svgd
             @savename(opt_det)
         end
-
-        DrWatson.save(
-            datadir("results", "gaussian", file_prefix * alg_string * ".bson"),
-            merge(exp_p, @dict(vals, d_target)))
+        if exp_p[alg]
+            DrWatson.save(
+                datadir("results", "gaussian", file_prefix * alg_string * ".bson"),
+                merge(exp_p, @dict(vals, d_target)))
+        end
     end
 end

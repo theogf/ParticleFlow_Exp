@@ -41,4 +41,4 @@ ps = dict_list(exp_ps)
 # run for each dict the simulation
 run_gaussian_target(ps[1])
 # map(run_gaussian_target, ps)
-pmap(run_gaussian_target, ps)
+# pmap(run_gaussian_target, ps)
