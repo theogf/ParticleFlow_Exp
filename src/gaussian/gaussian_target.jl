@@ -11,8 +11,11 @@ function run_gaussian_target(exp_p)
     ## Create target distribution
     @unpack n_dim, n_particles, n_iters, n_runs, natmu, cond, eta, opt_det, opt_stoch, comp_hess = exp_p
     n_particles = iszero(n_particles) ? n_dim + 1 : n_particles # If nothing is given use dim+1 particlesz`
+    partial_exp = get!(exp_p, :partial, false)
+
+    ## Adapt the callback function given the experiment
     f = if partial_exp
-        function (h::MvHistory)
+        function (h::MVHistory)
             return function (i, q, hp)
                 if i == (n_iters - 1)
                     cb_tic(h, i)
@@ -25,9 +28,35 @@ function run_gaussian_target(exp_p)
         wrap_cb()
     end
     
+    ## Create the file prefix for storing the results
+    file_prefix = @savename n_iters n_runs n_dim n_particles cond eta
+    file_prefix = partial_exp ? joinpath("partial", file_prefix) : file_prefix
+    ## Check that the simulation has not been run already
+    for alg in algs
+        if exp_p[alg]
+            alg_string = "_" * string(alg) * "_" * 
+            if alg == :gpf
+                @savename(natmu, opt_det)
+            elseif alg == :gf
+                @savename(natmu, opt_stoch)
+            elseif alg == :dsvi || alg == :fcs
+                @savename(opt_stoch)
+            elseif alg == :iblr
+                @savename(comp_hess)
+            elseif alg == :svgd
+                @savename(opt_det)
+            end
+            if isfile(datadir("results", "gaussian", file_prefix * alg_string * ".bson"))
+                if filesize(datadir("results", "gaussian", file_prefix * alg_string * ".bson")) > 0
+                    @warn "Simulation has been run already"
+                    exp_p[alg] = false
+                end
+            end
+        end
+    end
+
     parameters = BSON.load(datadir("exp_raw", "gaussian", @savename(cond, n_dim) * ".bson"))
     @unpack μ_target, Σ_target = parameters
-    partial_exp = get!(exp_p, :partial, false)
     d_target = MvNormal(μ_target, Σ_target)
     ## Create the model
     function logπ_gauss(θ)
@@ -113,8 +142,7 @@ function run_gaussian_target(exp_p)
         hists[i] = hist
     end
 
-    file_prefix = @savename n_iters n_runs n_dim n_particles cond eta
-    file_prefix = partial_exp ? joinpath("partial", file_prefix) : file_prefix
+    ## Save the results if any
     for alg in algs
         vals = [hist[alg] for hist in hists]
         alg_string = "_" * string(alg) * "_" * 

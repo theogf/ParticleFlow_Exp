@@ -35,10 +35,11 @@ exp_ps = Dict(
     :opt_det => :Descent,
     :opt_stoch => :Descent,
     :comp_hess => :hess,
+    :partial => :true,
 )
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
 # run for each dict the simulation
 run_gaussian_target(ps[1])
 # map(run_gaussian_target, ps)
-# pmap(run_gaussian_target, ps)
+pmap(run_gaussian_target, ps)
