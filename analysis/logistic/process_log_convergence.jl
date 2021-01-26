@@ -6,9 +6,10 @@ include(srcdir("utils", "tools.jl"))
 using AdvancedVI; const AVI = AdvancedVI
 using LinearAlgebra
 using MLDataUtils
+save_times = vcat(1:9, 10:5:99, 100:100:999, 1000:1000:9999, 10000:10000:100000)
 
 ## Load data
-dataset = "spam"
+dataset = "krkp"
 dataset_file = endswith(dataset, ".csv") ? dataset : dataset * ".csv"
 data = CSV.read(datadir("exp_raw", "logistic", dataset_file), DataFrame; header=true)
 X = Matrix(data[1:end-1])
@@ -18,7 +19,8 @@ y = Vector(data[end])
 ## Parameters used
 ps = Dict(
     :B => 100,
-    :n_particles => 10,
+    :p => 100,
+    :n_particles => 100,
     :alpha => 0.1,
     :σ_init => 1.0,
     :natmu => false,
@@ -75,17 +77,22 @@ use_time = true
 show_std = false
 plots = Dict()
 for m in metric
-    plots[m] = plot(title=string(m), xaxis=:log, legend=show_legend)
+    plots[m] = plot(
+                title=string(m),
+                xaxis=:log,
+                legend=false,
+                xlabel=use_time ? "Time [s]" : "Iterations"
+                )
     for alg in keys(results)#models
         res = results[alg]
         if show_std
-            plot!(use_time ? res[:t_m] : res[:iter], res[Symbol(m, "_m")], ribbon=sqrt.(res[Symbol(m, "_v")]), label=string(alg, text_mf[ps[:mf]]))
+            plot!(use_time ? res[:t_m] : save_times[1:length(res[:t_m])], res[Symbol(m, "_m")], ribbon=sqrt.(res[Symbol(m, "_v")]), label=string(alg, text_mf[ps[:mf]]))
         else
-            plot!(use_time ? res[:t_m] : res[:iter], res[Symbol(m, "_m")], label=string(alg, text_mf[ps[:mf]]))
+            plot!(use_time ? res[:t_m] : save_times[1:length(res[:t_m])], res[Symbol(m, "_m")], label=string(alg, text_mf[ps[:mf]]))
         end
     end
 end
-plots[:legend] = plot(showaxis=false, hidedecorations=true, grid=false, legendfontsize=10.0)
+plots[:legend] = plot(showaxis=false, hidedecorations=true, grid=false, legendfontsize=10.0, title=dataset)
 for alg in keys(results)
     plot!([], [], label=string(alg, text_mf[ps[:mf]]))
 end

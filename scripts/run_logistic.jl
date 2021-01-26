@@ -34,6 +34,7 @@ exp_ps = Dict(
     :dsvi => true,# Run DSVI
     :iblr => false,# Run IBLR
     :fcs => true,# Run FCS
+    :svgd => false,# Run linear SVGD
     :natmu => false, # Natural gradient on mu
     :cb_val => nothing, # Callback values
     :eta => 0.0001, # Learning rate
@@ -43,10 +44,11 @@ exp_ps = Dict(
     :alpha => 0.1, # Prior variance
     :σ_init => 1.0, # Initial variance
     :B => 100, # Batchsize (-1 to use full batch)
-    :mf => :none, # Which mean_field method should be used
+    :mf => :true, # Which mean_field method should be used
 )
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
 # run for each dict the simulation
-run_logistic_regression(ps[10])
+# run_logistic_regression(ps[1])
+map(run_logistic_regression, ps)
 # pmap(run_logistic_regression, ps)

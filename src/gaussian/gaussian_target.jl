@@ -84,7 +84,7 @@ function run_gaussian_target(exp_p)
             :max_iters => n_iters,
             :natmu => natmu,
             :opt => @eval($opt_det($eta)),
-            :callback => wrap_cb(),
+            :callback => f,
             :mf => false,
             :init => copy(x_init),
         )
@@ -160,7 +160,7 @@ function run_gaussian_target(exp_p)
         if exp_p[alg]
             DrWatson.save(
                 datadir("results", "gaussian", file_prefix * alg_string * ".bson"),
-                merge(exp_p, @dict(vals, d_target)))
+                merge(exp_p, @dict(vals)))
         end
     end
 end

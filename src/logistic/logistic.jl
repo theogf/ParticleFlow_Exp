@@ -5,12 +5,11 @@ using Flux
 using Flux: Optimise
 using Optim
 using MLDataUtils
+using CSV
+using StatsFuns: logistic
 include(srcdir("train_model.jl"))
 # include(srcdir("utils", "linear.jl"))
 include(srcdir("utils", "tools.jl"))
-
-
-const save_times = vcat(1:9, 10:5:99, 100:100:1000)
 
 function run_logistic_regression(exp_p)
     @unpack seed, = exp_p

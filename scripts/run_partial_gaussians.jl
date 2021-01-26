@@ -31,11 +31,11 @@ exp_ps = Dict(
     :natmu => false, # Use preconditionning on b
     :seed => 42, # Seed for experiments
     :cb_val => nothing, # Callback values
-    :eta => 0.1,
+    :eta => 0.001,
     :opt_det => :Descent,
     :opt_stoch => :Descent,
     :comp_hess => :hess,
-    :partial => :true,
+    :partial => true,
 )
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
