@@ -45,8 +45,12 @@ models = [
     #:iblr,
 ]
 
+
 isdir(datadir("results", "logistic", dataset)) || error("Results folder does not exist")
+all_results = collect_results(datadir("results", "logistic", dataset))
 results = Dict()
+results[:iblr] = @linq all_results |> where(endswith.(:path, Ref("iblr.bson")))
+
 for alg in models
     res = Dict()
     res_file = datadir("results", "logistic", dataset, prefix * "_" * string(alg) * ".bson")

@@ -11,7 +11,32 @@ colors = ColorSchemes.seaborn_colorblind
 using Flux
 using AdvancedVI; const AVI = AdvancedVI
 using StatsFuns
-algs = [:gpf, :advi, :steinvi]
+algs = [
+    :gpf,
+    :gf,
+    :dsvi,
+    :fcs,
+    :iblr,
+    :svgd,
+]
+
+alg_lab = Dict(
+    :gpf => "GPF",
+    :gf => "GF",
+    :dsvi => "DSVI",
+    :fcs => "FCS",
+    :iblr => "IBLR",
+    :svgd => "SVGD",
+)
+
+alg_col = Dict(
+    :gpf => colors[1],
+    :gf => colors[2],
+    :dsvi => colors[3],
+    :fcs => colors[4],
+    :iblr => colors[5],
+    :svgd => colors[6],
+)
 
 
 #Takes an array of MVHistory and the true distribution and returns the average error and the variance of the error
@@ -39,6 +64,21 @@ function process_fullcovs(hs, truth, metric = (x, y) -> norm(x -y))
         ΔΣ[i], varΣ[i] = mean(ΔΣs), var(ΔΣs)
     end
     return ΔΣ, varΣ
+end
+
+function process_means_plus_covs(hs, truth, metric = (x, y) -> norm(x - y))
+    m = mean(truth)
+    C = cov(truth)
+    T = length(first(hs)[:x])
+    Δ = zeros(T)
+    varΔ = deepcopy(Δ)
+    global qs = SamplesMvNormal.(first.(getproperty.(getindex.(hs, :x), :values)))
+    ms = mean.(qs)
+    Cs = cov.(qs)
+    Δms = metric.(ms, Ref(m))
+    ΔCs = metric.(Cs, Ref(C))
+    Δs = Δms + ΔCs
+    return mean(Δms), var(Δms), mean(ΔCs), var(ΔCs), mean(Δs), var(Δs)
 end
 
 function process_time(ts::AbstractVector{<:AbstractVector})

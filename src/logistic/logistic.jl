@@ -31,20 +31,44 @@ function run_logistic_regression(exp_p)
     device = cpu
 
     ## Load experiment parameters
-    @unpack B, mf, n_particles, n_iters, k, natmu, alpha, σ_init = exp_p
+    @unpack B, mf, n_particles, n_iters, k, p, natmu, alpha, σ_init = exp_p
     @unpack opt_det, opt_stoch, eta, comp_hess = exp_p
     # default values for running experiments
 
     mf_vals = if mf == :full
         mf = Inf
-    elseif mf == :partial
-        if dataset == "swarm_flocking"
-            mf = vcat(0, 1, 13:12:n_dim)
-        else
-            error("Partial MF not available for this dataset")
-        end
     elseif mf == :none
         false
+    end
+    ## Adapt the running given the setup:
+    exp_p[:gpf] = opt_stoch == :Descent ? exp_p[:gpf] : false
+    exp_p[:dsvi] = natmu ? false : exp_p[:dsvi]
+    exp_p[:fcs] = natmu ? false : ((mf == :none) ? exp_p[:fcs] : false)
+    exp_p[:iblr] = natmu ? (mf == :none ? false : exp_p[:iblr]) : false
+    exp_p[:svgd] = natmu ? false : exp_p[:svgd]
+    ## Check that the simulation has not been run already
+    file_prefix = @savename n_iters n_particles k seed p natmu eta alpha σ_init B mf
+    for alg in algs
+        if exp_p[alg]
+            alg_string = "_" * string(alg) * "_" * 
+            if alg == :gpf
+                @savename(natmu, opt_det)
+            elseif alg == :gf
+                @savename(natmu, opt_stoch)
+            elseif alg == :dsvi || alg == :fcs
+                @savename(opt_stoch)
+            elseif alg == :iblr
+                @savename(comp_hess)
+            elseif alg == :svgd
+                @savename(opt_det)
+            end
+            if isfile(datadir("results", "gaussian", file_prefix * alg_string * ".bson"))
+                if filesize(datadir("results", "gaussian", file_prefix * alg_string * ".bson")) > 0
+                    @warn "Simulation has been run already"
+                    exp_p[alg] = false
+                end
+            end
+        end
     end
 
     logprior(θ) = -0.5 * sum(abs2, θ) / alpha^2
@@ -177,16 +201,27 @@ function run_logistic_regression(exp_p)
             train_model(B <= 0 ? logπ_logistic : logπ_logistic_stoch, general_p, params)
         hists[i] = hist
     end
-    for alg in algs
-        delete!(exp_p, alg)
-    end
-    file_prefix = savename(exp_p)
+
     for alg in algs
         vals = [hist[alg] for hist in hists]
-        save(
-            datadir("results", "logistic", dataset, file_prefix * "_" * string(alg) * ".bson"),
-            merge(exp_p, @dict vals)
-        )
+        alg_string = "_" * string(alg) * "_" * 
+        if alg == :gpf
+            @savename(natmu, opt_det)
+        elseif alg == :gf
+            @savename(natmu, opt_stoch)
+        elseif alg == :dsvi || alg == :fcs
+            @savename(opt_stoch)
+        elseif alg == :iblr
+            @savename(comp_hess)
+        elseif alg == :svgd
+            @savename(opt_det)
+        end
+        if exp_p[alg]
+            save(
+                datadir("results", "logistic", dataset, file_prefix * "_" * string(alg) * ".bson"),
+                merge(exp_p, @dict vals, alg)
+            )
+        end
     end
 end
 

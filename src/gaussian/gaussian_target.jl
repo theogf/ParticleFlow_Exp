@@ -27,6 +27,13 @@ function run_gaussian_target(exp_p)
     else
         wrap_cb()
     end
+
+    ## Adapt the running given the setup:
+    exp_p[:gpf] = opt_stoch == :Descent ? exp_p[:gpf] : false
+    exp_p[:dsvi] = natmu ? false : exp_p[:dsvi]
+    exp_p[:fcs] = natmu ? false : exp_p[:fcs]
+    exp_p[:iblr] = natmu ? exp_p[:iblr] : false
+    exp_p[:svgd] = natmu ? false : exp_p[:svgd]
     
     ## Create the file prefix for storing the results
     file_prefix = @savename n_iters n_runs n_dim n_particles cond eta
@@ -79,7 +86,7 @@ function run_gaussian_target(exp_p)
             Dict(:hyper_params => nothing, :hp_optimizer => nothing, :n_dim => n_dim, :gpu => false)
         params = Dict{Symbol, Dict}()
         params[:gpf] = Dict(
-            :run => exp_p[:gpf] && (opt_stoch == :Descent),
+            :run => exp_p[:gpf],
             :n_particles => n_particles,
             :max_iters => n_iters,
             :natmu => natmu,
@@ -89,7 +96,7 @@ function run_gaussian_target(exp_p)
             :init => copy(x_init),
         )
         params[:gf] = Dict(
-            :run => exp_p[:gf] && !natmu,
+            :run => exp_p[:gf]
             :n_samples => n_particles,
             :max_iters => n_iters,
             :natmu => natmu,
@@ -99,7 +106,7 @@ function run_gaussian_target(exp_p)
             :init => (copy(μ_init), Matrix(L_init)),
         )
         params[:dsvi] = Dict(
-            :run => exp_p[:dsvi] && !natmu,
+            :run => exp_p[:dsvi],
             :n_samples => n_particles,
             :max_iters => n_iters,
             :opt => @eval($opt_stoch($eta)),
@@ -108,7 +115,7 @@ function run_gaussian_target(exp_p)
             :init => (copy(μ_init), deepcopy(L_init)),
         )
         params[:fcs] = Dict(
-            :run => exp_p[:fcs] && !natmu,
+            :run => exp_p[:fcs],
             :n_samples => n_particles,
             :max_iters => n_iters,
             :opt => @eval($opt_stoch($eta)),
@@ -160,7 +167,7 @@ function run_gaussian_target(exp_p)
         if exp_p[alg]
             DrWatson.save(
                 datadir("results", "gaussian", file_prefix * alg_string * ".bson"),
-                merge(exp_p, @dict(vals)))
+                merge(exp_p, @dict(vals, alg)))
         end
     end
 end
