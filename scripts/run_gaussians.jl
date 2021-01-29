@@ -19,7 +19,7 @@ end
 exp_ps = Dict(
     :n_iters => 5000, # Number of iterations to run
     :n_runs => 10, # Number of repeated runs
-    :n_dim => [10, 20, 50, 100], # Dimension of the target
+    :n_dim => [2, 5, 10, 20, 50, 100], # Dimension of the target
     :n_particles => 0,#, 10, 20, 50, 100], # Number of particles used, nothing will give dim + 1
     :cond => [1, 10, 100],
     :gpf => true, # Run GaussParticle Flow
@@ -31,7 +31,7 @@ exp_ps = Dict(
     :natmu => false, # Use preconditionning on b
     :seed => 42, # Seed for experiments
     :cb_val => nothing, # Callback values
-    :eta => 0.1,
+    :eta => 0.001,
     :opt_det => :Descent,
     :opt_stoch => [:Descent, :RMSProp],
     :comp_hess => :hess,
