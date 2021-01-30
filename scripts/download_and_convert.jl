@@ -74,7 +74,7 @@ gauss_dir = datadir("exp_raw", "gaussian")
 mkpath(gauss_dir)
 
 @showprogress for cond in [1, 5, 10, 50, 100]
-    for n_dim in [10, 20, 50, 100, 500, 1000]
+    for n_dim in [2, 5, 10, 20, 50, 100, 500, 1000]
         @info "Cond = $cond, Dim = $n_dim"
         file_name = @savename(n_dim, cond) * ".bson"
         if isfile(joinpath(gauss_dir, file_name)) # If file exists already we skip the process

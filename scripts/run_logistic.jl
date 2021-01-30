@@ -10,7 +10,7 @@ dataset = ["spam", "mushroom", "ionosphere", "krkp"]
 using Distributed
 nthreads = 60 # Number of threads to use
 if nprocs() < nthreads
-    addprocs(nthreads-nprocs()+1) # Add the threads as workers
+    addprocs(nthreads - nprocs() + 1) # Add the threads as workers
 end
 # Load all needed packages on every worker
 @everywhere using DrWatson

@@ -19,8 +19,8 @@ end
 exp_ps = Dict(
     :n_iters => 5000, # Number of iterations to run
     :n_runs => 10, # Number of repeated runs
-    :n_dim => [100, 500, 1000], # Dimension of the target
-    :n_particles => [collect(2:9)..., collect(10:10:100)..., @onlyif(:n_dim > 100, collect(200:100:500))..., @onlyif(:n_dim > 500, collect(600:100:1000))...],
+    :n_dim => [10, 50, 100, 500], # Dimension of the target
+    :n_particles => [collect(2:10)..., @onlyif(:n_dim > 10, collect(20:50))..., @onlyif(:n_dim > 50, collect(60:10:100))..., @onlyif(:n_dim > 100, collect(200:100:500))...],
     :cond => [1, 5, 10, 50, 100],
     :gpf => true, # Run GaussParticle Flow
     :gf => false, # Run Gauss Flow
