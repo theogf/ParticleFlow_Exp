@@ -1,6 +1,6 @@
 # Make sure that all packages are up to date
 using DrWatson;
-@quickactivate(@__DIR__)
+@quickactivate
 # using Pkg; Pkg.update()
 include(srcdir("logistic", "logistic.jl"))
 
