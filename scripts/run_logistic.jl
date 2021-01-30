@@ -1,6 +1,6 @@
 # Make sure that all packages are up to date
 using DrWatson;
-@quickactivate
+@quickactivate(@__DIR__)
 # using Pkg; Pkg.update()
 include(srcdir("logistic", "logistic.jl"))
 
@@ -14,7 +14,7 @@ if nprocs() < nthreads
 end
 # Load all needed packages on every worker
 @everywhere using DrWatson
-@everywhere quickactivate(@__DIR__)
+@everywhere @quickactivate(@__DIR__)
 @everywhere include(srcdir("logistic", "logistic.jl"))
 
 # Create a list of parameters
