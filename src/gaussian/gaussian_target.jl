@@ -96,7 +96,7 @@ function run_gaussian_target(exp_p)
             :init => copy(x_init),
         )
         params[:gf] = Dict(
-            :run => exp_p[:gf]
+            :run => exp_p[:gf],
             :n_samples => n_particles,
             :max_iters => n_iters,
             :natmu => natmu,
@@ -124,7 +124,7 @@ function run_gaussian_target(exp_p)
             :init => (copy(μ_init), Matrix(L_init - Diagonal(L_init) / sqrt(2)), diag(L_init) / sqrt(2)),
         )
         params[:iblr] = Dict(
-            :run => exp_p[:iblr] && !natmu,
+            :run => exp_p[:iblr],
             :n_samples => n_particles,
             :max_iters => n_iters,
             :opt => Descent(eta),
@@ -134,7 +134,7 @@ function run_gaussian_target(exp_p)
             :init => (copy(μ_init), Matrix(inv(Σ_init))),
         )
         params[:svgd] = Dict(
-            :run => exp_p[:svgd] && !natmu,
+            :run => exp_p[:svgd],
             :n_particles => n_particles,
             :max_iters => n_iters,
             :opt => @eval($opt_det($eta)),
