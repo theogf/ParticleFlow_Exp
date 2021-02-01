@@ -62,7 +62,7 @@ function train_model(logπ, general_p, params)
                     callback = params[alg][:callback](h[alg]),
                 )
             catch err
-                if err isa InterruptException || get!(general_p, :unsafe, true)
+                if err isa InterruptException || !get!(general_p, :unsafe, false)
                     rethrow(err)
                 end
             end

@@ -33,6 +33,7 @@ function run_logistic_regression(exp_p)
     ## Load experiment parameters
     @unpack B, mf, n_particles, n_iters, k, p, natmu, alpha, σ_init = exp_p
     @unpack opt_det, opt_stoch, eta, comp_hess = exp_p
+    unsafe = get!(exp_p, :unsafe, false)
     # default values for running experiments
 
     mf_vals = if mf == :full
@@ -127,8 +128,13 @@ function run_logistic_regression(exp_p)
         prefix = datadir("results", "logistic", dataset, savename(exp_p))
         ## Create dictionnaries of parameters
         hps = B <= 0 ? nothing : []
-        general_p =
-            Dict(:hyper_params => hps , :hp_optimizer => nothing, :n_dim => n_dim, :gpu => false)
+        general_p =Dict(
+                :hyper_params => hps,
+                :hp_optimizer => nothing,
+                :n_dim => n_dim,
+                :gpu => false,
+                :unsafe => unsafe,
+        )
         params = Dict{Symbol, Dict}()
         params[:gpf] = Dict(
             :run => exp_p[:gpf],

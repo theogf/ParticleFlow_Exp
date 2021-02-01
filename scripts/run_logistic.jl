@@ -40,7 +40,8 @@ exp_ps = Dict(
     :alpha => 0.1, # Prior variance
     :σ_init => 1.0, # Initial variance
     :B => [-1, 100], # Batchsize (-1 to use full batch)
-    :mf => [:full, :none], # Which mean_field method should be used
+    :mf => [:full, :none], # Which mean_field method should be used,
+    :unsafe => true,
 )
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"

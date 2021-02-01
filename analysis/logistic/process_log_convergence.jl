@@ -9,7 +9,7 @@ using MLDataUtils
 save_times = vcat(1:9, 10:5:99, 100:100:999, 1000:1000:9999, 10000:10000:100000)
 
 ## Load data
-dataset = "krkp"
+dataset = "spam"
 dataset_file = endswith(dataset, ".csv") ? dataset : dataset * ".csv"
 data = CSV.read(datadir("exp_raw", "logistic", dataset_file), DataFrame; header=true)
 X = Matrix(data[1:end-1])
