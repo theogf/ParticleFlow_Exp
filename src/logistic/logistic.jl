@@ -225,7 +225,7 @@ function run_logistic_regression(exp_p)
         if exp_p[alg]
             save(
                 datadir("results", "logistic", dataset, file_prefix * "_" * string(alg) * ".bson"),
-                merge(exp_p, @dict vals, alg)
+                merge(exp_p, @dict(vals, alg))
             )
         end
     end
