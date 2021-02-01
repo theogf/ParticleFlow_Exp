@@ -47,6 +47,22 @@ models = [
 
 
 isdir(datadir("results", "logistic", dataset)) || error("Results folder does not exist")
+ds = []
+fol = datadir("results", "logistic", dataset)
+for f in readdir(fol)
+    d = BSON.load(joinpath(fol, f))
+    push!(ds, d)
+    
+    if haskey(d, :vals)
+        @info "WOW"
+        # vals =  d[:vals]
+        # vals = Vector{MVHistory{}
+        # delete!(d, :(vals, alg))
+        # merge!(d, @dict(vals, alg))
+        # save(joinpath(fol, f), d)
+
+    end
+end
 all_results = collect_results(datadir("results", "logistic", dataset))
 results = Dict()
 results[:iblr] = @linq all_results |> where(endswith.(:path, Ref("iblr.bson")))

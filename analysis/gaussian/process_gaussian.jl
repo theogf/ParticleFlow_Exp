@@ -12,7 +12,8 @@ function plot_gaussian(n_dim = 50, cond = 1; all_res = all_res)
         where(:n_dim .== n_dim) |>
         #   where(:n_iters .== 3000) |>
         where(:n_particles .== 0) |>
-        where(:cond .== cond)
+        where(:cond .== cond) |>
+        where(:opt_stoch .=== Symbol(Descent))
     @info "Total of $(nrow(res)) for given parameters"
     if nrow(res) == 0
         @warn "Results for n_dim=$n_dim, cond=$cond not available yet"
@@ -21,13 +22,15 @@ function plot_gaussian(n_dim = 50, cond = 1; all_res = all_res)
     d_res = Dict()
     # nrow(res) == 1 || error("Number of rows is not unique or is empty")
     for alg in algs
-        d_res[alg] = @linq res |> where(endswith.(:path, Regex("$(alg).*bson")))
+        # d_res[alg] = @linq res |> where(endswith.(:path, Regex("$(alg).*bson")))
+        d_res[alg] = @linq res |> where(:alg .=== alg) # endswith.(:path, Regex("$(alg).*bson")))
     end
     d_vals = Dict()
-    truth = first(res.d_target)
+    params_truth = BSON.load(datadir("exp_raw", "gaussian", savename(@dict(cond, n_dim), "bson")))
+    truth = MvNormal(params_truth[:μ_target], params_truth[:Σ_target])
     # Plotting
     show_std_dev = false
-    show_lgd = false
+    show_lgd = true
     ylog = true
     ymin = eps(Float64)
     ymax = 1e4
