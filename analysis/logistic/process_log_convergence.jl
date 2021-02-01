@@ -6,6 +6,7 @@ include(srcdir("utils", "tools.jl"))
 using AdvancedVI; const AVI = AdvancedVI
 using LinearAlgebra
 using MLDataUtils
+using ValueHistories
 save_times = vcat(1:9, 10:5:99, 100:100:999, 1000:1000:9999, 10000:10000:100000)
 
 ## Load data
@@ -16,27 +17,8 @@ X = Matrix(data[1:end-1])
 n_samples, n_dim = size(X)
 y = Vector(data[end])
 
-## Parameters used
-ps = Dict(
-    :B => 100,
-    :p => 100,
-    :n_particles => 100,
-    :alpha => 0.1,
-    :σ_init => 1.0,
-    :natmu => false,
-    :n_iters => 2001,
-    :k => 10,
-    :seed => 42,
-    :dataset => dataset,
-    :eta => 0,
-    :opt_det => :Descent,
-    :opt_stoch => :Descent,
-    :comp_hess => :hess,
-    :mf => :none,
-    )
+all_results = collect_results(datadir("results", "logistic", dataset))
 
-
-prefix = savename(ps)
 models = [
     :gpf,
     :gf,
@@ -45,53 +27,87 @@ models = [
     #:iblr,
 ]
 
-
-isdir(datadir("results", "logistic", dataset)) || error("Results folder does not exist")
-ds = []
-fol = datadir("results", "logistic", dataset)
-for f in readdir(fol)
-    d = BSON.load(joinpath(fol, f))
-    push!(ds, d)
-    
-    if haskey(d, :vals)
-        @info "WOW"
-        # vals =  d[:vals]
-        # vals = Vector{MVHistory{}
-        # delete!(d, :(vals, alg))
-        # merge!(d, @dict(vals, alg))
-        # save(joinpath(fol, f), d)
-
-    end
-end
-all_results = collect_results(datadir("results", "logistic", dataset))
-results = Dict()
-results[:iblr] = @linq all_results |> where(endswith.(:path, Ref("iblr.bson")))
-
-for alg in models
-    res = Dict()
-    res_file = datadir("results", "logistic", dataset, prefix * "_" * string(alg) * ".bson")
-    if !isfile(res_file)
-        @warn "Prefix folder $(res_file) does not exist, skipping model $alg"
-        continue
-    end
-    vals = BSON.load(res_file)[:vals]
-    if !haskey(vals[1], :t_tic)
-        continue
-    end
-    res[:t_m], res[:t_v] = process_time(vals)
-    res[:iter] = get(vals[1], :t_tic)[1]
-    for metric in [:acc_train, :acc_test, :nll_train, :nll_test]
-        res[Symbol(metric, "_m")], res[Symbol(metric, "_v")] = get_mean_and_var(vals, metric)
-    end
-    results[alg] = res
-end
-
-## Plot results
-metric = [:nll_train, :nll_test, :acc_train, :acc_test]
+metrics = [
+    :nll_train,
+    :nll_test,
+    :acc_train,
+    :acc_test,
+    ]
 text_mf = Dict(
         :none => " - No MF",
         :full => " - Full MF",
+        :true => " - Full MF"
 )
+
+function plot_logistic_convergence(dataset, df, eta=1e-4;
+                        show_std_dev = false,
+                        show_lgd = true,
+                        use_time = false,
+    )
+    all_res = @linq df |> where(:eta .== eta) |> where(:B .== 100)
+    @info "Total of $(nrow(all_res)) for given parameters"
+    if nrow(all_res) == 0
+        @warn "Results for n_dim=$n_dim, cond=$cond not available yet"
+        return nothing
+    end
+    d_res = Dict()
+    # nrow(res) == 1 || error("Number of rows is not unique or is empty")
+    for alg in algs
+        # d_res[alg] = @linq res |> where(endswith.(:path, Regex("$(alg).*bson")))
+        alg_res = @linq all_res |> where(:alg .=== alg) # endswith.(:path, Regex("$(alg).*bson")))
+        if nrow(alg_res) > 0
+            global vals = first(alg_res.vals)
+            if isempty(first(vals).storage)
+                continue
+            end
+            res = Dict()
+            res[:mf] = first(alg_res.mf)
+            res[:t_m], res[:t_v] = process_time(vals)
+            res[:iter] = first(get(vals[1], :t_tic))
+            for metric in [:acc_train, :acc_test, :nll_train, :nll_test]
+                res[Symbol(metric, "_m")], res[Symbol(metric, "_v")] = get_mean_and_var(vals, metric)
+            end
+            d_res[alg] = res
+        end
+    end
+    # Plotting
+    ylog = true
+    # ymin = eps(Float64)
+    # ymax = 1e4
+    plots = Dict()
+    for m in metrics
+        plots[m] = plot(
+                title=string(m),
+                xaxis=:log,
+                legend=false,
+                xlabel=use_time ? "Time [s]" : "Iterations"
+                )
+        for alg in algs
+            if haskey(d_res, alg)
+                res = d_res[alg]
+                plot!(
+                    use_time ? res[:t_m] : save_times[1:length(res[:t_m])],
+                    res[Symbol(m, "_m")],
+                    ribbon= show_std_dev ? sqrt.(res[Symbol(m, "_v")]) : nothing,
+                    label="",#string(alg, text_mf[res[:mf]])
+                )
+            end
+        end
+    end
+    plots[:legend] = plot(showaxis=false, hidedecorations=true, grid=false, legendfontsize=10.0, title=dataset)
+    for alg in keys(d_res)
+        plot!([], [], label=string(alg, text_mf[d_res[alg][:mf]]))
+    end    
+    return plots
+end
+
+ps = plot_logistic_convergence(dataset, all_results;
+    show_std_dev = true,
+    use_time = true)
+plot(values(ps)...)
+
+## Plot results
+
 show_legend = false
 use_time = true
 show_std = false
