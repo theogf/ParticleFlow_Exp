@@ -18,7 +18,7 @@ end
 
 Distributions.dim(d::GPF) = length(d.μ)
 Distributions.mean(d::GPF) = d.μ
-Distributions.cov(d::GPF) = cov(d.X, dims=2, corrected=false) + 1e-5 * I
+Distributions.cov(d::GPF) = cov(d.X, dims=2, corrected=false)
 
 function update!(d::GPF, logπ, opt)
     φ = -gradcol(d, logπ, d.X)

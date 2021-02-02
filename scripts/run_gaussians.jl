@@ -6,9 +6,10 @@ include(srcdir("gaussian", "gaussian_target.jl"))
 
 # Use parallelism
 using Distributed
-nthreads = 6 # Number of threads to use
+nthreads = 8 # Number of threads to use
+nthreads = min(nthreads, Sys.CPU_THREADS - 2)
 if nprocs() < nthreads
-    addprocs(nthreads-nprocs()+1) # Add the threads as workers
+    addprocs(nthreads - nprocs() + 1) # Add the threads as workers
 end
 
 # Load all needed packages on every worker
@@ -17,9 +18,9 @@ end
 @everywhere include(srcdir("gaussian", "gaussian_target.jl"))
 # Create a list of parameters
 exp_ps = Dict(
-    :n_iters => 5000, # Number of iterations to run
+    :n_iters => 20000, # Number of iterations to run
     :n_runs => 10, # Number of repeated runs
-    :n_dim => [2, 5, 10, 20, 50, 100], # Dimension of the target
+    :n_dim => [5, 10, 20], #50, 100], # Dimension of the target
     :n_particles => 0,#, 10, 20, 50, 100], # Number of particles used, nothing will give dim + 1
     :cond => [1, 10, 100],
     :gpf => true, # Run GaussParticle Flow
@@ -28,17 +29,17 @@ exp_ps = Dict(
     :fcs => true, # Run Factorized Structure Covariance
     :iblr => true, # Run i Bayesian Rule
     :svgd => true, # Run linear SVGD
-    :natmu => false, # Use preconditionning on b
+    :natmu => [true, false], # Use preconditionning on b
     :seed => 42, # Seed for experiments
     :cb_val => nothing, # Callback values
     :eta => 0.01,
     :opt_det => :Descent,
-    :opt_stoch => [:Descent, :RMSProp],
+    :opt_stoch => :Descent,# :RMSProp],
     :comp_hess => :hess,
 )
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
 # run for each dict the simulation
-run_gaussian_target(ps[1])
+# run_gaussian_target(ps[1])
 # map(run_gaussian_target, ps)
 pmap(run_gaussian_target, ps)

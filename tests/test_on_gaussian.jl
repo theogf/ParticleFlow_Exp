@@ -9,13 +9,14 @@ using ProgressMeter
 using Flux.Optimise
 
 Random.seed!(42)
-D = 3
+D = 5
 
 μ = randn(D)
 λ = rand(D)
 Q, _ = qr(rand(D, D)) # Create random unitary matrix
 # Λ = Diagonal(10.0 .^ range(-1, 2, length = dim))
 C = Symmetric(Q * Diagonal(λ) * Q')
+C = Matrix(Diagonal(0.1 * ones(D)))
 # C = XXt(rand(D, D) / sqrt(D))
 target = MvNormal(μ, C)
 logπ(x) = logpdf(target, x)
@@ -58,6 +59,7 @@ opt = Optimiser(InverseDecay(), ClipNorm(1.0))
 opt = Optimiser(Descent(0.01), InverseDecay())
 opt = ADAGrad(0.1)
 opts[:gpf] = MatRMSProp(η)
+opts[:gpf] = Descent(η)
 opts[:iblr] = Descent(η)
 # opt = ScalarADADelta(0.9)
 # opt = Descent(0.01)

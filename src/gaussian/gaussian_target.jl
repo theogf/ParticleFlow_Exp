@@ -55,8 +55,12 @@ function run_gaussian_target(exp_p)
             end
             if isfile(datadir("results", "gaussian", file_prefix * alg_string * ".bson"))
                 if filesize(datadir("results", "gaussian", file_prefix * alg_string * ".bson")) > 0
-                    @warn "Simulation has been run already"
-                    exp_p[alg] = false
+                    if !get!(exp_p, :overwrite, false)
+                        @warn "Simulation has been run already - Passing simulation"
+                        exp_p[alg] = false
+                    else
+                        @warn "Simulation has been run already - Overwriting the simulation"
+                    end
                 end
             end
         end

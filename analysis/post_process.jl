@@ -85,9 +85,14 @@ function process_time(ts::AbstractVector{<:AbstractVector})
     mean(ts), var(ts)
 end
 
-function process_time(hs::AbstractVector)
-    process_time(extract_time.(hs))
+function process_time(hs::AbstractVector, ::Any)
+    process_time(extract_time.(hs[2:end]))
 end
+
+function process_time(hs::AbstractVector, ::Val{:gpf})
+    process_time(extract_time.(hs[2:end]))
+end
+
 
 function get_mean_and_var(hs::AbstractVector, s::Symbol)
     val = [get(h, s)[2] for h in hs]

@@ -81,13 +81,11 @@ mkpath(gauss_dir)
             continue
         end
         μ_target = randn(n_dim)
-        Σ_target = if cond > 1
+        Σ_target = begin
             Q, _ = qr(rand(n_dim, n_dim)) # Create random unitary matrix
             Q = Matrix(Q)
             Λ = Diagonal(10.0 .^ range(-1, -1 + log10(cond), length = n_dim))
             Symmetric(Q * Λ * Q')
-        else
-            Matrix(I(n_dim))
         end
         α = eps(Float64)
         while !isposdef(Σ_target)
