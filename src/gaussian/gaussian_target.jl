@@ -68,7 +68,7 @@ function run_gaussian_target(exp_p)
 
     parameters = BSON.load(datadir("exp_raw", "gaussian", @savename(cond, n_dim) * ".bson"))
     @unpack μ_target, Σ_target = parameters
-    d_target = MvNormal(μ_target, Σ_target)
+    const d_target = MvNormal(μ_target, Σ_target)
     ## Create the model
     function logπ_gauss(θ)
         return logpdf(d_target, θ)

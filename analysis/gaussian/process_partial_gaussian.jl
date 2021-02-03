@@ -161,7 +161,7 @@ function plot_dicts(
 end 
 
 mkpath(plotsdir("partial"))
-for n_dim in [10, 20, 50]
+for n_dim in [50]
     p = plot_dicts(d, n_dim)
     display(p)
     savefig(plotsdir("partial", "D=$(n_dim).png"))
