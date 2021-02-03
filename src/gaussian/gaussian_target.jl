@@ -14,7 +14,7 @@ function run_gaussian_target(exp_p)
     @unpack n_dim, n_particles, n_iters, n_runs, natmu, cond, eta, opt_det, opt_stoch, comp_hess = exp_p
     n_particles = iszero(n_particles) ? n_dim + 1 : n_particles # If nothing is given use dim+1 particlesz`
     partial_exp = get!(exp_p, :partial, false)
-
+    mode = get!(exp_p, :mode, :save)
     ## Adapt the callback function given the experiment
     f = if partial_exp
         function (h::MVHistory)
@@ -70,7 +70,7 @@ function run_gaussian_target(exp_p)
 
     parameters = BSON.load(datadir("exp_raw", "gaussian", @savename(cond, n_dim) * ".bson"))
     @unpack μ_target, Σ_target = parameters
-    const d_target = MvNormal(μ_target, Σ_target)
+    d_target = MvNormal(μ_target, Σ_target)
     ## Create the model
     function logπ_gauss(θ)
         return logpdf(d_target, θ)
@@ -81,6 +81,9 @@ function run_gaussian_target(exp_p)
     @unpack μs_init, Σs_init = parameters
     for i in 1:n_runs
         @info "Run $i/$(n_runs)"
+        if mode == :display
+            @warn "Target has:\nmean $(mean(d_target))\nvar=$(var(d_target))"
+        end
         μ_init = μs_init[i]
         Σ_init = Σs_init[i]
         L_init = cholesky(Σ_init).L
@@ -88,8 +91,13 @@ function run_gaussian_target(exp_p)
         x_init = rand(p_init, n_particles)
 
         ## Create dictionnaries of parameters
-        general_p =
-            Dict(:hyper_params => nothing, :hp_optimizer => nothing, :n_dim => n_dim, :gpu => false)
+        general_p = Dict(
+            :hyper_params => nothing,
+            :hp_optimizer => nothing,
+            :n_dim => n_dim,
+            :gpu => false,
+            :mode => mode,
+        )
         params = Dict{Symbol, Dict}()
         params[:gpf] = Dict(
             :run => exp_p[:gpf],
@@ -170,7 +178,7 @@ function run_gaussian_target(exp_p)
         elseif alg == :svgd
             @savename(opt_det)
         end
-        if exp_p[alg]
+        if exp_p[alg] && mode == :save
             DrWatson.save(
                 datadir("results", "gaussian", file_prefix * alg_string * ".bson"),
                 merge(exp_p, @dict(vals, alg)))

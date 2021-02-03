@@ -33,7 +33,7 @@ function plot_gaussian(
     end
     d_res = Dict()
     # nrow(res) == 1 || error("Number of rows is not unique or is empty")
-    for alg in algs[1:end-1]
+    for alg in algs
         # d_res[alg] = @linq res |> where(endswith.(:path, Regex("$(alg).*bson")))
         d_res[alg] = @linq res |> where(:alg .=== alg) # endswith.(:path, Regex("$(alg).*bson")))
     end
@@ -71,11 +71,11 @@ function plot_gaussian(
     )
     p_title = plot(title="D=$n_dim, κ=$(cond)", grid=false, showaxis=false)
 
-    for (i, alg) in enumerate(algs[1:end-1])
+    for (i, alg) in enumerate(algs)
         @info "Processing $(alg)"
         d = d_res[alg]
         for row in eachrow(d)
-            global vals = row.vals 
+            vals = row.vals 
             try 
                 process_means(vals, mean(truth))
             catch e
@@ -120,9 +120,9 @@ function plot_gaussian(
     return p
 end
 mkpath(plotsdir("gaussian"))
-for n_dim in [5,  10, 20, 50, 100], 
-    cond in [1, 10, 100]
-    global p = plot_gaussian(n_dim, cond, 0.01; show_std_dev=false, show_lgd=true)
+for n_dim in 5, #[5,  10, 20, 50, 100], 
+    cond in 1#[1, 10, 100]
+    p = plot_gaussian(n_dim, cond, 0.01; show_std_dev=false, show_lgd=true)
     try
         display(p)
     catch e

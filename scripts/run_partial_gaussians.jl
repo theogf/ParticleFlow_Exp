@@ -1,22 +1,22 @@
 # Make sure that all packages are up to date
 using DrWatson
-@quickactivate
+@quickactivate "ParticleFlow"
 # using Pkg; Pkg.update()
 include(srcdir("gaussian", "gaussian_target.jl"))
 
 
 # Use parallelism
-# using Distributed
-# nthreads = 60 # Number of threads to use
-# nthreads = min(nthreads, Sys.CPU_THREADS - 1)
-# if nprocs() < nthreads
-    # addprocs(nthreads - nprocs() + 1) # Add the threads as workers
-# end
+using Distributed
+nthreads = 30 # Number of threads to use
+nthreads = min(nthreads, Sys.CPU_THREADS - 1)
+if nprocs() < nthreads
+    addprocs(nthreads - nprocs() + 1) # Add the threads as workers
+end
 
 # Load all needed packages on every worker
-# @everywhere using DrWatson
-# @everywhere quickactivate(@__DIR__)
-# @everywhere include(srcdir("gaussian", "gaussian_target.jl"))
+@everywhere using DrWatson
+@everywhere quickactivate("ParticleFlow")
+@everywhere include(srcdir("gaussian", "gaussian_target.jl"))
 # Create a list of parameters
 exp_ps = Dict(
     :n_iters => 20000, # Number of iterations to run
@@ -45,4 +45,4 @@ ps = dict_list(exp_ps)
 # run for each dict the simulation
 run_gaussian_target(ps[1])
 # map(run_gaussian_target, ps)
-# pmap(run_gaussian_target, ps)
+pmap(run_gaussian_target, ps)

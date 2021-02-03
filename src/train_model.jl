@@ -42,7 +42,8 @@ function train_model(logπ, general_p, params)
     q = Dict{Symbol,Any}()
     h = Dict{Symbol,Any}()
     device = general_p[:gpu] ? gpu : cpu
-    
+    mode = get!(general_p, :mode, :save)
+
     for alg in algs
         # Initialize setup
         vi_alg[alg], q[alg] = init_alg(Val(alg), params[alg], general_p)
@@ -61,6 +62,9 @@ function train_model(logπ, general_p, params)
                     hp_optimizer = deepcopy(general_p[:hp_optimizer]),
                     callback = params[alg][:callback](h[alg]),
                 )
+                if mode == :display
+                    @info "Alg. $alg :\nmu = $(mean(q[alg])),\ndiag_sig = $(var(q[alg]))"
+                end
             catch err
                 if err isa InterruptException || !get!(general_p, :unsafe, false)
                     rethrow(err)
