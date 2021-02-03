@@ -52,7 +52,8 @@ dstart = ds[1]; xstart = xs[1]; gstart = gs[1]
 dint = ds[valint]; xint= xs[valint]; gint = gs[valint]
 xfinal = xs[end]
 cmap = range(colors[1], colors[2], length = 3)
-cweights = [1 - exp(-rate * w) * exp(rate) for w in range(0, 1, length = T+1)]
+λ = 0.1
+cweights = [1 - exp(-λ * w) * exp(λ) for w in range(0, 1, length = T+1)]
 canim = Animation(
     1, colors[1],
     polyout(25),
@@ -99,11 +100,11 @@ scatter!(ax, eachrow(xfinal)..., color = cmap[3], strokewidth=swidth, markersize
 arrows!(ax, [first(mean(dstart))], [last(mean(dstart))],  [first(mean(gstart, dims = 2))] * gscale, [last(mean(gstart, dims = 2))] * gscale, linewidth = 7.0, arrowsize = 0.4, linecolor = cmap[1], arrowcolor = cmap[1])
 arrows!(ax, [first(mean(dint))], [last(mean(dint))],  [first(mean(gint, dims =2))] * gscale, [last(mean(gint, dims = 2))] * gscale, linewidth = 7.0, arrowsize = 0.4, linecolor = cmap[2], arrowcolor = cmap[2])
 ts = 0.8
-text!(ax, "q₀(x)", position = Point2f0(m1.-[0,-3.0]), textsize = ts, align =(:center, :center))
-text!(ax, "qₜ(x)", position = Point2f0(vec(mean(xint, dims = 2)).-[0.0,-2.7]), textsize = ts, align =(:center, :center))
+text!(ax, "q⁰(x)", position = Point2f0(m1.-[0,-3.0]), textsize = ts, align =(:center, :center))
+text!(ax, "qᵗ(x)", position = Point2f0(vec(mean(xint, dims = 2)).-[0.0,-2.7]), textsize = ts, align =(:center, :center))
 text!(ax, "p(x)", position = Point2f0(m2.-[-1.5,-3.5]), textsize = ts, align =(:center, :center))
 hidedecorations!(ax)
 hidespines!(ax)
-save(joinpath("/home", "theo", "experiments", "ParticleFlow", "julia", "plots", "frontpage.png"), scene)
-cp(joinpath("/home", "theo", "experiments", "ParticleFlow", "julia", "plots", "frontpage.png"), joinpath("/home", "theo", "Tex Projects", "GaussianParticleFlow", "figures", "frontpage.png"), force =true)
-scene
+save(joinpath(@__DIR__, "..", "plots", "frontpage.png"), scene)
+# cp(joinpath("/home", "theo", "experiments", "ParticleFlow", "julia", "plots", "frontpage.png"), joinpath("/home", "theo", "Tex Projects", "GaussianParticleFlow", "figures", "frontpage.png"), force =true)
+# scene

@@ -36,7 +36,7 @@ mcolor = :red
 ## Training the particles
 for (i, n_p) in enumerate(n_particles)
     global q = SamplesMvNormal(randn(2, n_p))
-    qvi = AVI.PFlowVI(2000, false, false)
+    qvi = AVI.GaussPFlow(2000, false, false)
 
     vi(logbanana, qvi, q; optimizer = deepcopy(opt))
 
@@ -52,11 +52,10 @@ for (i, n_p) in enumerate(n_particles)
 end
 ## Training classic VI
 θ = vcat(zeros(2), [1, 0, 1])
-q = TuringDenseMvNormal(zeros(2), Diagonal(ones(2)))
-qvi = ADVI(2000, 100)
-vi(logbanana, qvi, q, θ, optimizer=deepcopy(opt))
-q = AVI.update(q, θ)
-p = plot(title = "GVA", showaxis =false, xlims = extrema(xrange), ylims = extrema(yrange))
+q = CholMvNormal(zeros(2), LowerTriangular(Matrix(Diagonal(ones(2)))))
+qvi = DSVI(2000, 100)
+vi(logbanana, qvi, q, optimizer=deepcopy(Descent(0.1)))
+p = plot(title = "VGA", showaxis =false, xlims = extrema(xrange), ylims = extrema(yrange))
 contourf!(p, xrange, yrange, banana, colorbar = false, c=gcolor)
 # scatter!(p, eachrow(q.x)..., label="")
 for i in 1:totσ
@@ -65,28 +64,27 @@ end
 display(p)
 ps[end] = p
 
-## Training particle VI with different opt
 
 
 ## Training with Stein
-using KernelFunctions
+# using KernelFunctions
 # q = SteinDistribution(randn(2, 50))
 # qvi = AVI.SteinVI(2000, KernelFunctions.transform(SqExponentialKernel(), 0.1))
 
+## Training particle VI with different opt
 # vi(logbanana, qvi, q; optimizer = deepcopy(opt))
 global q = SamplesMvNormal(randn(2, 50))
-qvi = AVI.PFlowVI(2000, false, false)
+qvi = AVI.GaussPFlow(2000, false, false)
 
 vi(logbanana, qvi, q; optimizer = ADAM(0.1))
 
-##
 p = plot(title = "ADAM", showaxis =false, xlims = extrema(xrange), ylims = extrema(yrange))
 contourf!(p, xrange, yrange, banana, colorbar = false, c=:dense)
 for i in 1:totσ
     l = std_line(q, i)
     plot!(p, eachrow(l)..., color = :black, label="", linewidth = 1.5)
 end
-scatter!(p, eachrow(q.x)..., label="", color = mcolor, msw = 0.5, ms = 5.0)
+scatter!(p, eachrow(q.x)..., label="", color = mcolor)
 display(p)
 ps[end-1] = p
 
@@ -95,4 +93,4 @@ p = plot(ps..., layout = (1, length(ps)), size = (1000, 200), dpi = 300)
 display(p)
 ispath(plotsdir("nongaussian")) ? nothing : mkpath(plotsdir("nongaussian"))
 savefig(plotsdir("nongaussian", "banana.png"))
-cp(plotsdir("nongaussian", "banana.png"), joinpath("/home/theo/Tex Projects/GaussianParticleFlow", "figures", "banana", "banana.png"), force = true)
+# cp(plotsdir("nongaussian", "banana.png"), joinpath("/home/theo/Tex Projects/GaussianParticleFlow", "figures", "banana", "banana.png"), force = true)

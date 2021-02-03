@@ -1,12 +1,14 @@
 using DataFrames
 using BSON
 using Flux
+using Zygote
 include(srcdir("train_model.jl"))
 include(srcdir("utils", "tools.jl"))
 function run_gaussian_target(exp_p)
     @unpack seed = exp_p
     Random.seed!(seed)
-    AVI.setadbackend(:reversediff)
+    # AVI.setadbackend(:reversediff)
+    AVI.setadbackend(:zygote)
 
     ## Create target distribution
     @unpack n_dim, n_particles, n_iters, n_runs, natmu, cond, eta, opt_det, opt_stoch, comp_hess = exp_p

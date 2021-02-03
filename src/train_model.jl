@@ -38,8 +38,8 @@ function train_model(logπ, general_p, params)
         :iblr,
         :svgd,
     ]
-    global vi_alg = Dict{Symbol,Any}()
-    global q = Dict{Symbol,Any}()
+    vi_alg = Dict{Symbol,Any}()
+    q = Dict{Symbol,Any}()
     h = Dict{Symbol,Any}()
     device = general_p[:gpu] ? gpu : cpu
     

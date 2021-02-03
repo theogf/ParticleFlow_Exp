@@ -14,7 +14,8 @@ include(srcdir("utils", "tools.jl"))
 function run_logistic_regression(exp_p)
     @unpack seed, = exp_p
     Random.seed!(seed)
-    AVI.setadbackend(:reversediff)
+    # AVI.setadbackend(:reversediff)
+    AVI.setadbackend(:zygote)
 
     ## Load the data
     @unpack dataset = exp_p
