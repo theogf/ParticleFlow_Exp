@@ -38,6 +38,11 @@ alg_col = Dict(
     :svgd => colors[6],
 )
 
+alg_line = Dict(
+    false => :solid,
+    true => :dash,
+)
+
 
 #Takes an array of MVHistory and the true distribution and returns the average error and the variance of the error
 function process_means(hs, truth, metric = (x, y) -> norm(x - y))
@@ -45,6 +50,8 @@ function process_means(hs, truth, metric = (x, y) -> norm(x - y))
     Δm = zeros(T)
     varm = deepcopy(Δm)
     vals = getproperty.(getindex.(hs, :mu), :values)
+    nanruns = findall(x->any(y->any(isnan, y), x), vals)
+    deleteat!(vals, nanruns)
     for i in 1:T
         μs = getindex.(vals, i)
         Δμs = metric.(μs, Ref(truth))
@@ -58,6 +65,8 @@ function process_fullcovs(hs, truth, metric = (x, y) -> norm(x -y))
     ΔΣ = zeros(T)
     varΣ = deepcopy(ΔΣ)
     vals = getproperty.(getindex.(hs, :sig), :values)
+    nanruns = findall(x->any(y->any(isnan, y), x), vals)
+    deleteat!(vals, nanruns)
     for i in 1:T
         Σs = getindex.(vals, i)
         ΔΣs = metric.(Σs, Ref(truth))
@@ -82,6 +91,9 @@ function process_means_plus_covs(hs, truth, metric = (x, y) -> norm(x - y))
 end
 
 function process_time(ts::AbstractVector{<:AbstractVector})
+    t_norm = median(length.(ts))
+    incomplete_runs = findall(x->length(x)!=t_norm, ts)
+    deleteat!(ts, incomplete_runs)
     mean(ts), var(ts)
 end
 

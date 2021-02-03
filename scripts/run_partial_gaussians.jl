@@ -20,8 +20,8 @@ include(srcdir("gaussian", "gaussian_target.jl"))
 exp_ps = Dict(
     :n_iters => 20000, # Number of iterations to run
     :n_runs => 10, # Number of repeated runs
-    :n_dim => [20, 50],# 100, 500], # Dimension of the target
-    :n_particles => [collect(2:11)..., @onlyif(:n_dim > 10, collect(20:50))..., @onlyif(:n_dim > 50, collect(60:10:100))..., @onlyif(:n_dim > 100, collect(200:100:500))...],
+    :n_dim => 50,# 100, 500], # Dimension of the target
+    :n_particles => vcat(collect(20:10:50), 51),#[collect(2:11)..., @onlyif(:n_dim > 10, collect(20:10:50))..., 51, @onlyif(:n_dim > 50, collect(60:10:100))..., @onlyif(:n_dim > 100, collect(200:100:500))...],
     :cond => [1, 5, 10, 50, 100],
     :gpf => true, # Run GaussParticle Flow
     :gf => false, # Run Gauss Flow

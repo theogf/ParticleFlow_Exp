@@ -152,7 +152,7 @@ for dataset in ["ionosphere", "mushroom", "krkp", "spam"]
     eta = 1e-4
 
     all_results = collect_results!(datadir("results", "logistic", dataset))
-    for B in [-1, 100], n_particles in [2, 5, 100]
+    # for B in [-1, 100], n_particles in [2, 5, 100]
         ps = plot_logistic_convergence(
             dataset,
             all_results,
@@ -182,6 +182,7 @@ for dataset in ["ionosphere", "mushroom", "krkp", "spam"]
         display(full_plot)
         mkpath(plotsdir("logistic", dataset))
         savefig(plotsdir("logistic", dataset, savename(@dict(dataset, eta, B, n_particles), "png")))
-    end
+        display(ps[:nll_test])
+    # end
 end
 # plot(ps[:nll_test], legend=true)

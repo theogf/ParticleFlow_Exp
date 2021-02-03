@@ -4,7 +4,7 @@ include(projectdir("analysis", "post_process.jl"))
 
 
 ## Load data
-all_res = collect_results!(datadir("results", "gaussian"))
+all_res = collect_results(datadir("results", "gaussian"));
 text_natmu = Dict(
         true => " - NG",
         false => "",
@@ -33,7 +33,7 @@ function plot_gaussian(
     end
     d_res = Dict()
     # nrow(res) == 1 || error("Number of rows is not unique or is empty")
-    for alg in algs
+    for alg in algs[1:end-1]
         # d_res[alg] = @linq res |> where(endswith.(:path, Regex("$(alg).*bson")))
         d_res[alg] = @linq res |> where(:alg .=== alg) # endswith.(:path, Regex("$(alg).*bson")))
     end
@@ -71,11 +71,16 @@ function plot_gaussian(
     )
     p_title = plot(title="D=$n_dim, κ=$(cond)", grid=false, showaxis=false)
 
-    for (i, alg) in enumerate(algs)
+    for (i, alg) in enumerate(algs[1:end-1])
         @info "Processing $(alg)"
         d = d_res[alg]
         for row in eachrow(d)
-            vals = row.vals 
+            global vals = row.vals 
+            try 
+                process_means(vals, mean(truth))
+            catch e
+                @show vals
+            end
             m, m_v = process_means(vals, mean(truth))
             C, C_v = process_fullcovs(vals, vec(cov(truth)))
             t, t_v = process_time(vals, Val(alg))
@@ -84,16 +89,18 @@ function plot_gaussian(
                 t,
                 m,
                 ribbon = show_std_dev ? sqrt.(m_v) : nothing,
-                label = alg_lab[alg],
+                label = string(alg_lab[alg], text_natmu[row.natmu]),
                 color = alg_col[alg],
+                linestyle = alg_line[row.natmu],
             )
             Plots.plot!(
                 p_Σ,
                 t,
                 C,
                 ribbon = show_std_dev ? sqrt.(C_v) : nothing,
-                label = alg_lab[alg],
+                label = string(alg_lab[alg], text_natmu[row.natmu]),
                 color = alg_col[alg],
+                linestyle = alg_line[row.natmu],
             )
             Plots.plot!(
                 p_legend,
@@ -101,6 +108,7 @@ function plot_gaussian(
                 [],
                 label = string(alg_lab[alg], text_natmu[row.natmu]),
                 color = alg_col[alg],
+                linestyle = alg_line[row.natmu],
             )
         end
     end
@@ -112,7 +120,7 @@ function plot_gaussian(
     return p
 end
 mkpath(plotsdir("gaussian"))
-for n_dim in [5],# 10, 20, 50, 100], 
+for n_dim in [5,  10, 20, 50, 100], 
     cond in [1, 10, 100]
     global p = plot_gaussian(n_dim, cond, 0.01; show_std_dev=false, show_lgd=true)
     try

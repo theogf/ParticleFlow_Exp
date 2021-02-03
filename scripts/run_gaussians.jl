@@ -20,7 +20,7 @@ end
 exp_ps = Dict(
     :n_iters => 20000, # Number of iterations to run
     :n_runs => 10, # Number of repeated runs
-    :n_dim => [5, 10, 20], #50, 100], # Dimension of the target
+    :n_dim => [50, 100], #[5, 10, 20], #50, 100], # Dimension of the target
     :n_particles => 0,#, 10, 20, 50, 100], # Number of particles used, nothing will give dim + 1
     :cond => [1, 10, 100],
     :gpf => true, # Run GaussParticle Flow
@@ -36,6 +36,7 @@ exp_ps = Dict(
     :opt_det => :Descent,
     :opt_stoch => :Descent,# :RMSProp],
     :comp_hess => :hess,
+    :overwrite => :true,
 )
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
