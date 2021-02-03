@@ -4,6 +4,7 @@ using DrWatson
 # using Pkg; Pkg.update()
 include(srcdir("gaussian", "gaussian_target.jl"))
 
+
 # Use parallelism
 # using Distributed
 # nthreads = 60 # Number of threads to use
@@ -42,6 +43,6 @@ exp_ps = Dict(
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
 # run for each dict the simulation
-# run_gaussian_target(ps[1])
-map(run_gaussian_target, ps)
+run_gaussian_target(ps[1])
+# map(run_gaussian_target, ps)
 # pmap(run_gaussian_target, ps)
