@@ -22,7 +22,7 @@ function plot_gaussian(
     res = @linq all_res |>
         where(:n_dim .== n_dim) |>
         where(:eta .== eta) |>
-        where(:n_iters .> 15000) |>
+        where(:n_iters .> 3000) |>
         where(:n_particles .== 0) |>
         where(:cond .== cond) |>
         where(:opt_stoch .=== Symbol(Descent))
@@ -120,9 +120,9 @@ function plot_gaussian(
     return p
 end
 mkpath(plotsdir("gaussian"))
-for n_dim in 5, #[5,  10, 20, 50, 100], 
+for n_dim in 50, #[5,  10, 20, 50, 100], 
     cond in 1#[1, 10, 100]
-    p = plot_gaussian(n_dim, cond, 0.01; show_std_dev=false, show_lgd=true)
+    p = plot_gaussian(n_dim, cond, 0.001; show_std_dev=false, show_lgd=true)
     try
         display(p)
     catch e

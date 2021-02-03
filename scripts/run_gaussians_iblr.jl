@@ -37,7 +37,7 @@ exp_ps = Dict(
     :opt_stoch => :Descent,# :RMSProp],
     :comp_hess => [:hess, :rep],
     :overwrite => :true,
-    :mode => :display,
+    :mode => :save,
 )
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"

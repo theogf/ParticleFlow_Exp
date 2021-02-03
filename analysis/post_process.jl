@@ -86,8 +86,9 @@ function process_means_plus_covs(hs, truth, metric = (x, y) -> norm(x - y))
     Cs = cov.(qs)
     Δms = metric.(ms, Ref(m))
     ΔCs = metric.(Cs, Ref(C))
+    ΔtrCs = abs.(tr.(Cs .- Ref(C)))
     Δs = Δms + ΔCs
-    return mean(Δms), var(Δms), mean(ΔCs), var(ΔCs), mean(Δs), var(Δs)
+    return mean(Δms), var(Δms), mean(ΔCs), var(ΔCs), mean(Δs), var(Δs), mean(ΔtrCs), var(ΔtrCs)
 end
 
 function process_time(ts::AbstractVector{<:AbstractVector})
