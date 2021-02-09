@@ -6,6 +6,14 @@ include(projectdir("analysis", "post_process.jl"))
 ## Load data
 all_res = collect_results!(datadir("results", "gaussian", "partial"))
 cpalette = :seaborn_colorblind
+
+cond_col = Dict(
+    1 => 1,
+    5 => 2,
+    10 => 3,
+    50 => 4,
+    100 => 5,
+)
 ## Treat one convergence file
 # function plot_partial_gaussian(n_dim = 50, cond = 1; all_res = all_res)
 function create_partial_dict(n_dim = 100, cond = 1)
@@ -21,7 +29,7 @@ function create_partial_dict(n_dim = 100, cond = 1)
     d_res = Dict()
     d_truth = BSON.load(datadir("exp_raw", "gaussian", savename(@dict(cond, n_dim), "bson")))
     truth = MvNormal(d_truth[:μ_target], d_truth[:Σ_target])
-    ntot = nrow(res) - count(res.n_particles .> n_dim + 1)
+    ntot = nrow(res) - count(res.n_particles .> n_dim + 1) - count(in.(res.n_particles, Ref((0, 21, 22))))
     d_res[:n_particles] = zeros(ntot)
     d_res[:Δm] = zeros(ntot)
     d_res[:varm] = zeros(ntot)
@@ -36,7 +44,7 @@ function create_partial_dict(n_dim = 100, cond = 1)
     i = 1
     for row in eachrow(res)
         vals = row.vals
-        if row.n_particles > n_dim + 1 || row.n_particles == 0
+        if row.n_particles > n_dim + 1 || row.n_particles ∈ (0, 21, 22)
             continue
         end
         row.n_particles
@@ -51,7 +59,7 @@ end
 
 
 d = Dict()
-for n_dim in 20,#[10, 20, 50, 100, 500, 1000], 
+for n_dim in 50,#[10, 20, 50, 100, 500, 1000], 
     cond in [1, 5, 10, 50, 100]
     d[(n_dim, cond)] = create_partial_dict(n_dim, cond)
     # !isnothing(p) ? savefig(plotsdir("gaussian", savename(@dict(n_dim, cond), ".png"))) : nothing
@@ -117,8 +125,11 @@ function add_trace_plot!(p_trC, d, cond, n_dim; show_std_dev=true)
         d[:n_particles][order],
         d[:ΔtrC][order],
         marker = :o,
+        msw = 0.1,
+        ms = 8.0,
         ribbon = show_std_dev ? d[:vartrC] : nothing,
-        label = "κ = $cond",
+        label = latexstring("\\kappa = $cond"),
+        color = cond_col[cond],
     )
 end
 
@@ -131,7 +142,7 @@ function plot_diff_trace(
                 xlog = false
 )
     p_trC = Plots.plot(
-        title = "Convergence Covariance",
+        title = "",
         xlabel = "# Particles",
         ylabel = L"\|\mathrm{tr}(C - \Sigma)\|",
         xaxis = xlog ? :log : :linear,
@@ -139,16 +150,17 @@ function plot_diff_trace(
         yaxis = ylog ? (!show_std_dev ? :log : :linear) : :linear,
         legend = show_lgd,
         palette = cpalette,
+        dpi=300,
     )
     for cond in [1, 5, 10, 50, 100]
         Λ = 10.0 .^ range(-1, -1 + log10(cond), length = n_dim)
         opt_diff = [sum(Λ[1:end-i]) for i in 1:n_dim]
         add_trace_plot!(p_trC, d[(n_dim, cond)], cond, n_dim, show_std_dev=show_std_dev)
         Plots.plot!(
-            2:n_dim,
-            opt_diff[1:end-1],
+            2:n_dim+1,
+            opt_diff[1:end],
             color=:black,
-            linewidth=0.3,
+            linewidth=1.0,
             linestyle=:dash,
             label="",
         )
@@ -221,11 +233,12 @@ function plot_dicts(
 end 
 
 mkpath(plotsdir("partial"))
-for n_dim in [20]
+for n_dim in [50]
     p = plot_dicts(d, n_dim, xlog=false, ylog=false)
     display(p)
     savefig(plotsdir("partial", "D=$(n_dim).png"))
-    p = plot_diff_trace(d, n_dim, xlog=false, ylog=false, show_lgd=true)
+    p = plot_diff_trace(d, n_dim, xlog=false, ylog=false, show_lgd=true, show_std_dev=false)
     display(p)
     savefig(plotsdir("partial", "trC_D=$(n_dim).png"))
+    savefig(plotsdir("partial", "trC_D=$(n_dim).svg"))
 end

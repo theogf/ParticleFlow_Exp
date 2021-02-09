@@ -6,7 +6,7 @@ include(srcdir("gaussian", "gaussian_target.jl"))
 
 # Use parallelism
 using Distributed
-nthreads = 6 # Number of threads to use
+nthreads = 3 # Number of threads to use
 nthreads = min(nthreads, Sys.CPU_THREADS - 2)
 if nprocs() < nthreads
     addprocs(nthreads - nprocs() + 1) # Add the threads as workers
@@ -34,7 +34,7 @@ exp_ps = Dict(
     :cb_val => nothing, # Callback values
     :eta => 0.01,
     :opt_det => :Descent,
-    :opt_stoch => :Descent,# :RMSProp],
+    :opt_stoch => :RMSProp,
     :comp_hess => :rep,
     :overwrite => :true,
     :mode => :save,

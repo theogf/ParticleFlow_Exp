@@ -34,43 +34,95 @@ alg_col = Dict(
     :gf => colors[2],
     :dsvi => colors[3],
     :fcs => colors[4],
-    :iblr => colors[5],
-    :svgd => colors[6],
+    :iblr => colors[8],
+    :svgd => colors[5],
 )
+
+alg_ls = Dict(
+    :gpf => :dash,
+    :gf => :dash,
+    :dsvi => :solid,
+    :iblr => :solid,
+    :fcs => :solid,
+    :svgd => :solid,
+)
+
+
 
 alg_line = Dict(
     false => :solid,
     true => :dash,
 )
 
+alg_mf_line = Dict(
+    :none => :solid,
+    :full => :solid,
+    :true => :solid,
+)
+
+alg_line_order = [:iblr, :fcs, :svgd, :dsvi, :gf, :gpf]
+alg_line_order_dict = Dict(x=>i for (i,x) in enumerate(alg_line_order))
+alg_lw = Dict(
+    :gpf => 3.0,
+    :gf => 3.5,
+    :dsvi => 4.0,
+    :iblr => 3.0,
+    :fcs => 4.5,
+    :svgd => 3.0,
+)
+
 
 #Takes an array of MVHistory and the true distribution and returns the average error and the variance of the error
-function process_means(hs, truth, metric = (x, y) -> norm(x - y))
-    T = length(first(hs)[:mu])
-    Δm = zeros(T)
-    varm = deepcopy(Δm)
+function process_means(hs, truth; metric = (x, y) -> norm(x - y), use_quantile=false)
     vals = getproperty.(getindex.(hs, :mu), :values)
-    nanruns = findall(x->any(y->any(isnan, y), x), vals)
-    deleteat!(vals, nanruns)
+    global debug_vals = vals
+    T = floor(Int, median(length.(vals)))
+    Δm = zeros(T)
+    varm = use_quantile ? zeros(T, 2) : zeros(T)
+    incomplete_runs = findall(x->length(x)!=T, vals)
+    deleteat!(vals, incomplete_runs)
+    if first(vals) isa AbstractVector{<:AbstractVector}
+        nan_runs = findall(x->any(y->any(isnan, y), x), vals)
+        deleteat!(vals, nan_runs)
+    else
+        nan_runs = findall(x->any(isnan, x), vals)
+        deleteat!(vals, nan_runs)
+    end
     for i in 1:T
         μs = getindex.(vals, i)
         Δμs = metric.(μs, Ref(truth))
-        Δm[i], varm[i] = mean(Δμs), var(Δμs)
+        if use_quantile
+            Δm[i], varm[i, :] = mean(Δμs), quantile(Δμs, [0.341, 0.682])
+        else
+            Δm[i], varm[i] = mean(Δμs), var(Δμs)
+        end
     end
     return Δm, varm
 end
 
-function process_fullcovs(hs, truth, metric = (x, y) -> norm(x -y))
-    T = length(first(hs)[:sig])
-    ΔΣ = zeros(T)
-    varΣ = deepcopy(ΔΣ)
+function process_fullcovs(hs, truth; metric = (x, y) -> norm(x -y), use_quantile=false)
     vals = getproperty.(getindex.(hs, :sig), :values)
-    nanruns = findall(x->any(y->any(isnan, y), x), vals)
-    deleteat!(vals, nanruns)
+    global debug_vals = vals
+    T = floor(Int, median(length.(vals)))
+    incomplete_runs = findall(x->length(x)!=T, vals)
+    deleteat!(vals, incomplete_runs)
+    if first(vals) isa AbstractVector{<:AbstractVector}
+        nan_runs = findall(x->any(y->any(isnan, y), x), vals)
+        deleteat!(vals, nan_runs)
+    else
+        nan_runs = findall(x->any(isnan, x), vals)
+        deleteat!(vals, nan_runs)
+    end
+    ΔΣ = zeros(T)
+    varΣ = use_quantile ? zeros(T, 2) : zeros(T)
     for i in 1:T
         Σs = getindex.(vals, i)
         ΔΣs = metric.(Σs, Ref(truth))
-        ΔΣ[i], varΣ[i] = mean(ΔΣs), var(ΔΣs)
+        if use_quantile
+            ΔΣ[i], varΣ[i, :] = mean(ΔΣs), quantile(ΔΣs, [0.341, 0.682])
+        else
+            ΔΣ[i], varΣ[i] = mean(ΔΣs), var(ΔΣs)
+        end
     end
     return ΔΣ, varΣ
 end
@@ -81,7 +133,7 @@ function process_means_plus_covs(hs, truth, metric = (x, y) -> norm(x - y))
     T = length(first(hs)[:x])
     Δ = zeros(T)
     varΔ = deepcopy(Δ)
-    global qs = SamplesMvNormal.(first.(getproperty.(getindex.(hs, :x), :values)))
+    qs = SamplesMvNormal.(first.(getproperty.(getindex.(hs, :x), :values)))
     ms = mean.(qs)
     Cs = cov.(qs)
     Δms = metric.(ms, Ref(m))
@@ -107,9 +159,26 @@ function process_time(hs::AbstractVector, ::Val{:gpf})
 end
 
 
-function get_mean_and_var(hs::AbstractVector, s::Symbol)
+function get_mean_and_var(hs::AbstractVector, s::Symbol; use_quantile = false)
     val = [get(h, s)[2] for h in hs]
-    return mean(val), var(val)
+    T = Int(median(length.(val)))
+    incomplete_runs = findall(x->length(x)!=T, val)
+    deleteat!(val, incomplete_runs)
+    m = mean(val)
+    v = if use_quantile
+        if s == :nll_train || s == :nll_test
+            -reduce(hcat, quantile(getindex.(val, i), [0.341, 0.682]) for i in 1:T)
+        else
+            reduce(hcat, quantile(getindex.(val, i), [0.341, 0.682]) for i in 1:T)
+        end
+    else
+        var(val)
+    end
+    if s == :nll_train || s == :nll_test
+        return -m, v
+    else
+        return m, v
+    end
 end
 
 
@@ -117,6 +186,11 @@ end
 function extract_time(h)
     t_init = get(h, :t_tic)[2]
     t_end = get(h, :t_toc)[2]
+    if length(t_init)!= length(t_end)
+        t_min = min(length(t_init), length(t_end))
+        t_init = t_init[1:t_min]
+        t_end = t_end[1:t_min]
+    end
     t_diff = cumsum(t_end-t_init)
     t_init[2:end] .-= t_diff[1:end-1]
     return t_init .- get(h, :t_start)[2][1]

@@ -69,6 +69,17 @@ data = CSV.read(local_path, DataFrame, header=false)
 data = Tables.table(shuffleobs(Matrix(data), obsdim=1))
 CSV.write(joinpath(exp_dir, "logistic", "spam.csv"), data)
 
+## Processing Colon
+using CodecBzip2
+using LIBSVMFileIO
+local_path = datadir("exp_raw", "logistic", "colon.bz2")
+HTTP.download("https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/colon-cancer.bz2",
+local_path)
+f = read(local_path);
+write(datadir("exp_raw", "logistic", "colon.libsvm"), String(transcode(Bzip2Decompressor, f)))
+data, labels = libsvmread(datadir("exp_raw", "logistic", "colon.libsvm"), dense=true, labeltype=Float64)
+data = Tables.table(shuffleobs(hcat(reduce(vcat, transpose.(data)), labels), obsdim=1))
+CSV.write(joinpath(exp_dir, "logistic", "colon.csv"), data)
 ## Creating initial / target Gaussian
 gauss_dir = datadir("exp_raw", "gaussian")
 mkpath(gauss_dir)
