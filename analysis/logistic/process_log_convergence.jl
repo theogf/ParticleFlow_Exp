@@ -10,12 +10,6 @@ using ValueHistories
 save_times = vcat(1:9, 10:5:99, 100:100:999, 1000:1000:9999, 10000:10000:100000)
 
 ## Load data
-dataset = "ionosphere"
-dataset_file = endswith(dataset, ".csv") ? dataset : dataset * ".csv"
-data = CSV.read(datadir("exp_raw", "logistic", dataset_file), DataFrame; header=true)
-X = Matrix(data[1:end-1])
-n_samples, n_dim = size(X)
-y = Vector(data[end])
 cpalette = :seaborn_colorblind
 
 all_results = collect_results(datadir("results", "logistic"), subfolders=true)
@@ -94,9 +88,8 @@ function plot_logistic_convergence(
     end
     global d_res = Dict()
     # nrow(res) == 1 || error("Number of rows is not unique or is empty")
-    for alg in algs[1:end-1]
-        # d_res[alg] = @linq res |> where(endswith.(:path, Regex("$(alg).*bson")))
-        alg_res = @linq all_res |> where(:alg .=== alg) # endswith.(:path, Regex("$(alg).*bson")))
+    for alg in algs
+        alg_res = @linq all_res |> where(:alg .=== alg)
         @info "Given the parameters there are $(nrow(alg_res)) rows for algorithm $alg"
 
         for row in eachrow(alg_res)
@@ -110,6 +103,11 @@ function plot_logistic_convergence(
                 @info "Passing $((alg, row.mf, row.natmu))"
                 continue
             end
+            if row.alg ∈ [:dsvi, :gf, :fcs] && row.opt_stoch != :RMSProp
+                continue
+            elseif row.alg == :svgd && row.opt_det != :RMSProp
+                continue
+            end
             res[:t_m], res[:t_v] = process_time(vals, Val(alg))
             res[:iter] = first(get(vals[1], :t_tic))
             for metric in [:acc_train, :acc_test, :nll_train, :nll_test]
@@ -119,9 +117,6 @@ function plot_logistic_convergence(
         end
     end
     # Plotting
-    ylog = true
-    # ymin = eps(Float64)
-    # ymax = 1e4
     plots = Dict()
     ordered_keys = sort(collect(keys(d_res)), by=x->findfirst(y->y==x[1], alg_line_order))
     for m in [:nll_test]#metrics
@@ -156,6 +151,7 @@ function plot_logistic_convergence(
                 )
             end
         end
+        # Second layer for better visibility
         for (alg, mf, natmu) in ordered_keys #algs
             res = d_res[(alg, mf, natmu)]
             plot!(
@@ -227,44 +223,7 @@ for dataset in ["ionosphere", "mushroom", "krkp", "spam"]
         display(ps[:nll_test])
     # end
 end
-# all_ps_mf[:legend1] = Plots.plot(
-#         showaxis=false,
-#         legend=lloc,
-#         hidedecorations=true,
-#         grid=false,
-#         legendfontsize=lfsize,
-#         fg_legend=:white,
-#         bg_legend=:white,
-#     )
 
-# for alg in [:gpf, :gf]
-#     plot!(
-#         all_ps_mf[:legend1],
-#         [],
-#         [],
-#         color=alg_col[alg],
-#         label=alg_lab[alg],
-#     )
-# end
-# all_ps_mf[:legend2] = Plots.plot(
-#         showaxis=false,
-#         legend=lloc,
-#         hidedecorations=true,
-#         grid=false,
-#         legendfontsize=lfsize,
-#         fg_legend=:white,
-#         bg_legend=:white,
-#     )
-
-# for alg in [:dsvi, :iblr]
-#     plot!(
-#         all_ps_mf[:legend2],
-#         [],
-#         [],
-#         color=alg_col[alg],
-#         label=alg_lab[alg],
-#     )
-# end
 xticks = [10^-1, 10^0, 10^1]
 plot!(all_ps_mf["ionosphere"], xlabel="", xticks=xticks, size=fsize)
 plot!(all_ps_mf["krkp"], ylabel="", xlabel="", xticks=xticks, size=fsize)
@@ -278,7 +237,7 @@ p = plot(
     # size=fsize,
 )
 display(p)
-savefig(plotsdir("logistic", "all_datasets_mf_B=$(B)_N=$(n_particles)"))
+savefig(plotsdir("logistic", "all_datasets_mf_B=$(B)_N=$(n_particles)_stoch.png"))
 
 ### Plot without mf
 # B=-1
@@ -310,7 +269,8 @@ for dataset in ["ionosphere", "mushroom", "krkp", "spam"]
                 # (:dsvi, :none, false),
                 (:dsvi, :full, false),
                 # (:fcs, :none, false),
-                (:iblr, :full, true)
+                (:iblr, :full, true),
+                (:svgd, :full, false),
                 ],
             )
         # full_plot = plot(ps[:legend], getindex.(Ref(ps), metrics)..., layout= @layout [A{0.3w} [B C; D E]])
@@ -322,44 +282,7 @@ for dataset in ["ionosphere", "mushroom", "krkp", "spam"]
         display(ps[:nll_test])
     # end
 end
-# all_ps[:legend1] = Plots.plot(
-#         showaxis=false,
-#         legend=lloc,
-#         hidedecorations=true,
-#         grid=false,
-#         legendfontsize=lfsize,
-#         fg_legend=:white,
-#         bg_legend=:white,
-#     )
 
-# for alg in [:gpf, :gf]
-#     plot!(
-#         all_ps[:legend1],
-#         [],
-#         [],
-#         color=alg_col[alg],
-#         label=alg_lab[alg],
-#     )
-# end
-# all_ps[:legend2] = Plots.plot(
-#         showaxis=false,
-#         legend=lloc,
-#         hidedecorations=true,
-#         grid=false,
-#         legendfontsize=lfsize,
-#         fg_legend=:white,
-#         bg_legend=:white,
-#     )
-
-# for alg in [:dsvi, :fcs]
-#     plot!(
-#         all_ps[:legend2],
-#         [],
-#         [],
-#         color=alg_col[alg],
-#         label=alg_lab[alg],
-#     )
-# end
 xticks = [10^-1, 10^0, 10^1]
 plot!(all_ps["ionosphere"], xlabel="", xticks=xticks, size=fsize,)
 plot!(all_ps["krkp"], ylabel="", xlabel="", xticks=xticks, size=fsize,)
@@ -372,12 +295,14 @@ p = plot(
     size=(600,600)
 )
 display(p)
-savefig(plotsdir("logistic", "all_datasets_no_mf_B=$(B)_N=$(n_particles)"))
+savefig(plotsdir("logistic", "all_datasets_no_mf_B=$(B)_N=$(n_particles)_stoch.png"))
 # plot(ps[:nll_test], legend=true)
 
 ## Creating a simple legend plot
 
 leg_ps = Dict()
+lloc = (0, 0.1)
+lfsize = 17.0
 leg_ps[:legend1] = Plots.plot(
         showaxis=false,
         legend=lloc,
@@ -422,7 +347,7 @@ end
 
 leg_ps[:legend3] = Plots.plot(
         showaxis=false,
-        legend=lloc .+ (0.0, 0.2),
+        legend=lloc,# .+ (0.0, 0.2),
         hidedecorations=true,
         grid=false,
         legendfontsize=lfsize,
@@ -430,7 +355,7 @@ leg_ps[:legend3] = Plots.plot(
         bg_legend=:white,
     )
 
-for alg in [:iblr]
+for alg in [:iblr, :svgd]
     plot!(
         leg_ps[:legend3],
         [],
@@ -442,5 +367,5 @@ end
 
 p = plot(leg_ps[:legend1], leg_ps[:legend2], leg_ps[:legend3], layout=(1,3), dpi=300, size=(500,120))
 display(p)
-savefig(plotsdir("logistic", "legend.png"))
-savefig(plotsdir("logistic", "legend.svg"))
+savefig(plotsdir("logistic", "legend_stoch.png"))
+savefig(plotsdir("logistic", "legend_stoch.svg"))

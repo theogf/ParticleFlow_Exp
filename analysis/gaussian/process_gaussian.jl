@@ -26,7 +26,6 @@ function plot_gaussian(
         where(:n_iters .> 20000) |>
         where(:n_particles .== 0) |>
         where(:cond .== cond) |>
-        where(:opt_stoch .=== Symbol(Descent)) |> 
         where(:n_runs .== 10)
     @info "Total of $(nrow(res)) for given parameters"
     if nrow(res) == 0
@@ -84,7 +83,9 @@ function plot_gaussian(
             vals = row.vals 
             if alg == :gf && row.natmu == true
                 continue
-            elseif alg == :svgd && row.opt_det == :RMSProp
+            elseif alg ∈ [:gf, :dsvi, :fcs] && row.opt_stoch != :RMSProp
+                continue
+            elseif alg == :svgd && row.opt_det != :RMSProp
                 continue
             elseif alg == :iblr && row.comp_hess == :rep
                 continue
@@ -216,5 +217,5 @@ p = plot(
     size = (600, 800),
 )
 display(p)
-savefig(plotsdir("gaussian", "full_plots_D=$D.png"))
-savefig(plotsdir("gaussian", "full_plots_D=$D.svg"))
+savefig(plotsdir("gaussian", "full_plots_D=$(D)_stoch.png"))
+savefig(plotsdir("gaussian", "full_plots_D=$(D)_stoch.svg"))
