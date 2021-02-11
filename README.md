@@ -7,7 +7,7 @@ Repo containing experiments for the ICML submission : "Flexible and Efficient In
 ## Installation
 
 First of all [install julia](https://julialang.org/downloads/) with **version at least 1.5**.
-Download this repository.
+Download this repository (there should be a `gpf_icml.zip` file) and unzip it somewhere.
 With a terminal go to the repo and run `julia`.
 Then make the following calls:
 ```julia
@@ -35,4 +35,4 @@ This is a bit more tricky, you will have to go to the `analysis` folder and play
 ## Exploring the code
 
 The source code for each algorithm was directly included in an existing package [`AdvancedVI.jl`](https://github.com/TuringLang/AdvancedVI.jl) from TuringLang of which a branch is locally copied in this repo.
-Each algorithm is contained in a file in `AdvancedVI/src/`, the relevant function to look at is `optimize!`
+Each algorithm is contained in a file in `AdvancedVI/src/`, the relevant function to look at is `optimize!` and eventually `grad!`
