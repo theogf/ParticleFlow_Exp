@@ -1,6 +1,5 @@
 using AdvancedVI;
 const AVI = AdvancedVI;
-using BlockDiagonals
 using Flux
 using Distributions
 using Bijectors: TransformedDistribution
@@ -14,10 +13,8 @@ using Random
 Flux.@functor TransformedDistribution
 include(joinpath("utils", "callback.jl"))
 include(joinpath("utils", "tools.jl"))
-# include(joinpath("utils", "bnn.jl"))
-# Main function, take dicts of parameters
-# run the inference and return MVHistory objects for each alg.
-no_run = Dict(:run => false)
+no_run = Dict(:run => false) # Default dict for not running an algorithm
+# Typical collection of algorithms evaluated
 algs = [
     :gpf,
     :gf,
@@ -25,9 +22,12 @@ algs = [
     :fcs,
     :iblr,
     :svgd,
-]
+    ]
 
-
+    
+    
+# Main function, take dicts of parameters
+# run the inference and return MVHistory objects for each alg.
 function train_model(logπ, general_p, params)
     ## Initialize algorithms
     algs = [
@@ -41,14 +41,14 @@ function train_model(logπ, general_p, params)
     vi_alg = Dict{Symbol,Any}()
     q = Dict{Symbol,Any}()
     h = Dict{Symbol,Any}()
-    device = general_p[:gpu] ? gpu : cpu
+    device = cpu # general_p[:gpu] ? gpu : cpu # no GPU support for now
     mode = get!(general_p, :mode, :save)
 
     for alg in algs
         # Initialize setup
         vi_alg[alg], q[alg] = init_alg(Val(alg), params[alg], general_p)
-        h[alg] = MVHistory()
-        ## Run algorithm
+        h[alg] = MVHistory() # Create an empty history for storing values
+        ## Run algorithm if should be run
         if !isnothing(vi_alg[alg])
             try
                 @info "Running $(AVI.alg_str(vi_alg[alg]))"
@@ -62,7 +62,7 @@ function train_model(logπ, general_p, params)
                     hp_optimizer = deepcopy(general_p[:hp_optimizer]),
                     callback = params[alg][:callback](h[alg]),
                 )
-                if mode == :display
+                if mode == :display # If mode is display only show the variational parameters
                     @info "Alg. $alg :\nmu = $(mean(q[alg])),\ndiag_sig = $(var(q[alg]))"
                 end
             catch err
@@ -85,7 +85,9 @@ function save_histories(h, general_p)
     end
 end
 
-# Initialize distribution and algorithm for Gaussian Particles model
+## Next follows all standard initializations for each algorithm
+
+# Initialize distribution and algorithm for Gaussian Particle Flow algorithm
 function init_alg(::Val{:gpf}, params, general_p)
     n_dim = general_p[:n_dim]
     alg_vi = if params[:run]
@@ -115,7 +117,7 @@ function init_alg(::Val{:gpf}, params, general_p)
     return alg_vi, alg_q # Return alg. and distr.
 end
 
-# Initialize distribution and algorithm for Gaussian Particles model
+# Initialize distribution and algorithm for Gaussian Flow algorithm
 function init_alg(::Val{:gf}, params, general_p)
     n_dim = general_p[:n_dim]
     alg_vi = if params[:run]
@@ -147,7 +149,7 @@ function init_alg(::Val{:gf}, params, general_p)
     return alg_vi, alg_q # Return alg. and distr.
 end
 
-# Initialize distribution and algorithm for ADVI model
+# Initialize distribution and algorithm for DSVI algorithm
 function init_alg(::Val{:dsvi}, params, general_p)
     n_dim = general_p[:n_dim]
     alg_vi = if params[:run]
@@ -172,6 +174,7 @@ function init_alg(::Val{:dsvi}, params, general_p)
     return alg_vi, alg_q # Return alg. and distr.
 end
 
+# Initialize distribution and algorithm for FCS algorithm
 function init_alg(::Val{:fcs}, params, general_p)
     n_dim = general_p[:n_dim]
     alg_vi = if params[:run]
@@ -189,6 +192,7 @@ function init_alg(::Val{:fcs}, params, general_p)
     return alg_vi, alg_q # Return alg. and distr.
 end
 
+# Initialize distribution and algorithm for IBLR algorithm
 function init_alg(::Val{:iblr}, params, general_p)
     n_dim = general_p[:n_dim]
     alg_vi = if params[:run]
@@ -213,6 +217,7 @@ function init_alg(::Val{:iblr}, params, general_p)
     return alg_vi, alg_q # Return alg. and distr.
 end
 
+# Initialize distribution and algorithm for SVGD algorithm
 function init_alg(::Val{:svgd}, params, general_p)
     n_dim = general_p[:n_dim]
     alg_vi = if params[:run]
