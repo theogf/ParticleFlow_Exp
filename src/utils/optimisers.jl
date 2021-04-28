@@ -45,53 +45,82 @@ function Optimise.apply!(opt::InverseDecay, x, g)
     return g .* γ
 end
 
-mutable struct ScalarADADelta
+mutable struct DimWiseADADelta
   rho::Float64
   ϵ::Float64
   state::IdDict
 end
 
-ScalarADADelta(ρ = 0.9, ϵ=1e-9) = ScalarADADelta(ρ, ϵ, IdDict())
+DimWiseADADelta(ρ = 0.9, ϵ=1e-9) = DimWiseADADelta(ρ, ϵ, IdDict())
 
-function Optimise.apply!(o::ScalarADADelta, x, Δ)
+function Optimise.apply!(o::DimWiseADADelta, x, Δ)
   ρ = o.rho
-  acc, Δacc = get!(() -> (0.0, 0.0), o.state, x)
-  acc = ρ * acc + (1 - ρ) * mean(Δ)^2
+  acc = get!(o.state, x) do 
+      return zeros(size(x, 1)), zeros(size(x, 1))
+  end
+  acc .= ρ * acc + (1 - ρ) * vec(mean(Δ; dims=1)).^2
   # DON'T remove epsilon from numerator
   # or even out of the square roots
-  Δ *= √(Δacc + o.ϵ) / √(acc + o.ϵ)
-  Δacc = ρ * Δacc + (1 - ρ) * mean(Δ)^2
+  Δ = Diagonal(√.(Δacc + o.ϵ) ./ √.(acc + o.ϵ)) * Δ
+  Δacc .= ρ * Δacc + (1 - ρ) * vec(mean(Δ; dims=1)).^2
   return Δ
 end
 
-mutable struct MatADAGrad
+mutable struct DimWiseADAGrad
   eta::Float64
   ϵ::Float64
   state::IdDict
 end
 
-MatADAGrad(η = 0.9, ϵ=1e-9) = MatADAGrad(η, ϵ, IdDict())
+DimWiseADAGrad(η = 0.9, ϵ=1e-9) = DimWiseADAGrad(η, ϵ, IdDict())
 
-function Optimise.apply!(o::MatADAGrad, x, Δ)
+function Optimise.apply!(o::DimWiseADAGrad, x, Δ)
   η = o.eta
-  acc = get!(o.state, x, fill!(zeros(size(x, 1)), o.ϵ))
-  acc .+= diag_ABt(Δ)
-  return Diagonal(η / (sqrt.(acc .+ o.ϵ))) * Δ
+  acc = get!(o.acc, x) do 
+      fill!(zeros(size(x, 1)), o.ϵ)
+  end
+  acc .+= vec(mean(Δ; dims=1)).^2
+  return Δ = Diagonal(η ./ (sqrt.(acc) + ϵ)) * Δ
 end
 
-mutable struct MatRMSProp
+mutable struct DimWiseRMSProp
   eta::Float64
   gamma::Float64
   ϵ::Float64
   state::IdDict
 end
 
-MatRMSProp(η = 0.9, γ = 0.9, ϵ=1e-9) = MatRMSProp(η, γ, ϵ, IdDict())
+DimWiseRMSProp(η = 0.9, γ = 0.9, ϵ=1e-9) = DimWiseRMSProp(η, γ, ϵ, IdDict())
 
-function Optimise.apply!(o::MatRMSProp, x, Δ)
+function Optimise.apply!(o::DimWiseRMSProp, x, Δ)
   η = o.eta
   γ = o.gamma
-  acc = get!(o.state, x, fill!(zeros(size(x, 1)), o.ϵ))
+  acc = get!(o.state, x) do
+    fill!(zeros(size(x, 1)), o.ϵ)
+  end
   acc .= γ * acc + (1 - γ) * diag_ABt(Δ)
   return Diagonal(η / (sqrt.(acc .+ o.ϵ))) * Δ
+end
+
+mutable struct DimWiseADAM
+  eta::Float64
+  beta::Tuple{Float64,Float64}
+  state::IdDict
+end
+
+DimWiseADAM(η = 0.001, β = (0.9, 0.999)) = DimWiseADAM(η, β, IdDict())
+
+function apply!(o::DimWiseADAM, x, Δ)
+  η, β = o.eta, o.beta
+
+  mt, vt, βp = get!(o.state, x) do
+      (zeros(size(x, 1)), zeros(size(x, 1)), Float64[β[1], β[2]])
+  end
+
+  mt .= β[1] * mt + (1 - β[1]) * vec(mean(Δ; dims=1))
+  vt = β[2] * vt + (1 - β[2]) * vec(mean(Δ; dims=1)).^2
+  Δ =  Diagonal(mt) / (1 - βp[1]) / Diagonal(sqrt.(vt / (1 - βp[2])) .+ ϵ) * η
+  βp .= βp .* β
+
+  return Δ
 end
