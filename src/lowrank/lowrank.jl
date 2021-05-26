@@ -2,6 +2,7 @@ using DataFrames
 using BSON
 using Flux
 using Zygote
+using PDMats
 include(srcdir("train_model.jl"))
 include(srcdir("utils", "tools.jl"))
 function run_lowrank_target(exp_p)
@@ -11,8 +12,8 @@ function run_lowrank_target(exp_p)
     AVI.setadbackend(:zygote)
 
     ## Create target distribution
-    @unpack n_dim, n_particles, n_iters, n_runs, natmu, cond, eta, opt_det, opt_stoch, comp_hess = exp_p
-    n_particles = iszero(n_particles) ? n_dim + 1 : n_particles # If nothing is given use dim+1 particlesz`
+    @unpack n_iters, n_runs, natmu, K, dof, eta, opt_det, opt_stoch, comp_hess = exp_p
+    n_particles = K + 1
     partial_exp = get!(exp_p, :partial, false)
     mode = get!(exp_p, :mode, :save)
     ## Adapt the callback function given the experiment
@@ -31,13 +32,13 @@ function run_lowrank_target(exp_p)
     end
 
     ## Adapt the running given the setup:
-    exp_p[:gpf] = opt_stoch == :Descent ? exp_p[:gpf] : false
+    exp_p[:gpf] = opt_det == :Descent ? exp_p[:gpf] : false
     exp_p[:dsvi] = natmu ? false : exp_p[:dsvi]
     exp_p[:fcs] = natmu ? false : exp_p[:fcs]
     exp_p[:svgd] = natmu ? false : exp_p[:svgd]
     
     ## Create the file prefix for storing the results
-    file_prefix = @savename n_iters n_runs n_particles K eta
+    file_prefix = @savename n_iters n_runs n_particles K dof eta
     ## Check that the simulation has not been run already
     for alg in algs
         if exp_p[alg]
@@ -67,10 +68,10 @@ function run_lowrank_target(exp_p)
     end
 
     parameters = BSON.load(datadir("exp_raw", "lowrank", @savename(K) * ".bson"))
-    @unpack dof, μ_target, Σ_target = parameters
-    d_target = MvTDist(3.0, μ_target, PDMat(Σ_target))
+    @unpack μ_target, Σ_target = parameters
+    d_target = MvTDist(dof, μ_target, PDMat(Σ_target))
     ## Create the model
-    function logπ_gauss(θ)
+    function logπ_lowrank_st(θ)
         return logpdf(d_target, θ)
     end
 
@@ -84,7 +85,9 @@ function run_lowrank_target(exp_p)
         end
         μ_init = μs_init[i]
         Σ_init = Σs_init[i]
-        L_init = cholesky(Σ_init).L
+        L_init = cholesky(Σ_init).U
+        L_init_LR = Matrix(L_init)[:, 1:K]
+        L_init_LR_less_diag = Matrix(L_init - Diagonal(L_init) / sqrt(2))[:, 1:K]
         p_init = MvNormal(μ_init, Σ_init)
         x_init = rand(p_init, n_particles)
 
@@ -92,7 +95,7 @@ function run_lowrank_target(exp_p)
         general_p = Dict(
             :hyper_params => nothing,
             :hp_optimizer => nothing,
-            :n_dim => n_dim,
+            :n_dim => 20,
             :gpu => false,
             :mode => mode,
         )
@@ -110,12 +113,13 @@ function run_lowrank_target(exp_p)
         params[:gf] = Dict(
             :run => exp_p[:gf],
             :n_samples => n_particles,
+            :rank => K,
             :max_iters => n_iters,
             :natmu => natmu,
             :opt => @eval($opt_stoch($eta)),
             :callback => wrap_cb(),
             :mf => false,
-            :init => (copy(μ_init), Matrix(L_init)),
+            :init => (copy(μ_init), copy(L_init_LR)),
         )
         params[:dsvi] = Dict(
             :run => exp_p[:dsvi],
@@ -130,10 +134,11 @@ function run_lowrank_target(exp_p)
             :run => exp_p[:fcs],
             :n_samples => n_particles,
             :max_iters => n_iters,
+            :rank => K,
             :opt => @eval($opt_stoch($eta)),
             :callback => wrap_cb(),
             :mf => false,
-            :init => (copy(μ_init), Matrix(L_init - Diagonal(L_init) / sqrt(2)), diag(L_init) / sqrt(2)),
+            :init => (copy(μ_init), L_init_LR_less_diag, diag(L_init) / sqrt(2)),
         )
         params[:iblr] = Dict(
             :run => exp_p[:iblr],
@@ -154,10 +159,10 @@ function run_lowrank_target(exp_p)
             :mf => false,
             :init => copy(x_init),
         )
-
+        @show params[:gpf][:run]
         # Train all models
         hist, params =
-            train_model(logπ_gauss, general_p, params)
+            train_model(logπ_lowrank_st, general_p, params)
         hists[i] = hist
     end
 

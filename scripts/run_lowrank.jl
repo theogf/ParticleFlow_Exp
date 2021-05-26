@@ -18,18 +18,17 @@ end
 @everywhere include(srcdir("gaussian", "gaussian_target.jl"))
 # Create a list of parameters
 exp_ps = Dict(
-    :n_iters => 50000, # Number of iterations to run
+    :n_iters => 10000, # Number of iterations to run
     :n_runs => 10, # Number of repeated runs
-    :n_dim => [20, 50], #[50, 100], #[5, 10, 20], #50, 100], # Dimension of the target
-    :n_particles => 0,#, 10, 20, 50, 100], # Number of particles used, nothing will give dim + 1
-    :cond => [1, 10, 100],
+    :K => [1, 2, 5, 10, 20],
+    :dof => 3.0,
     :gpf => true, # Run GaussParticle Flow
     :gf => true, # Run Gauss Flow
     :dsvi => !true, # Run Doubly Stochastic VI
     :fcs => true, # Run Factorized Structure Covariance
     :iblr => !true, # Run i Bayesian Rule
     :svgd => true, # Run linear SVGD
-    :natmu => [true, false], # Use preconditionning on b
+    :natmu => false, # [true, false], # Use preconditionning on b
     :seed => 42, # Seed for experiments
     :cb_val => nothing, # Callback values
     :eta => 0.01,
@@ -42,6 +41,6 @@ exp_ps = Dict(
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
 # run for each dict the simulation
-# run_gaussian_target(ps[1])
-# map(run_gaussian_target, ps)
-pmap(run_lowrank_target, ps)
+run_lowrank_target(ps[1])
+map(run_lowrank_target, ps)
+# pmap(run_lowrank_target, ps)
