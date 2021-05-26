@@ -1,5 +1,5 @@
 using DrWatson
-@quickactivate
+@quickactivate("ParticleFlow")
 using DataFrames
 using CSV
 using BSON
@@ -125,17 +125,17 @@ lowrank_dir = datadir("exp_raw", "lowrank")
 n_dim = 20 # Total number of dimensions
 dof = 3.0
 ϵ = 1e-8 # Noise for the null distributions
-for K in [1, 2, 5, 10] # Actual rank
+for K in [1, 2, 5, 10, 20] # Actual rank
     file_name = @savename(K) * ".bson"
     if isfile(joinpath(lowrank_dir, file_name)) # If file exists already we skip the process
         continue
     end
-    λ = abs(randn(K) .+ 2.0)
-    Λ = vcat(λ, ϵ * ones(n_dim - K))
+    λ = abs.(randn(K) .+ 2.0)
+    Λ = Diagonal(vcat(λ, ϵ * ones(n_dim - K)))
     Q, _ = qr(rand(n_dim, n_dim)) # Create random unitary matrix
     Q = Matrix(Q)
     Σ_target = Symmetric(Q * Λ * Q')
-    μ_target = randn(d)
+    μ_target = randn(n_dim)
     μs_init = [randn(n_dim) for _ in 1:10]
     Σs_init = [ begin 
         Q, _ = qr(rand(n_dim, n_dim)) # Create random unitary matrix
