@@ -4,6 +4,7 @@ using BSON
 using Random
 using MLDatasets
 using ProgressMeter
+
 function get_data(dataset, batchsize)
     if dataset == "MNIST"
         return get_MNIST_data(batchsize)
@@ -71,12 +72,12 @@ function MNIST_BNN(; imgsize=(28,28,1), nclasses= 10)
               )
 end
 
-function CIFAR_BNN(; imgsize=(32,32,3), nclasses= 10)
+function std_BNN(; imgsize=(32, 32, 3), n_units=100, n_classes=10)
         return Chain(
                 x -> reshape(x, prod(imgsize), :),
-                Dense(prod(imgsize), 500, relu),
-                Dense(500, 400, relu),
-                Dense(400, nclasses)
+                Dense(prod(imgsize), n_units, relu),
+                Dense(n_units, n_units, relu),
+                Dense(n_units, n_classes)
               )
 end
 

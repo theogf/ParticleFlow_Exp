@@ -215,8 +215,13 @@ end
 
 function init_alg(::Val{:svgd}, params, general_p)
     n_dim = general_p[:n_dim]
+    get!(params, :kernel, :linear)
     alg_vi = if params[:run]
-        AVI.SVGD(params[:max_iters], LinearKernel(c=1))
+        if params[:kernel] == :linear
+            AVI.SVGD(params[:max_iters], LinearKernel(c=1))
+        else
+            AVI.SVGD(params[:max_iters], SqExponentialKernel())
+        end
     else
         return nothing, nothing
     end

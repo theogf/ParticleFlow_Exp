@@ -80,9 +80,11 @@ write(datadir("exp_raw", "logistic", "colon.libsvm"), String(transcode(Bzip2Deco
 data, labels = libsvmread(datadir("exp_raw", "logistic", "colon.libsvm"), dense=true, labeltype=Float64)
 data = Tables.table(shuffleobs(hcat(reduce(vcat, transpose.(data)), labels), obsdim=1))
 CSV.write(joinpath(exp_dir, "logistic", "colon.csv"), data)
-## Creating initial / target Gaussian
+## Create a collection of Gaussian targets with varying condition number and dimension
+## Creating initial / target Gaussian folder
 gauss_dir = datadir("exp_raw", "gaussian")
 mkpath(gauss_dir)
+
 
 @showprogress for cond in [1, 5, 10, 50, 100]
     for n_dim in [2, 5, 10, 20, 50, 100, 500, 1000]
@@ -114,4 +116,33 @@ mkpath(gauss_dir)
         @info "Init done"
         DrWatson.save(joinpath(gauss_dir, file_name), @dict(μ_target, Σ_target, μs_init, Σs_init))
     end
+end
+
+
+## Create a collection of low-rank target distributions
+lowrank_dir = datadir("exp_raw", "lowrank")
+
+n_dim = 20 # Total number of dimensions
+dof = 3.0
+ϵ = 1e-8 # Noise for the null distributions
+for K in [1, 2, 5, 10] # Actual rank
+    file_name = @savename(K) * ".bson"
+    if isfile(joinpath(lowrank_dir, file_name)) # If file exists already we skip the process
+        continue
+    end
+    λ = abs(randn(K) .+ 2.0)
+    Λ = vcat(λ, ϵ * ones(n_dim - K))
+    Q, _ = qr(rand(n_dim, n_dim)) # Create random unitary matrix
+    Q = Matrix(Q)
+    Σ_target = Symmetric(Q * Λ * Q')
+    μ_target = randn(d)
+    μs_init = [randn(n_dim) for _ in 1:10]
+    Σs_init = [ begin 
+        Q, _ = qr(rand(n_dim, n_dim)) # Create random unitary matrix
+        Q = Matrix(Q)
+        Λ = Diagonal(exp.(randn(n_dim)))
+        Symmetric(Q * Λ * Q')
+    end for _ in 1:10]
+    @info "Init done"
+    DrWatson.save(joinpath(lowrank_dir, file_name), @dict(dof, μ_target, Σ_target, μs_init, Σs_init))
 end
