@@ -32,7 +32,7 @@ function plot_lowrank(
     res = @linq all_res |>
         where(:K .== K) |>
         where(:eta .== eta) |>
-        # where(:n_iters .> 20000) |>
+        where(:n_iters .>= 10000) |>
         # where(:n_particles .== 0) |>
         where(:n_runs .== 10)
     @info "Total of $(nrow(res)) for given parameters"
@@ -45,7 +45,7 @@ function plot_lowrank(
         d_res[alg] = @linq res |> where(:alg .=== alg) # endswith.(:path, Regex("$(alg).*bson")))
     end
     params_truth = BSON.load(datadir("exp_raw", "lowrank", savename(@dict(K), "bson")))
-    truth = MvNormal(params_truth[:μ_target], params_truth[:Σ_target])
+    truth = MvTDist(params_truth[:dof], params_truth[:μ_target], PDMat(params_truth[:Σ_target]))
     # Plotting
     
     ylog = :log
@@ -58,18 +58,18 @@ function plot_lowrank(
         xlabel = cond == 100 ? "Time [s]" : "",
         ylabel = "",
         xaxis = :log,
-        ylims = (ymin, ymax),
+        # ylims = (ymin, ymax),
         yaxis = ylog,# ? (!show_std_dev ? :log : :linear) : :linear,
         legend = false,
     )
-    annotate!(p_μ, 5e-2, 1e-10, Plots.text(latexstring("\\K = $K"), :left, 18))
+    annotate!(p_μ, 5e-2, 1e-10, Plots.text(latexstring("K = $(K)"), :left, 18))
     p_Σ = Plots.plot(
         title = cond == 1 ? L"\|C^t- \Sigma\|" : "",
         titlefontsize = tfsize,
         xlabel = cond == 100 ? "Time [s]" : "",
         ylabel = "",
         xaxis = :log,
-        ylims = (ymin, ymax),
+        # ylims = (ymin, ymax),
         yaxis = ylog,# ? (!show_std_dev ? :log : :linear) : :linear,
         legend = false,
     )
@@ -90,14 +90,18 @@ function plot_lowrank(
                 continue
             elseif alg ∈ [:gf, :dsvi, :fcs] && row.opt_stoch != :RMSProp
                 continue
-            elseif alg == :svgd && row.opt_det != :RMSProp
+            # elseif alg == :svgd
+                # continue
+            elseif alg == :svgd && row.opt_det != :DimWiseRMSProp
+               continue
+            elseif alg == :gpf && row.opt_det != :DimWiseRMSProp
                 continue
             elseif alg == :iblr && row.comp_hess == :rep
                 continue
             end
             m, m_v = process_means(vals, mean(truth), use_quantile=use_quantile)
             C, C_v = process_fullcovs(vals, vec(cov(truth)), use_quantile=use_quantile)
-            t, t_v = process_time(vals, Val(alg))
+            t, _ = process_time(vals, Val(alg))
             if use_quantile
                 Plots.plot!(
                     p_μ,
@@ -154,7 +158,6 @@ function plot_lowrank(
     else
         p = Plots.plot(p_title, p_μ, p_Σ, layout=@layout([A{0.01h}; [B C]]))
     end
-    display(p)
     return p, p_μ, p_Σ
 end
 mkpath(plotsdir("lowrank"))
@@ -166,7 +169,7 @@ for K in Ks
     try
         display(p)
     catch e
-        @warn "Plot was empty for K=$K"
+        @warn "Plot was empty for K=$K or there was an error"
         continue
     end
     !isnothing(p) ? savefig(plotsdir("lowrank", savename(@dict(K), ".png"))) : nothing
@@ -183,7 +186,7 @@ p_legend1 = Plots.plot(
         fg_legend=:white,
         bg_legend=:white,
     )
-for alg in algs[1:3]
+for alg in lowrank_algs[1:2]
     plot!(
         p_legend1,
         [],
@@ -203,7 +206,7 @@ p_legend2 = Plots.plot(
         fg_legend=:white,
         bg_legend=:white,
     )
-for alg in algs[4:end]
+for alg in lowrank_algs[3:end]
     plot!(
         p_legend2,
         [],
@@ -215,11 +218,11 @@ end
 
 
 p = plot(
-    ps[1][:μ], ps[1][:Σ], ps[10][:μ], ps[10][:Σ], ps[100][:μ], ps[100][:Σ], p_legend1, p_legend2;
+    plt[2][:μ], plt[2][:Σ], plt[5][:μ], plt[5][:Σ], plt[10][:μ], plt[10][:Σ], p_legend1, p_legend2;
     dpi = 300,
     layout = @layout([A B;C D;E F;G{0.2h} H]),
     size = (600, 800),
 )
 display(p)
-savefig(plotsdir("lowrank", "full_plots_K=$(K).png"))
-savefig(plotsdir("lowrank", "full_plots_K=$(K).svg"))
+savefig(plotsdir("lowrank", "full_plots.png"))
+savefig(plotsdir("lowrank", "full_plots.svg"))

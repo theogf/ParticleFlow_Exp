@@ -1,4 +1,6 @@
-
+function diag_ABt(A, B)
+    vec(sum(A .* B; dims=2))
+end
 
 struct IncreasingRate
     α::Float64 # Maximum learning rate
@@ -61,7 +63,7 @@ function Optimise.apply!(o::DimWiseADADelta, x, Δ)
   acc .= ρ * acc + (1 - ρ) * vec(mean(Δ; dims=1)).^2
   # DON'T remove epsilon from numerator
   # or even out of the square roots
-  Δ = Diagonal(√.(Δacc + o.ϵ) ./ √.(acc + o.ϵ)) * Δ
+  Δ = Diagonal(sqrt.(Δacc + o.ϵ) ./ sqrt.(acc + o.ϵ)) * Δ
   Δacc .= ρ * Δacc + (1 - ρ) * vec(mean(Δ; dims=1)).^2
   return Δ
 end
@@ -98,8 +100,8 @@ function Optimise.apply!(o::DimWiseRMSProp, x, Δ)
   acc = get!(o.state, x) do
     fill!(zeros(size(x, 1)), o.ϵ)
   end
-  acc .= γ * acc + (1 - γ) * diag_ABt(Δ)
-  return Diagonal(η / (sqrt.(acc .+ o.ϵ))) * Δ
+  acc .= γ * acc + (1 - γ) * diag_ABt(Δ, Δ)
+  return Diagonal(η ./ (sqrt.(acc .+ o.ϵ))) * Δ
 end
 
 mutable struct DimWiseADAM
@@ -109,18 +111,17 @@ mutable struct DimWiseADAM
 end
 
 DimWiseADAM(η = 0.001, β = (0.9, 0.999)) = DimWiseADAM(η, β, IdDict())
-
-function apply!(o::DimWiseADAM, x, Δ)
+const ϵ = 1e-10
+function Optimise.apply!(o::DimWiseADAM, x, Δ)
   η, β = o.eta, o.beta
 
   mt, vt, βp = get!(o.state, x) do
       (zeros(size(x, 1)), zeros(size(x, 1)), Float64[β[1], β[2]])
   end
 
-  mt .= β[1] * mt + (1 - β[1]) * vec(mean(Δ; dims=1))
-  vt = β[2] * vt + (1 - β[2]) * vec(mean(Δ; dims=1)).^2
-  Δ =  Diagonal(mt) / (1 - βp[1]) / Diagonal(sqrt.(vt / (1 - βp[2])) .+ ϵ) * η
+  mt .= β[1] * mt + (1 - β[1]) * vec(mean(Δ; dims=2))
+  vt .= β[2] * vt + (1 - β[2]) * vec(mean(Δ; dims=2)).^2
+  A =  Diagonal(mt) / (1 - βp[1]) * Diagonal(inv.(sqrt.(vt / (1 - βp[2])) .+ ϵ)) * η
   βp .= βp .* β
-
-  return Δ
+  return A * Δ
 end
