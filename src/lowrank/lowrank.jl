@@ -32,7 +32,7 @@ function run_lowrank_target(exp_p)
     end
 
     ## Adapt the running given the setup:
-    exp_p[:gpf] = opt_det == :Descent ? exp_p[:gpf] : false
+    # exp_p[:gpf] = opt_det == :Descent ? exp_p[:gpf] : false
     exp_p[:dsvi] = natmu ? false : exp_p[:dsvi]
     exp_p[:fcs] = natmu ? false : exp_p[:fcs]
     exp_p[:svgd] = natmu ? false : exp_p[:svgd]
