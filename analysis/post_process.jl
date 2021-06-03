@@ -102,9 +102,9 @@ end
 
 function process_fullcovs(hs, truth; metric = (x, y) -> norm(x -y), use_quantile=false)
     vals = getproperty.(getindex.(hs, :sig), :values)
-    global debug_vals = vals
     T = floor(Int, median(length.(vals)))
-    incomplete_runs = findall(x->length(x)!=T, vals)
+    # This removes all the incomplete runs which might create bugs in the estimation
+    incomplete_runs = findall(x->length(x) != T, vals)
     deleteat!(vals, incomplete_runs)
     if first(vals) isa AbstractVector{<:AbstractVector}
         nan_runs = findall(x->any(y->any(isnan, y), x), vals)
@@ -113,6 +113,7 @@ function process_fullcovs(hs, truth; metric = (x, y) -> norm(x -y), use_quantile
         nan_runs = findall(x->any(isnan, x), vals)
         deleteat!(vals, nan_runs)
     end
+    # Compute the difference 
     ΔΣ = zeros(T)
     varΣ = use_quantile ? zeros(T, 2) : zeros(T)
     for i in 1:T

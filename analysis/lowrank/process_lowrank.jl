@@ -163,9 +163,10 @@ end
 mkpath(plotsdir("lowrank"))
 plt = Dict()
 Ks = [1, 2, 5, 10, 20]
+η = 0.1
 for K in Ks
     plt[K] = Dict()
-    p, plt[K][:μ], plt[K][:Σ] = plot_lowrank(K, 0.01; show_std_dev=true, show_lgd=false, use_quantile=true)
+    p, plt[K][:μ], plt[K][:Σ] = plot_lowrank(K, η; show_std_dev=true, show_lgd=false, use_quantile=true)
     try
         display(p)
     catch e
@@ -224,5 +225,5 @@ p = plot(
     size = (600, 800),
 )
 display(p)
-savefig(plotsdir("lowrank", "full_plots.png"))
-savefig(plotsdir("lowrank", "full_plots.svg"))
+savefig(plotsdir("lowrank", "full_plots_η=$η.png"))
+savefig(plotsdir("lowrank", "full_plots_η=$η.svg"))

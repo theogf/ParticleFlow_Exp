@@ -159,7 +159,6 @@ function run_lowrank_target(exp_p)
             :mf => false,
             :init => copy(x_init),
         )
-        @show params[:gpf][:run]
         # Train all models
         hist, params =
             train_model(logπ_lowrank_st, general_p, params)

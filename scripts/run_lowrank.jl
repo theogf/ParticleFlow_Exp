@@ -31,7 +31,8 @@ exp_ps = Dict(
     :natmu => false, # [true, false], # Use preconditionning on b
     :seed => 42, # Seed for experiments
     :cb_val => nothing, # Callback values
-    :eta => 0.01,
+    :eta => 0.1,
+    :kernel => @onlyif(:svgd == true, [:linear, :rbf]),
     :opt_det => :DimWiseRMSProp,
     :opt_stoch => :RMSProp,# :RMSProp],
     :comp_hess => :rep,
