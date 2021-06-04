@@ -45,7 +45,18 @@ function meanvar_to_expec(μ, L)
 end
 
 function cov_to_lowrank_plus_diag(S, K)
-    D = sqrt.(Diagonal(S) / 2)
-    L = cholesky(S).L - D
-    return L[:, 1:K], diag(D)
+    L = cov_to_lowrank(S, K)
+    D = S - L * L'
+    return L, sqrt.(diag(D))
+end
+
+function cov_to_lowrank(S, K)
+    Q = svd(S)
+    L = Q.U[:, 1:K] * Diagonal(sqrt.(Q.S[1:K]))
+    return L
+end
+
+function cov_to_inv_lowrank_plus_diag(S, K)
+    P = inv(S)
+    return cov_to_lowrank_plus_diag(P, K)
 end

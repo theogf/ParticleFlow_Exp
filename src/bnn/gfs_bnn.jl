@@ -111,5 +111,5 @@ function run_gfs_bnn(exp_p)
         :gpu => device == gpu,
     )
     # Train all models
-    train_model(meta_logjoint, general_p, gflow_p, no_run, no_run)
+    train_model(meta_logjoint, general_p, gpf_p, gf_p, no_run)
 end
