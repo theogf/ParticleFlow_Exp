@@ -18,10 +18,10 @@ uuid = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 version = "3.3.0"
 
 [[AdvancedVI]]
-deps = ["Bijectors", "BlockDiagonals", "Distances", "Distributions", "DistributionsAD", "DocStringExtensions", "FastGaussQuadrature", "ForwardDiff", "Functors", "KernelFunctions", "LinearAlgebra", "ProgressMeter", "Random", "Requires", "StatsBase", "StatsFuns", "Tracker"]
+deps = ["Bijectors", "Distributions", "DistributionsAD", "DocStringExtensions", "Flux", "ForwardDiff", "Functors", "LinearAlgebra", "ProgressMeter", "Random", "Requires", "StatsBase", "StatsFuns"]
 path = "/home/theo/.julia/dev/AdvancedVI"
 uuid = "b5ca4192-6429-45e5-a2d9-87aec30a685c"
-version = "0.1.0"
+version = "0.1.1"
 
 [[ArgCheck]]
 git-tree-sha1 = "dedbbb2ddb876f899585c4ec4433265e3017215a"
@@ -396,12 +396,6 @@ git-tree-sha1 = "5a0d4b6a22a34d17d53543bd124f4b08ed78e8b0"
 uuid = "f5851436-0d7a-5f13-b9de-f02708fd171a"
 version = "3.3.9+7"
 
-[[FastGaussQuadrature]]
-deps = ["LinearAlgebra", "SpecialFunctions", "StaticArrays"]
-git-tree-sha1 = "5829b25887e53fb6730a9df2ff89ed24baa6abf6"
-uuid = "442a2c76-b920-505d-bb47-c5924d526838"
-version = "0.4.7"
-
 [[FileIO]]
 deps = ["Pkg", "Requires", "UUIDs"]
 git-tree-sha1 = "cfb694feaddf4f0381ef3cc9d4c0d8fc6b7e2ea7"
@@ -769,14 +763,6 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "df381151e871f41ee86cee4f5f6fd598b8a68826"
 uuid = "c1c5ebd0-6772-5130-a774-d5fcae4a789d"
 version = "3.100.0+3"
-
-[[LIBSVMFileIO]]
-deps = ["Formatting", "SparseArrays"]
-git-tree-sha1 = "1a4c6bb8ffe1da4afcc21f13e067cd6555f5e8dc"
-repo-rev = "master"
-repo-url = "https://github.com/mvmorin/LIBSVMFileIO.jl"
-uuid = "036c95be-6683-11e9-362f-15daa430852d"
-version = "0.1.0"
 
 [[LLVM]]
 deps = ["CEnum", "Libdl", "Printf", "Unicode"]
@@ -1230,6 +1216,12 @@ uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 deps = ["Serialization"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
+[[RandomizedLinAlg]]
+deps = ["LinearAlgebra", "Random", "Test"]
+git-tree-sha1 = "de93780c85c207586369522af7525aa3011b09c3"
+uuid = "0448d7d9-159c-5637-8537-fd72090fea46"
+version = "0.1.0"
+
 [[RangeArrays]]
 git-tree-sha1 = "b9039e93773ddcfc828f12aadf7115b4b4d225f5"
 uuid = "b3c3ace0-ae52-54e7-9d0b-2c1406fd6b9d"
@@ -1483,12 +1475,6 @@ deps = ["ExprTools", "Printf"]
 git-tree-sha1 = "bf8aacc899a1bd16522d0350e1e2310510d77236"
 uuid = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 version = "0.5.9"
-
-[[Tracker]]
-deps = ["Adapt", "DiffRules", "ForwardDiff", "LinearAlgebra", "MacroTools", "NNlib", "NaNMath", "Printf", "Random", "Requires", "SpecialFunctions", "Statistics"]
-git-tree-sha1 = "bf4adf36062afc921f251af4db58f06235504eff"
-uuid = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
-version = "0.2.16"
 
 [[TranscodingStreams]]
 deps = ["Random", "Test"]

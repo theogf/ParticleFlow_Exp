@@ -173,3 +173,18 @@ end
 
 
 # train_and_save("CIFAR_BNN", "CIFAR10", n_epoch = 100)
+
+"""
+    simplebnn(nhidden, ninput, noutput, activation=tanh)
+
+Create a simple Bayesian neural network with 2 hidden layers with `nhidden` units.
+"""
+function simplebnn(nhidden, ninput, noutput, activation=tanh)
+    return Chain(
+            Dense(ninput, nhidden, activation),
+            Dense(nhidden, nhidden, activation),
+            Dense(nhidden, noutput, identity)
+    )
+end
+
+

@@ -3,6 +3,7 @@ using DrWatson
 using DataFrames
 using CSV
 using BSON
+using FileIO
 using MLDataUtils
 using HTTP
 using Random
@@ -145,4 +146,17 @@ for K in [1, 2, 5, 10, 20] # Actual rank
     end for _ in 1:10]
     @info "Init done"
     DrWatson.save(joinpath(lowrank_dir, file_name), @dict(dof, μ_target, Σ_target, μs_init, Σs_init))
+end
+
+## Create a collection of initialized BNNs
+
+include(srcdir("utils", "bnn.jl"))
+using FileIO
+## MNIST output
+@info "Creating neural networks initializations for MNIST"
+for n_hidden in [100, 200, 400, 800]
+    for activation in [:relu, :tanh, :sigmoid]
+        nn = simplebnn(n_hidden, 28 * 28, 10, eval(activation))
+        save(datadir("exp_raw", "bnn", "models", "MNIST", @savename(n_hidden, activation) * ".bson"), Dict(:nn=>nn))
+    end
 end

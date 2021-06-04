@@ -44,3 +44,8 @@ function meanvar_to_expec(μ, L)
     μ, XXt(L) + XXt(μ)
 end
 
+function cov_to_lowrank_plus_diag(S, K)
+    D = sqrt.(Diagonal(S) / 2)
+    L = cholesky(S).L - D
+    return L[:, 1:K], diag(D)
+end

@@ -2,6 +2,7 @@ using Flux
 using ProgressMeter
 using LinearAlgebra
 using Distributions
+using StatsBase
 
 struct LowRankGaussianDenseLayer{A,Tμ,Tv,Tσ}
     K::Int # rank
