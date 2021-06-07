@@ -35,7 +35,8 @@ function run_gaussian_target(exp_p)
     exp_p[:dsvi] = natmu ? false : exp_p[:dsvi]
     exp_p[:fcs] = natmu ? false : exp_p[:fcs]
     exp_p[:iblr] = natmu ? exp_p[:iblr] : false
-    exp_p[:svgd] = natmu ? false : exp_p[:svgd]
+    exp_p[:svgd_linear] = natmu ? false : exp_p[:svgd_linear]
+    exp_p[:svgd_rbf] = natmu ? false : exp_p[:svgd_rbf]
     
     ## Create the file prefix for storing the results
     file_prefix = @savename n_iters n_runs n_dim n_particles cond eta
@@ -52,7 +53,7 @@ function run_gaussian_target(exp_p)
                 @savename(opt_stoch)
             elseif alg == :iblr
                 @savename(comp_hess)
-            elseif alg == :svgd
+            elseif alg == :svgd_linear || alg == :svgd_rbf
                 @savename(opt_det)
             end
             if isfile(datadir("results", "gaussian", file_prefix * alg_string * ".bson"))
@@ -147,8 +148,17 @@ function run_gaussian_target(exp_p)
             :mf => false,
             :init => (copy(μ_init), Matrix(inv(Σ_init))),
         )
-        params[:svgd] = Dict(
-            :run => exp_p[:svgd],
+        params[:svgd_linear] = Dict(
+            :run => exp_p[:svgd_linear],
+            :n_particles => n_particles,
+            :max_iters => n_iters,
+            :opt => @eval($opt_det($eta)),
+            :callback => wrap_cb(),
+            :mf => false,
+            :init => copy(x_init),
+        )
+        params[:svgd_rbf] = Dict(
+            :run => exp_p[:svgd_rbf],
             :n_particles => n_particles,
             :max_iters => n_iters,
             :opt => @eval($opt_det($eta)),
@@ -175,7 +185,7 @@ function run_gaussian_target(exp_p)
             @savename(opt_stoch)
         elseif alg == :iblr
             @savename(comp_hess)
-        elseif alg == :svgd
+        elseif alg == :svgd_linear || alg == :svgd_rbf
             @savename(opt_det)
         end
         if exp_p[alg] && mode == :save

@@ -1,14 +1,13 @@
-using Base: Float64
 include(srcdir("train_model.jl"))
 include(srcdir("utils", "bnn.jl"))
 include(srcdir("utils", "callback.jl"))
 
-function run_gfs_bnn(exp_p)
+function run_bnn(exp_p)
     @unpack seed = exp_p
     Random.seed!(seed)
 
     ## Loading the model and creating the appropriate function
-    @unpack use_gpu, model, dataset, activation, n_hidden, batchsize = exp_p # Load all variables from the dict exp_p
+    @unpack use_gpu, dataset, activation, n_hidden, batchsize = exp_p # Load all variables from the dict exp_p
     device = use_gpu ? gpu : cpu
     model = "BNN_" * @savename(activation, n_hidden)
     modelfile = datadir("exp_raw", "bnn", "models", dataset, @savename(activation, n_hidden) * ".bson")

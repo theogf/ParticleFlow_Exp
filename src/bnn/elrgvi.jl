@@ -1,5 +1,6 @@
 include(srcdir("utils", "bnn.jl"))
-function run_SWAG(exp_p)
+include(srcdir("algs", "elrgvi.jl"))
+function run_elrgvi(exp_p)
     @unpack seed = exp_p
     Random.seed!(seed)
 
@@ -9,14 +10,15 @@ function run_SWAG(exp_p)
     model = "BNN_" * @savename(activation, n_hidden)
     modelfile = datadir("bnn_models", model, "model.bson")
     m = BSON.load(modelfile)[:nn] |> device
+    θ, re = Flux.destructure(m)
 
-    ## Loading parameters for SWAG
-    @unpack n_period, n_epoch, eta, α = exp_p
-    save_path = datadir("results", "bnn", dataset, "swag_" * model, @savename n_epoch n_period batchsize α eta)
+    ## Loading parameters for SLANG
+    @unpack L, opt, eta, α = exp_p
+    save_path = datadir("results", "bnn", dataset, "slang_" * model, @savename L batchsize α eta opt)
     ispath(save_path) ? nothing : mkpath(save_path)
 
-    function save_params(ps, i)
-        parameters = [cpu(p) for p in ps]
+    function save_params(alg::SLANG, i)
+        parameters = [cpu(alg.μ), cpu(alg.v), cpu(alg.σ)]
         tagsave(joinpath(save_path, savename(@dict i) * ".bson"), @dict parameters i)
     end
     ## Define prior
@@ -24,25 +26,26 @@ function run_SWAG(exp_p)
     logprior(θ, α) = - sum(logprior, θ) / α^2
 
     loss(ŷ, y) = Flux.Losses.logitcrossentropy(ŷ, y)
-
+    function meta_loss(x, y)
+        return function(nn)
+            loss(nn(θ)(x), y)
+        end
+    end
     ## Define list of arguments and load the data
     train_loader, test_loader = get_data(dataset, batchsize)
     iter = 0
+    @functor SLANG
+    alg = SLANG(L, length(θ), alpha, beta, α) |> device
     save_params(ps, 0)
     for _ in 1:n_epoch
         # p = ProgressMeter.Progress(length(train_loader))
         for (x, y) in train_loader
             x, y = x |> device, y |> device
-            gs = Flux.gradient(ps) do
-                ŷ = m(x)
-                loss(ŷ, y) - logprior(ps, α)
-            end
-            Flux.Optimise.update!(opt, ps, gs)
-            # ProgressMeter.next!(p)   # comment out for no progress bar
+            step!(alg, re, meta_loss(x, y))
             iter += 1
-            if mod(iter, n_period) == 0
+            if mod(iter, 250) == 0
                 @info "Saving at iteration $iter"
-                save_params(ps, iter)
+                save_params(alg, iter)
             end
         end
     end

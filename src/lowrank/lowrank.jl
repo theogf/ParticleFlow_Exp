@@ -14,28 +14,14 @@ function run_lowrank_target(exp_p)
     ## Create target distribution
     @unpack n_iters, n_runs, natmu, K, dof, eta, opt_det, opt_stoch, comp_hess = exp_p
     n_particles = K + 1
-    partial_exp = get!(exp_p, :partial, false)
     mode = get!(exp_p, :mode, :save)
-    ## Adapt the callback function given the experiment
-    f = if partial_exp
-        function (h::MVHistory)
-            return function (i, q, hp)
-                if i == (n_iters - 1)
-                    cb_tic(h, i)
-                    push!(h, :x, i, q.dist.x)
-                    cb_toc(h, i)
-                end
-            end
-        end
-    else
-        wrap_cb()
-    end
 
     ## Adapt the running given the setup:
     # exp_p[:gpf] = opt_det == :Descent ? exp_p[:gpf] : false
     exp_p[:dsvi] = natmu ? false : exp_p[:dsvi]
     exp_p[:fcs] = natmu ? false : exp_p[:fcs]
-    exp_p[:svgd] = natmu ? false : exp_p[:svgd]
+    exp_p[:svgd_linear] = natmu ? false : exp_p[:svgd_linear]
+    exp_p[:svgd_rbf] = natmu ? false : exp_p[:svgd_rbf]
     
     ## Create the file prefix for storing the results
     file_prefix = @savename n_iters n_runs n_particles K dof eta
@@ -51,7 +37,7 @@ function run_lowrank_target(exp_p)
                 @savename(opt_stoch)
             elseif alg == :iblr
                 @savename(comp_hess)
-            elseif alg == :svgd
+            elseif alg == :svgd_linear || alg == :svgd_rbf
                 @savename(opt_det)
             end
             if isfile(datadir("results", "lowrank", file_prefix * alg_string * ".bson"))
@@ -86,7 +72,6 @@ function run_lowrank_target(exp_p)
         μ_init = μs_init[i]
         Σ_init = Σs_init[i]
         L_init = cholesky(Σ_init).U
-        L_init_LR = Matrix(L_init)[:, 1:K]
         L_init_LR_less_diag = Matrix(L_init - Diagonal(L_init) / sqrt(2))[:, 1:K]
         p_init = MvNormal(μ_init, Σ_init)
         x_init = rand(p_init, n_particles)
@@ -119,7 +104,7 @@ function run_lowrank_target(exp_p)
             :opt => @eval($opt_stoch($eta)),
             :callback => wrap_cb(),
             :mf => false,
-            :init => (copy(μ_init), copy(L_init_LR)),
+            :init => (copy(μ_init), cov_to_lowrank(Σ_init, K)),
         )
         params[:dsvi] = Dict(
             :run => exp_p[:dsvi],
@@ -138,7 +123,7 @@ function run_lowrank_target(exp_p)
             :opt => @eval($opt_stoch($eta)),
             :callback => wrap_cb(),
             :mf => false,
-            :init => (copy(μ_init), L_init_LR_less_diag, diag(L_init) / sqrt(2)),
+            :init => (copy(μ_init), cov_to_lowrank_plus_diag(Σ_init, K)),
         )
         params[:iblr] = Dict(
             :run => exp_p[:iblr],
@@ -150,8 +135,17 @@ function run_lowrank_target(exp_p)
             :mf => false,
             :init => (copy(μ_init), Matrix(inv(Σ_init))),
         )
-        params[:svgd] = Dict(
-            :run => exp_p[:svgd],
+        params[:svgd_linear] = Dict(
+            :run => exp_p[:svgd_linear],
+            :n_particles => n_particles,
+            :max_iters => n_iters,
+            :opt => @eval($opt_det($eta)),
+            :callback => wrap_cb(),
+            :mf => false,
+            :init => copy(x_init),
+        )
+        params[:svgd_rbf] = Dict(
+            :run => exp_p[:svgd_rbf],
             :n_particles => n_particles,
             :max_iters => n_iters,
             :opt => @eval($opt_det($eta)),
@@ -177,7 +171,7 @@ function run_lowrank_target(exp_p)
             @savename(opt_stoch)
         elseif alg == :iblr
             @savename(comp_hess)
-        elseif alg == :svgd
+        elseif alg == :svgd_linear || alg == :svgd_rbf
             @savename(opt_det)
         end
         if exp_p[alg] && mode == :save

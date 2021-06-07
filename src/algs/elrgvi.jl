@@ -22,6 +22,14 @@ function LowRankGaussianDenseLayer(in, out, a, K, α=1/K)
     LowRankGaussianDenseLayer(K, in, out, μ, v, σ, a, α)
 end
 
+function LowRankGaussianDenseLayer(l::Dense, K, α=1/K)
+    out, in = size(l.W)
+    θ = vcat(l.W[:], l.b)
+    Σ = Matrix{Float64}()
+
+    LowRankGaussianDenseLayer(K, in, out, θ, ran)
+end
+
 Flux.@functor LowRankGaussianDenseLayer
 
 function to_weights_and_bias(l::LowRankGaussianDenseLayer, x::AbstractVector)
