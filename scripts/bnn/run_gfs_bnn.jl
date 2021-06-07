@@ -6,23 +6,25 @@ using DataFrames
 using BSON
 using Flux
 using CUDA
-include(srcdir("bnn", "gpf_bnn.jl"))
+include(srcdir("bnn", "bnn.jl"))
 
 exp_ps = Dict(
     :seed => 42,
     :batchsize => 128,
-    :model => "LeNet",
+    :model => "BNN",
+    :n_hidden => [100, 200, 400, 800]
     :dataset => "MNIST",
     :use_gpu => true,
-    :start_layer => 7,
+    :alg => [:gpf, :gf, :fcs, :dsvi]
     :n_particles => [10, 50, 100],
     :n_iter => 5001,
-    :opt => Flux.Optimise.Optimiser(ClipNorm(10), Descent(0.1)),
+    :opt_det => :DimWiseRMSProp,
+    :opt_stoch => :RMSProp
     :cond1 => false,
     :cond2 => false,
     :σ_init => 1.0,
     :mf => [:full, :partial, :none],
-    :α => [0.05, 0.01] # Prior variance
+    :α => [0.001, 0.01, 0.1, 1.0, 10.0] # Prior variance
 )
 
 ps = dict_list(exp_ps)

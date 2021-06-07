@@ -36,7 +36,8 @@ function train_model(logπ, general_p, params)
         :dsvi,
         :fcs,
         :iblr,
-        :svgd,
+        :svgd_linear,
+        :svgd_rbf,
     ]
     vi_alg = Dict{Symbol,Any}()
     q = Dict{Symbol,Any}()
@@ -213,11 +214,15 @@ function init_alg(::Val{:iblr}, params, general_p)
     return alg_vi, alg_q # Return alg. and distr.
 end
 
-function init_alg(::Val{:svgd}, params, general_p)
+function init_alg(svgd::Union{Val{:svgd_linear}, Val{:svgd_rbf}}, params, general_p)
     n_dim = general_p[:n_dim]
-    get!(params, :kernel, :linear)
+    kernel = if svgd[] == :svgd_linear
+        :linear
+    elseif svgd[] == :svgd_rbf
+        :rbf 
+    end
     alg_vi = if params[:run]
-        if params[:kernel] == :linear
+        if kernel == :linear
             AVI.SVGD(params[:max_iters], LinearKernel(c=1))
         else
             AVI.SVGD(params[:max_iters], SqExponentialKernel())
