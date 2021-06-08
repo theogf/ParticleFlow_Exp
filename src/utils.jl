@@ -53,7 +53,7 @@ end
 function cov_to_lowrank(S, K)
     Q = svd(S)
     L = Q.U[:, 1:K] * Diagonal(sqrt.(Q.S[1:K]))
-    return L
+    return Matrix(L)
 end
 
 function cov_to_inv_lowrank_plus_diag(S, K)
