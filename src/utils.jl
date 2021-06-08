@@ -1,6 +1,6 @@
 invquad(A::AbstractMatrix, x::AbstractVecOrMat) = dot(x, A \ x)
 XXt(X::AbstractVecOrMat) = X * X'
-gradcol(alg::VIScheme, f::Function, X::AbstractMatrix) = gradcol(ad(alg), f, X)
+# gradcol(alg::VIScheme, f::Function, X::AbstractMatrix) = gradcol(ad(alg), f, X)
 function gradcol(::Val{:ForwardDiff}, f, X)
     ForwardDiff.gradient(x->sum(f, eachcol(x)), X)
 end
@@ -46,8 +46,8 @@ end
 
 function cov_to_lowrank_plus_diag(S, K)
     L = cov_to_lowrank(S, K)
-    D = S - L * L'
-    return L, sqrt.(diag(D))
+    D = diag(S) / sqrt(2)
+    return L, D
 end
 
 function cov_to_lowrank(S, K)

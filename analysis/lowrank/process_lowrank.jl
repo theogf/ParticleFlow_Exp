@@ -14,10 +14,11 @@ lowrank_algs = [
     :gpf,
     :gf,
     :fcs,
-    :svgd,
+    :svgd_linear,
+    :svgd_rbf,
 ]
 
-lowrank_alg_line_order = [:fcs, :svgd, :gf, :gpf]
+lowrank_alg_line_order = [:fcs, :svgd_linear, :svgd_rbf, :gf, :gpf]
 lowrank_alg_line_order_dict = Dict(x=>i for (i,x) in enumerate(lowrank_alg_line_order))
 
 ## Treat one convergence file
@@ -107,7 +108,7 @@ function plot_lowrank(
                     p_μ,
                     t,
                     m,
-                    fillrange= show_std_dev ? m_v : nothing,
+                    fillrange=show_std_dev ? m_v : nothing,
                     fillalpha=0.3,
                     label=string(alg_lab[alg], text_natmu[row.natmu]),
                     color=alg_col[alg],

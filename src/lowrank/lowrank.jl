@@ -5,6 +5,7 @@ using Zygote
 using PDMats
 include(srcdir("train_model.jl"))
 include(srcdir("utils", "tools.jl"))
+include(srcdir("utils.jl"))
 function run_lowrank_target(exp_p)
     @unpack seed = exp_p
     Random.seed!(seed)
@@ -91,7 +92,7 @@ function run_lowrank_target(exp_p)
             :max_iters => n_iters,
             :natmu => natmu,
             :opt => @eval($opt_det($eta)),
-            :callback => f,
+            :callback => wrap_cb(),
             :mf => false,
             :init => copy(x_init),
         )
@@ -123,7 +124,7 @@ function run_lowrank_target(exp_p)
             :opt => @eval($opt_stoch($eta)),
             :callback => wrap_cb(),
             :mf => false,
-            :init => (copy(μ_init), cov_to_lowrank_plus_diag(Σ_init, K)),
+            :init => (copy(μ_init), cov_to_lowrank_plus_diag(Σ_init, K)...),
         )
         params[:iblr] = Dict(
             :run => exp_p[:iblr],

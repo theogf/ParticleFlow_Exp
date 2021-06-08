@@ -18,13 +18,14 @@ include(joinpath("utils", "tools.jl"))
 # Main function, take dicts of parameters
 # run the inference and return MVHistory objects for each alg.
 no_run = Dict(:run => false)
-algs = [
+const algs = [
     :gpf,
     :gf,
     :dsvi,
     :fcs,
     :iblr,
-    :svgd,
+    :svgd_linear,
+    :svgd_rbf,
 ]
 
 
@@ -216,9 +217,9 @@ end
 
 function init_alg(svgd::Union{Val{:svgd_linear}, Val{:svgd_rbf}}, params, general_p)
     n_dim = general_p[:n_dim]
-    kernel = if svgd[] == :svgd_linear
+    kernel = if svgd isa Val{:svgd_linear}
         :linear
-    elseif svgd[] == :svgd_rbf
+    elseif svgd isa Val{:svgd_rbf}
         :rbf 
     end
     alg_vi = if params[:run]

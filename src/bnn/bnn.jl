@@ -28,10 +28,8 @@ function run_bnn(exp_p)
         end
     end
     nn_id_layers = vcat(0, cumsum(m_sizes))
-
     ## Loading specific parameters to GPF
     @unpack natmu, σ_init, mf = exp_p
-    σ_init = rand(MvNormal(θ, Float32(σ_init)), n_particles)
     if natmu && !(exp_p[:alg] ∈ [:gf, :gpf])
         warn("Natural gradient are not compatible with non-Gaussian flows")
         return nothing
@@ -54,9 +52,10 @@ function run_bnn(exp_p)
         "results",
         "bnn",
         dataset,
-        exp_p[:alg] * "_" * model,
+        string(exp_p[:alg]) * "_" * model,
         @savename L n_iter batchsize mf σ_init natmu α opt_det opt_stoch
     )
+
     ## Define prior
     function logpdf(α::Real, θ::AbstractVector)
         - sum(abs2, θ) / (2α^2)
@@ -65,7 +64,7 @@ function run_bnn(exp_p)
     train_loader, test_loader = get_data(dataset, batchsize)
     n_data = train_loader.imax
     n_batch = length(train_loader)
-
+    
     ## Define the function to optimize
     function meta_logjoint(::Any)
         xs, ys = Random.nth(train_loader, rand(1:n_batch)) |> device
@@ -79,8 +78,11 @@ function run_bnn(exp_p)
             return logprior + loglike
         end
     end
-    x_init = gpu(randn(n_θ, n_particles) * sqrt(σ_init)) .+ θ
+    x_init = device(randn(n_θ, n_particles) * sqrt(σ_init)) .+ θ
     Σ_init = Matrix{Float64}(σ_init * I(length(θ)))
+    return save_path
+    @info "Initialized inits"
+
     ## Create dictionnaries of parameters
     general_p = Dict(
         :hyper_params => [],
@@ -89,69 +91,77 @@ function run_bnn(exp_p)
         :gpu => device == gpu,
     )
     params = Dict{Symbol, Dict}()
-    params[:gpf] = Dict(
-        :run => exp_p[:alg] == :gpf,
-        :n_particles => n_particles,
-        :max_iters => n_iters,
-        :natmu => natmu,
-        :opt => @eval($opt_det($eta)),
-        :callback => wrap_heavy_cb(path=save_path),
-        :init => copy(x_init),
-        :mf => mf_option,
-        :init => x_init,
-        :gpu => device == gpu,
-    )
-    params[:gf] = Dict(
-        :run => exp_p[:alg] == :gf,
-        :n_samples => n_particles,
-        :max_iters => n_iters,
-        :natmu => natmu,
-        :opt => @eval($opt_stoch($eta)),
-        :callback =>wrap_heavy_cb(path=save_path),
-        :mf => mf_option,
-        :gpu => device == gpu,
-        :init => (copy(θ), cov_to_lowrank(Σ_init, L)),
-    )
-    params[:dsvi] = Dict(
-        :run => exp_p[:mf] == :full ? (exp_p[:alg] == :dsvi) : false,
-        :n_samples => n_particles,
-        :max_iters => n_iters,
-        :opt => @eval($opt_stoch($eta)),
-        :callback => wrap_heavy_cb(path=save_path),
-        :mf => Inf,
-        :init => (copy(θ), copy(diag(Σ_init))),
-        :gpu => device == gpu,
-    )
-    params[:fcs] = Dict(
-        :run => exp_p[:mf] == :none ? (exp_p[:alg] == :fcs) : false,
-        :n_samples => n_particles,
-        :max_iters => n_iters,
-        :opt => @eval($opt_stoch($eta)),
-        :callback => wrap_heavy_cb(path=save_path),
-        :mf => false,
-        :init => (copy(θ), cov_to_lowrank_plus_diag(Σ_init, L)),
-        :gpu => device == gpu,
-    )
-    params[:svgd_linear] = Dict(
-        :run => exp_p[:mf] == :none ? (exp_p[:alg] == :svgd_linear) : false,
-        :n_particles => n_particles,
-        :max_iters => n_iters,
-        :opt => @eval($opt_det($eta)),
-        :callback => wrap_heavy_cb(path=save_path),
-        :mf => false,
-        :init => copy(x_init),
-        :gpu => device == gpu,
-    )
-    params[:svgd_rbf] = Dict(
-        :run => exp_p[:mf] == :none ? (exp_p[:alg] == :svgd_rbf) : false,
-        :n_particles => n_particles,
-        :max_iters => n_iters,
-        :opt => @eval($opt_det($eta)),
-        :callback => wrap_heavy_cb(path=save_path),
-        :mf => false,
-        :init => copy(x_init),
-        :gpu => device == gpu,
-    )
+    if exp_p[:alg] == :gpf
+        params[:gpf] = Dict(
+            :run => exp_p[:alg] == :gpf,
+            :n_particles => n_particles,
+            :max_iters => n_iters,
+            :natmu => natmu,
+            :opt => @eval($opt_det($eta)),
+            :callback => wrap_heavy_cb(path=save_path),
+            :init => copy(x_init),
+            :mf => mf_option,
+            :init => x_init,
+            :gpu => device == gpu,
+        )
+    elseif exp_p[:alg] == :gf
+        params[:gf] = Dict(
+            :run => exp_p[:alg] == :gf,
+            :n_samples => n_particles,
+            :max_iters => n_iters,
+            :natmu => natmu,
+            :opt => @eval($opt_stoch($eta)),
+            :callback =>wrap_heavy_cb(path=save_path),
+            :mf => mf_option,
+            :gpu => device == gpu,
+            :init => (copy(θ), cov_to_lowrank(Σ_init, L)),
+        )
+    elseif exp_p[:alg] == :dsvi
+        params[:dsvi] = Dict(
+            :run => exp_p[:mf] == :full ? (exp_p[:alg] == :dsvi) : false,
+            :n_samples => n_particles,
+            :max_iters => n_iters,
+            :opt => @eval($opt_stoch($eta)),
+            :callback => wrap_heavy_cb(path=save_path),
+            :mf => Inf,
+            :init => (copy(θ), copy(diag(Σ_init))),
+            :gpu => device == gpu,
+        )
+    elseif exp_p[:alg] == :fcs
+        params[:fcs] = Dict(
+            :run => exp_p[:mf] == :none ? (exp_p[:alg] == :fcs) : false,
+            :n_samples => n_particles,
+            :max_iters => n_iters,
+            :opt => @eval($opt_stoch($eta)),
+            :callback => wrap_heavy_cb(path=save_path),
+            :mf => false,
+            :init => (copy(θ), cov_to_lowrank_plus_diag(Σ_init, L)),
+            :gpu => device == gpu,
+        )
+    elseif exp_p[:alg] == :svgd_linear
+        params[:svgd_linear] = Dict(
+            :run => exp_p[:mf] == :none ? (exp_p[:alg] == :svgd_linear) : false,
+            :n_particles => n_particles,
+            :max_iters => n_iters,
+            :opt => @eval($opt_det($eta)),
+            :callback => wrap_heavy_cb(path=save_path),
+            :mf => false,
+            :init => copy(x_init),
+            :gpu => device == gpu,
+        )
+    elseif exp_p[:alg] == :svgd_rbf
+        params[:svgd_rbf] = Dict(
+            :run => exp_p[:mf] == :none ? (exp_p[:alg] == :svgd_rbf) : false,
+            :n_particles => n_particles,
+            :max_iters => n_iters,
+            :opt => @eval($opt_det($eta)),
+            :callback => wrap_heavy_cb(path=save_path),
+            :mf => false,
+            :init => copy(x_init),
+            :gpu => device == gpu,
+        )
+    end
+    @info "Initiliazed algs"
     # Train all models
-    train_model(meta_logjoint, general_p, params)
+    # train_model(meta_logjoint, general_p, params)
 end

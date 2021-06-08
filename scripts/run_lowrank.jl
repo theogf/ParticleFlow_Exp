@@ -27,12 +27,12 @@ exp_ps = Dict(
     :dsvi => !true, # Run Doubly Stochastic VI
     :fcs => true, # Run Factorized Structure Covariance
     :iblr => !true, # Run i Bayesian Rule
-    :svgd => true, # Run linear SVGD
+    :svgd_linear => true, # Run linear SVGD
+    :svgd_rbf => true, # Run rbf SVGD
     :natmu => false, # [true, false], # Use preconditionning on b
     :seed => 42, # Seed for experiments
     :cb_val => nothing, # Callback values
     :eta => 0.1,
-    :kernel => @onlyif(:svgd == true, [:linear, :rbf]),
     :opt_det => :DimWiseRMSProp,
     :opt_stoch => :RMSProp,# :RMSProp],
     :comp_hess => :rep,

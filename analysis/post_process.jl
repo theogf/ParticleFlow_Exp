@@ -17,7 +17,8 @@ algs = [
     :dsvi,
     :fcs,
     :iblr,
-    :svgd,
+    :svgd_linear,
+    :svgd_rbf,
 ]
 
 alg_lab = Dict(
@@ -26,7 +27,8 @@ alg_lab = Dict(
     :dsvi => "DSVI",
     :fcs => "FCS",
     :iblr => "IBLR",
-    :svgd => "SVGD",
+    :svgd_linear => "Linear SVGD",
+    :svgd_rbf => "RBF SVGD"
 )
 
 alg_col = Dict(
@@ -35,7 +37,8 @@ alg_col = Dict(
     :dsvi => colors[3],
     :fcs => colors[4],
     :iblr => colors[8],
-    :svgd => colors[5],
+    :svgd_linear => colors[5],
+    :svgd_rbf => colors[6],
 )
 
 alg_ls = Dict(
@@ -44,7 +47,8 @@ alg_ls = Dict(
     :dsvi => :solid,
     :iblr => :solid,
     :fcs => :solid,
-    :svgd => :solid,
+    :svgd_linear => :solid,
+    :svgd_rbf => :solid,
 )
 
 
@@ -60,7 +64,7 @@ alg_mf_line = Dict(
     :true => :solid,
 )
 
-alg_line_order = [:iblr, :fcs, :svgd, :dsvi, :gf, :gpf]
+alg_line_order = [:iblr, :fcs, :svgd_linear, :svgd_rbf, :dsvi, :gf, :gpf]
 alg_line_order_dict = Dict(x=>i for (i,x) in enumerate(alg_line_order))
 alg_lw = Dict(
     :gpf => 3.0,
@@ -68,7 +72,8 @@ alg_lw = Dict(
     :dsvi => 4.0,
     :iblr => 3.0,
     :fcs => 4.5,
-    :svgd => 3.0,
+    :svgd_linear => 3.0,
+    :svgd_rbf => 3.0,
 )
 
 
