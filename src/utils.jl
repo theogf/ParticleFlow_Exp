@@ -50,10 +50,15 @@ function cov_to_lowrank_plus_diag(S, K)
     return L, D
 end
 
-function cov_to_lowrank(S, K)
+function cov_to_lowrank(S::Matrix, K)
     Q = svd(S)
     L = Q.U[:, 1:K] * Diagonal(sqrt.(Q.S[1:K]))
     return Matrix(L)
+end
+
+function cov_to_lowrank(S::Diagonal, K)
+    s = partialsortperm(S.diag, 1:K; rev=true)
+    return Matrix(S[:, s])
 end
 
 function cov_to_inv_lowrank_plus_diag(S, K)

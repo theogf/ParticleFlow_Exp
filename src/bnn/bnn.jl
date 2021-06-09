@@ -72,15 +72,14 @@ function run_bnn(exp_p)
             # Computing logprior (this is kept fixed)
             logprior = logpdf(α, θ)
             # Making prediction on minibatch
-            pred = nn_forward(xs, θ)
+            pred = nn_forward(reshape(xs, 28 * 28, :), θ)
             # Scaled up loglikelihood (logitcrossentropy returns a mean)
             loglike = -n_data * Flux.logitcrossentropy(pred, ys)
             return logprior + loglike
         end
     end
     x_init = device(randn(n_θ, n_particles) * sqrt(σ_init)) .+ θ
-    Σ_init = Matrix{Float64}(σ_init * I(length(θ)))
-    return save_path
+    Σ_init = Diagonal{Float32}(σ_init * I(length(θ)))
     @info "Initialized inits"
 
     ## Create dictionnaries of parameters
@@ -95,7 +94,7 @@ function run_bnn(exp_p)
         params[:gpf] = Dict(
             :run => exp_p[:alg] == :gpf,
             :n_particles => n_particles,
-            :max_iters => n_iters,
+            :max_iters => n_iter,
             :natmu => natmu,
             :opt => @eval($opt_det($eta)),
             :callback => wrap_heavy_cb(path=save_path),
@@ -108,7 +107,7 @@ function run_bnn(exp_p)
         params[:gf] = Dict(
             :run => exp_p[:alg] == :gf,
             :n_samples => n_particles,
-            :max_iters => n_iters,
+            :max_iters => n_iter,
             :natmu => natmu,
             :opt => @eval($opt_stoch($eta)),
             :callback =>wrap_heavy_cb(path=save_path),
@@ -120,7 +119,7 @@ function run_bnn(exp_p)
         params[:dsvi] = Dict(
             :run => exp_p[:mf] == :full ? (exp_p[:alg] == :dsvi) : false,
             :n_samples => n_particles,
-            :max_iters => n_iters,
+            :max_iters => n_iter,
             :opt => @eval($opt_stoch($eta)),
             :callback => wrap_heavy_cb(path=save_path),
             :mf => Inf,
@@ -131,7 +130,7 @@ function run_bnn(exp_p)
         params[:fcs] = Dict(
             :run => exp_p[:mf] == :none ? (exp_p[:alg] == :fcs) : false,
             :n_samples => n_particles,
-            :max_iters => n_iters,
+            :max_iters => n_iter,
             :opt => @eval($opt_stoch($eta)),
             :callback => wrap_heavy_cb(path=save_path),
             :mf => false,
@@ -142,7 +141,7 @@ function run_bnn(exp_p)
         params[:svgd_linear] = Dict(
             :run => exp_p[:mf] == :none ? (exp_p[:alg] == :svgd_linear) : false,
             :n_particles => n_particles,
-            :max_iters => n_iters,
+            :max_iters => n_iter,
             :opt => @eval($opt_det($eta)),
             :callback => wrap_heavy_cb(path=save_path),
             :mf => false,
@@ -153,7 +152,7 @@ function run_bnn(exp_p)
         params[:svgd_rbf] = Dict(
             :run => exp_p[:mf] == :none ? (exp_p[:alg] == :svgd_rbf) : false,
             :n_particles => n_particles,
-            :max_iters => n_iters,
+            :max_iters => n_iter,
             :opt => @eval($opt_det($eta)),
             :callback => wrap_heavy_cb(path=save_path),
             :mf => false,
@@ -163,5 +162,7 @@ function run_bnn(exp_p)
     end
     @info "Initiliazed algs"
     # Train all models
-    # train_model(meta_logjoint, general_p, params)
+    train_model(meta_logjoint, general_p, params)
+    return save_path
+
 end
