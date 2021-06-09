@@ -8,13 +8,13 @@ function run_slang(exp_p)
     @unpack use_gpu, dataset, activation, n_hidden, batchsize = exp_p # Load all variables from the dict exp_p
     device = use_gpu ? gpu : cpu
     model = "BNN_" * @savename(activation, n_hidden)
-    modelfile = datadir("bnn_models", model, "model.bson")
+    modelfile = datadir("exp_raw", "bnn", "models", dataset, @savename(activation, n_hidden) * ".bson")
     m = BSON.load(modelfile)[:nn] |> device
     θ, re = Flux.destructure(m)
 
     ## Loading parameters for SLANG
     @unpack L, alpha, beta, α = exp_p
-    save_path = datadir("results", "bnn", dataset, "slang_" * model, @savename L batchsize α eta)
+    save_path = datadir("results", "bnn", dataset, "slang_" * model, @savename L batchsize α alpha beta)
     ispath(save_path) ? nothing : mkpath(save_path)
 
     function save_params(alg::SLANG, i)
@@ -36,7 +36,7 @@ function run_slang(exp_p)
     iter = 0
     @functor SLANG
     alg = SLANG(L, length(θ), alpha, beta, α) |> device
-    save_params(ps, 0)
+    save_params(alg, 0)
     for _ in 1:n_epoch
         # p = ProgressMeter.Progress(length(train_loader))
         for (x, y) in train_loader

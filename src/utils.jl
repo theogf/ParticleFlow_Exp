@@ -46,7 +46,7 @@ end
 
 function cov_to_lowrank_plus_diag(S, K)
     L = cov_to_lowrank(S, K)
-    D = diag(S) / sqrt(2)
+    D = diag(S) / sqrt(2f0)
     return L, D
 end
 

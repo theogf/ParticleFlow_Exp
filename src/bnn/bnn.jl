@@ -1,6 +1,7 @@
 include(srcdir("train_model.jl"))
 include(srcdir("utils", "bnn.jl"))
 include(srcdir("utils", "callback.jl"))
+include(srcdir("utils.jl"))
 
 function run_bnn(exp_p)
     @unpack seed = exp_p
@@ -103,7 +104,10 @@ function run_bnn(exp_p)
             :init => x_init,
             :gpu => device == gpu,
         )
-    elseif exp_p[:alg] == :gf
+    else
+        params[:gpf] = no_run
+    end
+    if exp_p[:alg] == :gf
         params[:gf] = Dict(
             :run => exp_p[:alg] == :gf,
             :n_samples => n_particles,
@@ -113,9 +117,12 @@ function run_bnn(exp_p)
             :callback =>wrap_heavy_cb(path=save_path),
             :mf => mf_option,
             :gpu => device == gpu,
-            :init => (copy(θ), cov_to_lowrank(Σ_init, L)),
+            :init => mf == :full ? (copy(θ), sqrt.(diag(Σ_init))) : (copy(θ), cov_to_lowrank(Σ_init, L)),
         )
-    elseif exp_p[:alg] == :dsvi
+    else
+        params[:gf] = no_run
+    end
+    if exp_p[:alg] == :dsvi
         params[:dsvi] = Dict(
             :run => exp_p[:mf] == :full ? (exp_p[:alg] == :dsvi) : false,
             :n_samples => n_particles,
@@ -126,7 +133,10 @@ function run_bnn(exp_p)
             :init => (copy(θ), copy(diag(Σ_init))),
             :gpu => device == gpu,
         )
-    elseif exp_p[:alg] == :fcs
+    else
+        params[:dsvi] = no_run
+    end
+    if exp_p[:alg] == :fcs
         params[:fcs] = Dict(
             :run => exp_p[:mf] == :none ? (exp_p[:alg] == :fcs) : false,
             :n_samples => n_particles,
@@ -134,10 +144,13 @@ function run_bnn(exp_p)
             :opt => @eval($opt_stoch($eta)),
             :callback => wrap_heavy_cb(path=save_path),
             :mf => false,
-            :init => (copy(θ), cov_to_lowrank_plus_diag(Σ_init, L)),
+            :init => (copy(θ), cov_to_lowrank_plus_diag(Σ_init, L)...),
             :gpu => device == gpu,
         )
-    elseif exp_p[:alg] == :svgd_linear
+    else
+        params[:fcs] = no_run
+    end
+    if exp_p[:alg] == :svgd_linear
         params[:svgd_linear] = Dict(
             :run => exp_p[:mf] == :none ? (exp_p[:alg] == :svgd_linear) : false,
             :n_particles => n_particles,
@@ -148,7 +161,10 @@ function run_bnn(exp_p)
             :init => copy(x_init),
             :gpu => device == gpu,
         )
-    elseif exp_p[:alg] == :svgd_rbf
+    else
+        params[:svgd_linear] = no_run
+    end
+    if exp_p[:alg] == :svgd_rbf
         params[:svgd_rbf] = Dict(
             :run => exp_p[:mf] == :none ? (exp_p[:alg] == :svgd_rbf) : false,
             :n_particles => n_particles,
@@ -159,7 +175,10 @@ function run_bnn(exp_p)
             :init => copy(x_init),
             :gpu => device == gpu,
         )
+    else
+        params[:svgd_rbf] = no_run
     end
+    params[:iblr] = no_run
     @info "Initiliazed algs"
     # Train all models
     train_model(meta_logjoint, general_p, params)

@@ -1,6 +1,5 @@
 using DrWatson
 @quickactivate
-using Pkg; Pkg.update()
 
 using CUDA
 # using Distributed
@@ -20,32 +19,33 @@ using CUDA
 #     end
 # end
 
-include(srcdir("bnn", "swag.jl"))
+include(srcdir("bnn", "slang.jl"))
 # @everywhere include(srcdir("bnn", "swag.jl"))
 
 exp_ps = Dict(
-    :n_epoch => 50,
+    :n_iter => 5001,
     :batchsize => 128,
     :n_hidden => [100, 200, 400, 800],
     :activation => [:tanh, :relu],
+    :L => [10, 20, 50],
     :model => "BNN",
     :dataset => "MNIST",
-    :use_gpu => true,
+    :use_gpu => false,
     :seed => 42,
-    :n_period => 10,
-    :eta => 1f-2,#[1f-1, 5f-2, 1f-2], # 0.001 in Float32
     :α => [0.01, 0.05, 0.1, 1.0, 5.0, 10, 50, 100],
+    :alpha => 0.01,
+    :beta => 0.01,
 )
 
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
 
 # pmap(run_SWAG, ps)
-# run_SWAG(ps[4])
+run_slang(ps[1])
 
-for (i, p) in enumerate(ps)
-    @info "Running dict $(i)/$(length(ps)) : $(savename(p))"
-    run_SWAG(p)
-end
+# for (i, p) in enumerate(ps)
+#     @info "Running dict $(i)/$(length(ps)) : $(savename(p))"
+#     run_slang(p)
+# end
 
 # run_SWAG(ps[3])

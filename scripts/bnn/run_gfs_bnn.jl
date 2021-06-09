@@ -21,10 +21,10 @@ exp_ps = Dict(
     :n_iter => 5001,
     :opt_det => :DimWiseRMSProp,
     :opt_stoch => :RMSProp,
-    :eta => 0.001,
+    :eta => 1f-2,
     :natmu => false,
     :σ_init => 1.0,
-    :mf => [:full, :partial, :none],
+    :mf => :none, #[:full, :partial, :none],
     :α => [0.001, 0.01, 0.1, 1.0, 10.0] # Prior variance
 )
 

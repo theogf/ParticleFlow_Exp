@@ -3,6 +3,7 @@ using ProgressMeter
 using LinearAlgebra
 using Distributions
 using Random
+using Functors
 using RandomizedLinAlg
 
 struct SLANG{Tμ,TU,Td,T}
@@ -97,50 +98,52 @@ function step!(alg::SLANG, to_network, loss)
     return nothing
 end
 
-## Test SLANG
-N = 50
-x = (rand(1, N) * 10) .- 5
-y = sin.(x[:])
-y = abs.(x[:])
-# y = 2 * x[:]
-y = y + randn(N) * 0.1
-n_hidden = 300
-K = 2
-# l = Chain(LowRankGaussianDenseLayer(1, n_hidden, relu, K), LowRankGaussianDenseLayer(n_hidden, 1, identity, K))
-l = Chain(Dense(1, n_hidden, relu), Dense(n_hidden, 1, identity))
-θ, re = Flux.destructure(l)
-loss(nn) = abs2.(nn(x) - y')
-model = SLANG(K, length(θ), 0.1, 0.1)
-T = 2000
-@showprogress for i in 1:T
-    if i % 100 == 0
-        # @info "Current loss: $(loss(l)) "
-    end
-    step!(model, re, loss)
-    if i % 500 == 0
-        plot_results() |> display
-    end
-end
-plot_results()
-
-## Plotting test
+## Test SLANG y
 
 using StatsBase
-using Plots
+# using Plots
+function test_slang()
+    N = 50
+    x = (rand(1, N) * 10) .- 5
+    y = sin.(x[:])
+    y = abs.(x[:])
+    # y = 2 * x[:]
+    y = y + randn(N) * 0.1
+    n_hidden = 300
+    K = 2
+    # l = Chain(LowRankGaussianDenseLayer(1, n_hidden, relu, K), LowRankGaussianDenseLayer(n_hidden, 1, identity, K))
+    l = Chain(Dense(1, n_hidden, relu), Dense(n_hidden, 1, identity))
+    θ, re = Flux.destructure(l)
+    loss(nn) = abs2.(nn(x) - y')
+    model = SLANG(K, length(θ), 0.1, 0.1)
+    T = 2000
+    ## Plotting test
 
-function pred_mean_and_var(model::SLANG, re, x; T=100)
-    return vec.(mean_and_var([re(rand(model))(x) for _ in 1:T]))
-end
+    function pred_mean_and_var(model::SLANG, re, x; T=100)
+        return vec.(mean_and_var([re(rand(model))(x) for _ in 1:T]))
+    end
 
-function plot_results()
-    x_test = range(-7, 7, length=100)'
-    scatter(x', y, lab="")
+    function plot_results()
+        x_test = range(-7, 7, length=100)'
+        scatter(x', y, lab="")
+        y_test_m, y_test_v = pred_mean_and_var(model, re, x_test)
+        plot!(x_test', y_test_m, ribbon=sqrt.(y_test_v), lab="")
+        plot!(x_test', [vec(re(rand(model))(x_test)) for _ in 1:10], lab="")
+    end
+    @showprogress for i in 1:T
+        if i % 100 == 0
+            # @info "Current loss: $(loss(l)) "
+        end
+        step!(model, re, loss)
+        if i % 500 == 0
+            plot_results() |> display
+        end
+    end
+    plot_results()
+
+
     y_test_m, y_test_v = pred_mean_and_var(model, re, x_test)
-    plot!(x_test', y_test_m, ribbon=sqrt.(y_test_v), lab="")
-    plot!(x_test', [vec(re(rand(model))(x_test)) for _ in 1:10], lab="")
+    plot_results()
 end
-y_test_m, y_test_v = pred_mean_and_var(model, re, x_test)
-plot_results()
 
-
-@profview [step!(model, re, loss) for _ in 1:100]
+# @profview [step!(model, re, loss) for _ in 1:100]
