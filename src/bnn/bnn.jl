@@ -80,8 +80,7 @@ function run_bnn(exp_p)
         end
     end
     x_init = device(randn(n_θ, n_particles) * sqrt(σ_init)) .+ θ
-    Σ_init = Diagonal{Float32}(σ_init * I(length(θ)))
-    @info "Initialized inits"
+    Σ_init = device(Diagonal{Float32}(σ_init * I(length(θ))))
 
     ## Create dictionnaries of parameters
     general_p = Dict(
@@ -117,7 +116,7 @@ function run_bnn(exp_p)
             :callback =>wrap_heavy_cb(path=save_path),
             :mf => mf_option,
             :gpu => device == gpu,
-            :init => mf == :full ? (copy(θ), sqrt.(diag(Σ_init))) : (copy(θ), cov_to_lowrank(Σ_init, L)),
+            :init => (mf == :full ? (copy(θ), sqrt.(diag(Σ_init))) : (copy(θ), cov_to_lowrank(Σ_init, L))) |> device,
         )
     else
         params[:gf] = no_run
@@ -179,7 +178,7 @@ function run_bnn(exp_p)
         params[:svgd_rbf] = no_run
     end
     params[:iblr] = no_run
-    @info "Initiliazed algs"
+    @info "Initialized algs"
     # Train all models
     train_model(meta_logjoint, general_p, params)
     return save_path

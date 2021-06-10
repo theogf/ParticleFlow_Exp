@@ -98,7 +98,11 @@ function Optimise.apply!(o::DimWiseRMSProp, x, Δ)
   η = o.eta
   γ = o.gamma
   acc = get!(o.state, x) do
-    fill!(zeros(size(x, 1)), o.ϵ)
+    if x isa CuArray
+      gpu(fill!(zeros(size(x, 1)), o.ϵ))
+    else
+      fill!(zeros(size(x, 1)), o.ϵ)
+    end
   end
   acc .= γ * acc + (1 - γ) * diag_ABt(Δ, Δ)
   return Diagonal(η ./ (sqrt.(acc .+ o.ϵ))) * Δ

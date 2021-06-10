@@ -6,6 +6,35 @@ using Random
 using Functors
 using RandomizedLinAlg
 
+"""
+    LowRankMatrix
+
+Lazy matrix representation of `A = L * L'` with `size(L) == N, D` with N >> D
+`A` is never explicitly computed
+"""
+struct LowRankMatrix{T,A<:AbstractMatrix{T}} <: AbstractMatrix{T}
+    L::A
+end
+
+Base.:*(A::LowRankMatrix, X::AbstractMatrix) = A.L * (A.L' * X)
+Base.:*(X::AbstractMatrix, A::LowRankMatrix) = (X * A.L) * A.L'
+Base.size(A::LowRankMatrix) = (size(A.L, 1), size(A.L, 1))
+
+"""
+    SumLowRank
+
+Lazy matrix representation of `A = L1 + L2`, L1 and L2 can be anything, `A` is never explicitly computed.
+"""
+struct SumLowRank{T,A1<:AbstractMatrix{T},A2<:AbstractMatrix{T}} <: AbstractMatrix{T}
+    L1::A1
+    L2::A2
+end
+
+Base.:*(A::SumLowRank, X::AbstractMatrix) = A.L1 * X + A.L2 * X
+Base.:*(X::AbstractMatrix, A::SumLowRank) = X * A.L1 + X * A.L2
+Base.size(A::SumLowRank) = size(A.L1)
+
+
 struct SLANG{Tμ,TU,Td,T}
     L::Int # Rank
     μ::Tμ # Mean
@@ -32,7 +61,7 @@ end
 function fast_inverse(g, U, d)
     invD = Diagonal(inv.(d))
     A = inv(I + U' * invD * U)
-    y = invD * g - invD * U * A * U' * invD * g
+    y = invD * g - (invD * (U * (A * (U' * (invD * g)))))
     return y
 end
 
@@ -62,29 +91,21 @@ function fast_sample(alg::SLANG)
 end
 
 function fast_eig(δ, U, β, G, L)
-    @show size(G), size(U)
-    S = rsvd(Symmetric(δ * U * U' + β * G * G'), L, 2)
+    S = rsvd(
+            SumLowRank(
+                LowRankMatrix(sqrt(δ) * U),
+                LowRankMatrix(sqrt(β) * G),
+                ),
+            L,
+            2,
+        )
+    # S = rsvd(Symmetric(δ * U * U' + β * G * G'), L, 2)
     return S.U
 end
 function orthogonalize(A)
     return Array(qr(A).Q)
 end
 
-function fast_eig2(δ, U, β, G, L)
-    d = length(U, 1)
-    A = Symmetric(δ * U * U' + β * G * G')
-    E = rand(Uniform(-1, 1), d, L)
-    for _ in 1:4
-        E = orthogonalize(A * E)
-    end
-    old_E = E
-    E = A * E
-    anorm = maximum(norm(E, dims=1) ./ norm(old_E))
-    E = orthogonalize(E)
-    vals, V = nystrom(E, anorm)
-    s = permsort(vals)
-    return V[:, s[1:L]]
-end
 # Return the diagonal of A * A'
 function diag_AAt(A)
     vec(sum(abs2, A; dims=2))

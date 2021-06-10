@@ -5,7 +5,7 @@ using DrWatson
 using DataFrames
 using BSON
 using Flux
-# using CUDA
+using CUDA
 include(srcdir("bnn", "bnn.jl"))
 
 exp_ps = Dict(
@@ -15,8 +15,9 @@ exp_ps = Dict(
     :n_hidden => [100, 200, 400, 800],
     :activation => [:relu, :tanh],
     :dataset => "MNIST",
-    :use_gpu => false,
-    :alg => [:gpf, :gf, :fcs, :dsvi, :svgd_linear, :svgd_rbf],
+    :use_gpu => true,
+    :alg => :dsvi,
+    # :alg => [:gpf, :gf, :fcs, :dsvi, :svgd_linear, :svgd_rbf],
     :L => [10, 50, 100],
     :n_iter => 5001,
     :opt_det => :DimWiseRMSProp,
@@ -24,7 +25,7 @@ exp_ps = Dict(
     :eta => 1f-2,
     :natmu => false,
     :σ_init => 1.0,
-    :mf => :none, #[:full, :partial, :none],
+    :mf => :full, #[:full, :partial, :none],
     :α => [0.001, 0.01, 0.1, 1.0, 10.0] # Prior variance
 )
 

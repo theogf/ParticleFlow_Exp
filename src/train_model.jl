@@ -121,7 +121,13 @@ end
 function init_alg(::Val{:gf}, params, general_p)
     n_dim = general_p[:n_dim]
     alg_vi = if params[:run]
-        AVI.GaussFlow(params[:max_iters], params[:n_samples], params[:natmu], false)
+        AVI.GaussFlow(
+            general_p[:gpu] ? CUDA.CURAND.default_rng() : Random.GLOBAL_RNG,
+            params[:max_iters],
+            params[:n_samples],
+            params[:natmu],
+            false,
+        )
     else
         return nothing, nothing
     end
@@ -153,7 +159,12 @@ end
 function init_alg(::Val{:dsvi}, params, general_p)
     n_dim = general_p[:n_dim]
     alg_vi = if params[:run]
-        AVI.DSVI(params[:max_iters], params[:n_samples])
+        AVI.DSVI(
+            general_p[:gpu] ? CUDA.CURAND.default_rng() : Random.GLOBAL_RNG,
+            general_p[:gpu] ? gpu : cpu,
+            params[:max_iters],
+            params[:n_samples],
+            )
     else
         return nothing, nothing
     end
