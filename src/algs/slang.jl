@@ -43,9 +43,9 @@ function fast_sample(rng::AbstractRNG, μ, U, d)
     W = V' * V
     A = cholesky(W).L
     B = cholesky(I + W).L
-    C = A' \ (B - I) / A
-    invK = C + W
-    y = invDsqrt .* ϵ - ((V / invK) * transpose(V)) * ϵ
+    C = A' \ ((B - I) / A)
+    K = inv(C + W)
+    y = invDsqrt .* ϵ - (V * (K * (transpose(V) * ϵ)))
     return μ + y
 end
 
@@ -53,7 +53,16 @@ function fast_sample(μ, U, d)
     return fast_sample(Random.GLOBAL_RNG, μ, U, d)
 end
 
+function fast_sample(rng::AbstractRNG, alg::SLANG)
+    return fast_sample(rng, alg.μ, alg.U, alg.d)
+end
+
+function fast_sample(alg::SLANG)
+    return fast_sample(Random.GLOBAL_RNG, alg)
+end
+
 function fast_eig(δ, U, β, G, L)
+    @show size(G), size(U)
     S = rsvd(Symmetric(δ * U * U' + β * G * G'), L, 2)
     return S.U
 end
