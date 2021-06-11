@@ -65,3 +65,36 @@ function cov_to_inv_lowrank_plus_diag(S, K)
     P = inv(S)
     return cov_to_lowrank_plus_diag(P, K)
 end
+
+
+## Making the ScaleTransform GPU compatible
+using Functors
+using KernelFunctions
+struct GPUScaleTransform{T<:Real,V<:AbstractVector{T}} <: KernelFunctions.Transform
+    s::V
+end
+
+function GPUScaleTransform(s::T=1.0) where {T<:Real}
+    return GPUScaleTransform{T,typeof([s])}([s])
+end
+
+@functor GPUScaleTransform
+
+KernelFunctions.set!(t::GPUScaleTransform, ρ::Real) = t.s .= ρ
+
+(t::GPUScaleTransform)(x) = first(t.s) * x
+
+KernelFunctions._map(t::GPUScaleTransform, x::AbstractVector{<:Real}) = first(t.s) .* x
+KernelFunctions._map(t::GPUScaleTransform, x::ColVecs) = ColVecs(first(t.s) .* x.X)
+KernelFunctions._map(t::GPUScaleTransform, x::RowVecs) = RowVecs(first(t.s) .* x.X)
+
+Base.isequal(t::GPUScaleTransform, t2::GPUScaleTransform) = isequal(first(t.s), first(t2.s))
+
+Base.show(io::IO, t::GPUScaleTransform) = print(io, "Scale Transform (s = ", first(t.s), ")")
+
+
+struct MyLinearKernel <: KernelFunctions.SimpleKernel end
+
+KernelFunctions.kappa(::MyLinearKernel, xᵀy::Real) = xᵀy + 1
+
+KernelFunctions.metric(::MyLinearKernel) = KernelFunctions.DotProduct()

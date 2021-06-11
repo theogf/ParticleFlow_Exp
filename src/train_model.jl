@@ -235,9 +235,17 @@ function init_alg(svgd::Union{Val{:svgd_linear}, Val{:svgd_rbf}}, params, genera
     end
     alg_vi = if params[:run]
         if kernel == :linear
-            AVI.SVGD(params[:max_iters], LinearKernel(c=1))
+            AVI.SVGD(
+                general_p[:gpu] ? gpu : cpu,
+                MyLinearKernel(),
+                params[:max_iters],
+            )
         else
-            AVI.SVGD(params[:max_iters], SqExponentialKernel())
+            AVI.SVGD(
+                general_p[:gpu] ? gpu : cpu,
+                general_p[:gpu] ? gpu(compose(SqExponentialKernel(), GPUScaleTransform(1.0))) : compose(SqExponentialKernel(), ScaleTransform(1.0)),
+                params[:max_iters],
+            )
         end
     else
         return nothing, nothing

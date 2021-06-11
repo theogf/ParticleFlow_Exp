@@ -16,7 +16,7 @@ exp_ps = Dict(
     :activation => [:relu, :tanh],
     :dataset => "MNIST",
     :use_gpu => true,
-    :alg => :dsvi,
+    :alg => :svgd_linear,
     # :alg => [:gpf, :gf, :fcs, :dsvi, :svgd_linear, :svgd_rbf],
     :L => [10, 50, 100],
     :n_iter => 5001,
@@ -25,7 +25,7 @@ exp_ps = Dict(
     :eta => 1f-2,
     :natmu => false,
     :σ_init => 1.0,
-    :mf => :full, #[:full, :partial, :none],
+    :mf => :none, #[:full, :partial, :none],
     :α => [0.001, 0.01, 0.1, 1.0, 10.0] # Prior variance
 )
 
