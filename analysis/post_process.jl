@@ -31,6 +31,12 @@ alg_lab = Dict(
     :svgd_rbf => "RBF SVGD"
 )
 
+mf_lab = Dict(
+    :full => "MF",
+    :partial => "Partial MF",
+    :none => "",
+)
+
 alg_col = Dict(
     :gpf => colors[1],
     :gf => colors[2],
@@ -62,6 +68,7 @@ alg_mf_line = Dict(
     :none => :solid,
     :full => :solid,
     :true => :solid,
+    :partial => :dash,
 )
 
 alg_line_order = [:iblr, :fcs, :svgd_linear, :svgd_rbf, :dsvi, :gf, :gpf]

@@ -16,8 +16,8 @@ exp_ps = Dict(
     :activation => [:relu, :tanh],
     :dataset => "MNIST",
     :use_gpu => true,
-    :alg => :svgd_linear,
-    # :alg => [:gpf, :gf, :fcs, :dsvi, :svgd_linear, :svgd_rbf],
+    # :alg => :gf,
+    :alg => [:gpf, :gf, :dsvi, :svgd_linear, :svgd_rbf],
     :L => [10, 50, 100],
     :n_iter => 5001,
     :opt_det => :DimWiseRMSProp,
@@ -25,18 +25,19 @@ exp_ps = Dict(
     :eta => 1f-2,
     :natmu => false,
     :σ_init => 1.0,
-    :mf => :none, #[:full, :partial, :none],
-    :α => [0.001, 0.01, 0.1, 1.0, 10.0] # Prior variance
+    :mf => [:full, :none],
+    :overwrite => true,
+    :α => 1.0, #[0.001, 0.01, 0.1, 1.0, 10.0] # Prior variance
 )
 
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
 
-run_bnn(ps[1])
+# run_bnn(ps[1])
 
-# for (i, p) in enumerate(ps)
-#     @info "Running dict $(i)/$(length(ps)) : $(savename(p))"
-#     GC.gc(true)
-#     CUDA.reclaim()
-#     run_gpf_bnn(p)
-# end
+for (i, p) in enumerate(ps)
+    @info "Running dict $(i)/$(length(ps)) : $(savename(p))"
+    GC.gc(true)
+    CUDA.reclaim()
+    run_bnn(p)
+end

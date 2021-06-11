@@ -2,6 +2,7 @@ using DrWatson
 @quickactivate
 include(projectdir("analysis", "post_process.jl"))
 include(srcdir("utils", "bnn.jl"))
+include("utils_process_bnn.jl")
 pyplot()
 using Flux
 using StatsBase, LinearAlgebra
@@ -17,186 +18,134 @@ if use_gpu
 end
 ## Load data and filter it
 dataset = "MNIST"
-model = "LeNet"
-batchsize = 128
-n_epoch = 50
-n_period = 10
-η = 0.01
-α = 0.1
-cond1 = false
-cond2 = false
-start_layer = 7
-K = 50
-
+model = "BNN"
+n_hidden = 100
+activation = :relu
+exp_params = Dict(
+    :batchsize => 128,
+    :n_epoch => 50,
+    :n_period => 10,
+    :eta => 0.01,
+    :α => 1.0,
+    :natmu => false,
+    :L => 10,
+    :n_iter => 5001,
+    :opt_det => :DimWiseRMSProp,
+    :opt_stoch => :RMSProp,
+    :σ_init => 1.0,
+)
+n_MC = 100
 
 ## Load model and data
-modelfile = projectdir("bnn_models", model, "model.bson")
-m = BSON.load(modelfile)[:model]
-fixed_m = m[1:(start_layer-1)] |> dev
-opt_m = m[start_layer:end]
-opt_θ, opt_re = Flux.destructure(opt_m)
-n_θ = length(opt_θ)
+model = "BNN_" * @savename(activation, n_hidden)
+modelfile = datadir("exp_raw", "bnn", "models", dataset, @savename(activation, n_hidden) * ".bson")
+m = BSON.load(modelfile)[:nn]
+θ, re = Flux.destructure(m)
+n_θ = length(θ)
 function nn_forward(xs, θ)
-    opt_m = opt_re(θ) |> dev
-    nn = Chain(fixed_m, opt_m)
-    return nn(xs)
+    nn = re(θ) |> dev
+    return nn(reshape(xs, 28 * 28, :))
 end
 ## Loading data
 train_loader, test_loader = get_data(dataset, 10_000);
 X_test, y_test = first(test_loader)
 X_test = X_test |> dev
-N20 = size(X_test, 4) ÷ 20
+N20 = size(X_test, 3) ÷ 20
 
-opt_pred = cpu(Flux.softmax(nn_forward(X_test, opt_θ)))
-
-function max_ps_ids(X)
-    maxs = findmax.(eachcol(X))
-    return ps, ids = first.(maxs), last.(maxs)
-end
+opt_pred = cpu(Flux.softmax(nn_forward(X_test, θ)))
 opt_ps, opt_ids = max_ps_ids(opt_pred)
-function conf_and_acc(preds)
-    conf_and_acc(max_ps_ids(preds)...)
-end
-function conf_and_acc(ps, ids)
-    s = sortperm(ps)
-    bins = [s[i*N20+1:(i+1)*N20] for i in 0:19]
-    conf = mean.(getindex.(Ref(ps), bins))
-    acc = [mean(ids[bins[i]] .== Flux.onecold(y_test)[bins[i]]) for i in 1:20]
-    return conf, acc
-end
 
+bnn_algs = [
+    :gpf,
+    :gf,
+    :dsvi,
+    :svgd_linear,
+    :svgd_rbf,
+    :swag,
+    :elrgvi,
+    :slang,
+]
 
+algs_to_mf = Dict(
+    :gpf => [:none, :full, :partial],
+    :gf => [:none, :full, :partial],
+    :dsvi => [:full],
+    :svgd_linear => [:none],
+    :svgd_rbf => [:none],
+    :swag => [:none],
+    :elrgvi => [:none],
+    :slang => [:none],
+)
 
-## Predictions with GPF and ADVI + Plotting
-mfs = [:partial, :full]
-n_ps = 100#[10, 50, 100]
-αs = [0.01, 0.05, 0.1, 1, 5, 10, 50, 100]
-mfdict = Dict(:partial => "Struct. MF", :full => "MF")
-gpfl = Dict(:partial => :solid, :full => :dash)
-gpfc = Dict(:partial => colors[1], :full => colors[3])
-accs = Dict()
-accs[:gpf] = Dict(); accs[:advi] = Dict(); accs[:swag] = Dict()
-
-for mf in mfs
-    accs[:gpf][mf] = Dict()
-end
+## Load the results
 nlls = Dict()
-nlls[:gpf] = Dict(); nlls[:advi] = Dict(); nlls[:swag] = Dict()
-for mf in mfs
-    nlls[:gpf][mf] = Dict()
-end
-## Run everything
-legend = true
-
-
-
-# for n_particles in n_ps,
-    # α in 0.1#αs
-n_particles = 100
-α = 0.1
-@show α, n_particles
-# Deal with GPF
-gpf_conf = Dict()
-gpf_acc = Dict()
-for mf in mfs
-    n_iter = 5001
-    gpf_res = collect_results(datadir("results", "bnn", dataset, "GPF_LeNet", @savename start_layer n_particles α n_iter batchsize mf cond1 cond2))
-    particles = first(gpf_res.particles[gpf_res.i .== n_iter-1])
-    preds = []
-    @showprogress for θ in eachcol(particles)
-        pred = nn_forward(X_test, θ)
-        push!(preds, cpu(Flux.softmax(pred)))
-    end
-    gpf_preds = mean(preds)
-    nlls[:gpf][mf][(α, n_particles)] = Flux.Losses.crossentropy(gpf_preds, y_test)
-    accs[:gpf][mf][(α, n_particles)] = mean(Flux.onecold(gpf_preds) .== Flux.onecold(y_test))
-    gpf_conf[mf], gpf_acc[mf] = conf_and_acc(gpf_preds)
-end
-
-# Deal with ADVI
+accs = Dict()
+confs = Dict()
+conf_accs = Dict()
 n_iter = 5001
-advi_res = collect_results(datadir("results", "bnn", dataset, "ADVI_LeNet", @savename start_layer n_particles α n_iter batchsize))
-q = first(advi_res.q[advi_res.i .== n_iter-1])
-preds = []
-@showprogress for θ in eachcol(rand(q, n_particles))
-    pred = nn_forward(X_test, θ)
-    push!(preds, cpu(Flux.softmax(pred)))
+
+for alg in bnn_algs # Loop over every algorithm
+    alg_dir = datadir("results", "bnn", dataset, model, string(alg))
+    nlls[alg] = Dict()
+    accs[alg] = Dict()
+    confs[alg] = Dict()
+    conf_accs[alg] = Dict()
+    for mf in algs_to_mf[alg]
+        nlls[alg][mf], accs[alg][mf], confs[alg][mf], conf_accs[alg][mf] = extract_info(Val(alg), alg_dir, mf, exp_params)
+    end
 end
-advi_preds = mean(preds)
 
-nlls[:advi][(α, n_particles)] = Flux.Losses.crossentropy(advi_preds, y_test)
-accs[:advi][(α, n_particles)] = mean(Flux.onecold(advi_preds) .== Flux.onecold(y_test))
-
-# Deal with SWAG
-## Load SWAG data
-_α = α
-α = 100
-swag_res = collect_results(datadir("results", "bnn", dataset, "SWAG_"*model, @savename n_epoch n_period batchsize α η start_layer))
-thinning = 10
-res = ([vcat(vec.(x)...) for x in swag_res.parameters[1:thinning:end]])
-SWA_sqrt_diag = Diagonal(StatsBase.std(res))
-SWA = mean(res[end-K+1:end])
-SWA_D = reduce(hcat, res[end-K+1:end] .- Ref(SWA))
-
-
-## Create predictions using SWAG
-n_MC = 100
-
-preds = []
-@showprogress for i in 1:n_MC
-    θ = SWA + SWA_sqrt_diag / sqrt(2f0) * randn(Float32, n_θ) + SWA_D / sqrt(2f0 * (K - 1)) * randn(Float32, K)
-    pred = nn_forward(X_test, θ)
-    push!(preds, cpu(Flux.softmax(pred)))
-end
-SWAG_preds = mean(preds)
-nlls[:swag][(α, n_particles)] = Flux.Losses.crossentropy(SWAG_preds, y_test)
-accs[:swag][(α, n_particles)] = mean(Flux.onecold(SWAG_preds) .== Flux.onecold(y_test))
 
 ## Plotting of confidence histogram
-α = _α
 xvals = [0.5, 0.95, 0.99, 0.999, 0.9999]
 xvcontinuous = range(0.3, 0.99, length = 100)
 logxvals = log.(1.0 .- xvals)
-opt_conf, opt_acc = conf_and_acc(opt_pred)
-advi_conf, advi_acc = conf_and_acc(advi_preds)
-swag_conf, swag_acc = conf_and_acc(SWAG_preds)
-p = plot(xflip = false, legendfontsize = 13.5, legend = :bottomleft, title = "LeNet - MNIST", xlabel = "Confidence (max prob)", ylabel = "Accuracy")
+p = plot(xflip = false, legendfontsize = 13.5, legend = :topleft, title = "LeNet - MNIST", xlabel = "Confidence (max prob)", ylabel = "Accuracy")
 # xticks!(logxvals, string.(xvals))
 msw = 0.5
 ms = 8.0
 lw = 5.0
-alpha=  α
 plot!([0.0, 1.0], identity,
 # plot!(log.(1.0.-xvcontinuous), 
         # x->0,#-exp(x)+1,
         linestyle = :dash, color = :black, label = "")
 # plot!(opt_conf, opt_acc, marker = :o, label = "ML", msw = msw, color = colors[7])
-for mf in mfs
-    plot!(gpf_conf[mf], gpf_acc[mf], marker = :circle, label = "GPF - $(mfdict[mf])", color = gpfc[mf], linestyle = gpfl[mf], msw = msw, linewidth = lw, ms = ms)
+@unpack eta, L = exp_params
+alpha= exp_params[:α]
+for alg in bnn_algs
+    for mf in algs_to_mf[alg]
+        if !isnothing(confs[alg][mf])
+            plot!(confs[alg][mf], conf_accs[alg][mf], marker = :circle, label = "$(alg) - $(mf_lab[mf])", color = alg_col[alg], linestyle = alg_mf_line[mf], msw = msw, linewidth = lw, ms = ms)
+        end
+    end
 end
-plot!(advi_conf, advi_acc, marker = :circle, label = "GVA", msw = msw, color = colors[2],linewidth = lw, ms = ms)
-plot!(swag_conf, swag_acc, marker = :circle, label = "SWAG", msw = msw, color = colors[4], linewidth = lw, ms = ms)
-
-savefig(plotsdir("bnn", savename("confidencelenet", @dict(alpha, n_particles), "png")))
+plot_dir = plotsdir("bnn")
+mkpath(plot_dir)
+savefig(joinpath(plot_dir, savename("confidence_bnn", @dict(n_hidden, activation, alpha, eta, L), "png")))
 display(p)
-# end
-## Collect nll and accs
-nll = Dict()
-nll[:gpf] = Dict()
-for mf in mfs
-    nll[:gpf][mf] = Vector(undef, length(n_ps))
-end
-nll[:advi] = Vector(undef, length(n_ps))
-nll[:swag] = Vector(undef, length(n_ps))
 
-acc = Dict()
-acc[:gpf] = Dict()
-for mf in mfs
-    acc[:gpf][mf] = Vector(undef, length(n_ps))
+## Work with the NLL and ACC
+alg_labels = String[]
+alg_nll = Float64[]
+alg_acc = Float64[]
+for alg in bnn_algs
+    for mf in algs_to_mf[alg]
+        if !isnothing(nlls[alg][mf])
+            push!(alg_labels, "$(alg) - $(mf_lab[mf])")
+            push!(alg_nll, nlls[alg][mf])
+            push!(alg_acc, accs[alg][mf])
+        end
+    end
 end
-acc[:advi] = Vector(undef, length(n_ps))
-acc[:swag] = Vector(undef, length(n_ps))
 
+p1 = bar(alg_labels, alg_nll, ylabel="NLL", label="", lw=0.0)
+p2 = bar(alg_labels, 1 .- alg_acc, ylabel="Class. Error", label="", lw=0.0)
+savefig(p1, joinpath(plot_dir, savename("nll", @dict(n_hidden, activation, alpha, L, eta), "png")))
+savefig(p2, joinpath(plot_dir, savename("err", @dict(n_hidden, activation, alpha, L, eta), "png")))
+display(plot(p1, p2))
+
+
+## 
 for (i, n_particles) in enumerate(n_ps)
     for mf in mfs
         nll[:gpf][mf][i] = [nlls[:gpf][mf][(α, n_particles)] for α in αs]

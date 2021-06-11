@@ -2,8 +2,8 @@
 using BSON
 
 
-cb_tic(h, i::Int) = push!(h, :t_tic, Float64(time_ns()) / 1e9)
-cb_toc(h, i::Int) = push!(h, :t_toc, Float64(time_ns()) / 1e9)
+cb_tic(h, ::Int) = push!(h, :t_tic, Float64(time_ns()) / 1e9)
+cb_toc(h, ::Int) = push!(h, :t_toc, Float64(time_ns()) / 1e9)
 
 no_cb(xs...) = nothing
 
@@ -76,7 +76,7 @@ function cb_heavy_var(h, i::Int, q::Union{AVI.AbstractSamplesMvNormal, AVI.Empir
     isdir(path) ? nothing : mkpath(path)
     new_path = joinpath(path, string("model_iter_", i, ".bson"))
     q = cpu(q)
-    particles = Float32.(q.x)
+    particles = cpu(Float32.(q.x))
     save(new_path, @dict i particles)
 end
 

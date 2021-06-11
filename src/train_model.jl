@@ -18,7 +18,7 @@ include(joinpath("utils", "tools.jl"))
 # Main function, take dicts of parameters
 # run the inference and return MVHistory objects for each alg.
 no_run = Dict(:run => false)
-const algs = [
+algs = [
     :gpf,
     :gf,
     :dsvi,
@@ -123,6 +123,7 @@ function init_alg(::Val{:gf}, params, general_p)
     alg_vi = if params[:run]
         AVI.GaussFlow(
             general_p[:gpu] ? CUDA.CURAND.default_rng() : Random.GLOBAL_RNG,
+            general_p[:gpu] ? gpu : cpu,
             params[:max_iters],
             params[:n_samples],
             params[:natmu],
@@ -132,7 +133,7 @@ function init_alg(::Val{:gf}, params, general_p)
         return nothing, nothing
     end
     alg_q = if params[:mf] isa AbstractVector
-        AVI.BlockMFMvLowRankNormal(
+        AVI.BlockMFLowRankMvNormal(
             (isnothing(params[:init]) ?
                 rand(MvNormal(ones(n_dim)), params[:n_samples]) :
                 params[:init])...,

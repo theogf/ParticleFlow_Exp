@@ -8,7 +8,7 @@ function run_bnn(exp_p)
     Random.seed!(seed)
 
     ## Loading the model and creating the appropriate function
-    @unpack use_gpu, dataset, activation, n_hidden, batchsize = exp_p # Load all variables from the dict exp_p
+    @unpack overwrite, use_gpu, dataset, activation, n_hidden, batchsize = exp_p # Load all variables from the dict exp_p
     device = use_gpu ? gpu : cpu
     model = "BNN_" * @savename(activation, n_hidden)
     modelfile = datadir("exp_raw", "bnn", "models", dataset, @savename(activation, n_hidden) * ".bson")
@@ -53,10 +53,14 @@ function run_bnn(exp_p)
         "results",
         "bnn",
         dataset,
-        string(exp_p[:alg]) * "_" * model,
-        @savename L n_iter batchsize mf σ_init natmu α opt_det opt_stoch
+        model,
+        string(exp_p[:alg]),
+        @savename L n_iter eta batchsize mf σ_init natmu α opt_det opt_stoch
     )
-
+    if isdir(save_path) && !overwrite
+        warn("Simulation seems to have been run already! Skipping this one out")
+        return nothing
+    end
     ## Define prior
     function logpdf(α::Real, θ::AbstractVector)
         - sum(abs2, θ) / (2α^2)
