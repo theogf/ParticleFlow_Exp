@@ -23,11 +23,7 @@ function LowRankGaussianDenseLayer(in, out, a, K, α=1/K)
 end
 
 function LowRankGaussianDenseLayer(l::Dense, K, α=1/K)
-    out, in = size(l.W)
-    θ = vcat(l.W[:], l.b)
-    Σ = Matrix{Float64}()
-
-    LowRankGaussianDenseLayer(K, in, out, θ, ran)
+    LowRankGaussianDenseLayer(reverse(size(l.W))..., l.σ, K, α)
 end
 
 Flux.@functor LowRankGaussianDenseLayer
@@ -53,11 +49,11 @@ function (l::LowRankGaussianDenseLayer{A})(x::AbstractArray) where {A}
     return l.a.(Yμ + ϵ .* Yσ + sqrt(l.α) * Yv) # Summed output
 end
 
-function KLdivergence(l::Chain, γ::Real)
-    sum(Base.Fix2(KLdivergence, γ), l)
+function LRKLdivergence(l::Chain, γ::Real)
+    sum(Base.Fix2(LRKLdivergence, γ), l)
 end
 
-function KLdivergence(l::LowRankGaussianDenseLayer, γ::Real)
+function LRKLdivergence(l::LowRankGaussianDenseLayer, γ::Real)
     D = (l.in + 1) * l.out
     return 0.5 * (sum(abs2, l.σ) / γ - sum(log ∘ abs2, l.σ)
                     + l.α / γ * sum(abs2, l.v) + sum(abs2, l.μ) / γ -
@@ -83,42 +79,45 @@ function network_sample(l::LowRankGaussianDenseLayer)
 end
 
 ## Run a test
-N = 50
-x = (rand(1, N) * 10) .- 5
-y = sin.(x[:])
-y = abs.(x[:])
-# y = 2 * x[:]
-y = y + randn(N) * 0.1
-score(y, ŷ) = 0.5 * sum(abs2, y .- ŷ)
-neg_elbo(l, x, y) = score(y, l(x)) + KLdivergence(l, 100.0) 
-loss(l, x, y) = Flux.Losses.mse(l(x), y)
-n_hidden = 10
-K = 10
-l = Chain(LowRankGaussianDenseLayer(1, n_hidden, relu, K), LowRankGaussianDenseLayer(n_hidden, 1, identity, K))
-# l = Chain(Dense(1, 5, relu), Dense(5, 1, identity))
-ps = params(l)
-opt = ADAM(0.01)
-T = 2000
-@showprogress for i in 1:T
-    if i % 100 == 0
-        @info "Current loss: $(neg_elbo(l, x, y')) "
+function test_elrgvi()
+    function plot_results()
+        x_test = range(-7, 7, length=100)'
+        scatter(x', y, lab="")
+        y_test_m, y_test_v = pred_mean_and_var2(l, x_test)
+        plot!(x_test', y_test_m, ribbon=sqrt.(y_test_v), lab="")
+        plot!(x_test', [vec(network_sample(l)(x_test)) for _ in 1:10], lab="")
     end
-    grads = gradient(ps) do
-        neg_elbo(l, x, y')
+    N = 50
+    x = (rand(1, N) * 10) .- 5
+    y = sin.(x[:])
+    y = abs.(x[:])
+    # y = 2 * x[:]
+    y = y + randn(N) * 0.1
+    score(y, ŷ) = 0.5 * sum(abs2, y .- ŷ)
+    neg_elbo(l, x, y) = score(y, l(x)) + KLdivergence(l, 100.0) 
+    loss(l, x, y) = Flux.Losses.mse(l(x), y)
+    n_hidden = 10
+    K = 10
+    l = Chain(LowRankGaussianDenseLayer(1, n_hidden, relu, K), LowRankGaussianDenseLayer(n_hidden, 1, identity, K))
+    # l = Chain(Dense(1, 5, relu), Dense(5, 1, identity))
+    ps = params(l)
+    opt = ADAM(0.01)
+    T = 2000
+    @showprogress for i in 1:T
+        if i % 100 == 0
+            @info "Current loss: $(neg_elbo(l, x, y')) "
+        end
+        grads = gradient(ps) do
+            neg_elbo(l, x, y')
+        end
+        Flux.Optimise.update!(opt, ps, grads)
+        if i % 1000 == 0
+            plot_results() |> display
+        end
     end
-    Flux.Optimise.update!(opt, ps, grads)
-    if i % 1000 == 0
-        plot_results() |> display
-    end
+    plot_results()
 end
-plot_results()
+
 
 ## Plotting test
 
-function plot_results()
-    x_test = range(-7, 7, length=100)'
-    scatter(x', y, lab="")
-    y_test_m, y_test_v = pred_mean_and_var2(l, x_test)
-    plot!(x_test', y_test_m, ribbon=sqrt.(y_test_v), lab="")
-    plot!(x_test', [vec(network_sample(l)(x_test)) for _ in 1:10], lab="")
-end

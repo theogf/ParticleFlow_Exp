@@ -20,7 +20,7 @@ end
 dataset = "MNIST"
 model = "BNN"
 n_hidden = 100
-activation = :relu
+activation = :tanh
 exp_params = Dict(
     :batchsize => 128,
     :n_epoch => 50,
@@ -92,6 +92,10 @@ for alg in bnn_algs # Loop over every algorithm
     conf_accs[alg] = Dict()
     for mf in algs_to_mf[alg]
         nlls[alg][mf], accs[alg][mf], confs[alg][mf], conf_accs[alg][mf] = extract_info(Val(alg), alg_dir, mf, exp_params)
+        if use_gpu
+            GC.gc(true)
+            CUDA.reclaim()
+        end
     end
 end
 
@@ -100,7 +104,7 @@ end
 xvals = [0.5, 0.95, 0.99, 0.999, 0.9999]
 xvcontinuous = range(0.3, 0.99, length = 100)
 logxvals = log.(1.0 .- xvals)
-p = plot(xflip = false, legendfontsize = 13.5, legend = :topleft, title = "LeNet - MNIST", xlabel = "Confidence (max prob)", ylabel = "Accuracy")
+p = plot(xflip = false, legendfontsize = 13.5, legend = :topleft, title = "BNN - $(n_hidden) - $(activation)", xlabel = "Confidence (max prob)", ylabel = "Accuracy")
 # xticks!(logxvals, string.(xvals))
 msw = 0.5
 ms = 8.0
@@ -115,7 +119,7 @@ alpha= exp_params[:α]
 for alg in bnn_algs
     for mf in algs_to_mf[alg]
         if !isnothing(confs[alg][mf])
-            plot!(confs[alg][mf], conf_accs[alg][mf], marker = :circle, label = "$(alg) - $(mf_lab[mf])", color = alg_col[alg], linestyle = alg_mf_line[mf], msw = msw, linewidth = lw, ms = ms)
+            plot!(last(confs[alg][mf]), last(conf_accs[alg][mf]), marker = :circle, label = "$(alg) - $(mf_lab[mf])", color = alg_col[alg], linestyle = alg_mf_line[mf], msw = msw, linewidth = lw, ms = ms)
         end
     end
 end
@@ -132,8 +136,8 @@ for alg in bnn_algs
     for mf in algs_to_mf[alg]
         if !isnothing(nlls[alg][mf])
             push!(alg_labels, "$(alg) - $(mf_lab[mf])")
-            push!(alg_nll, nlls[alg][mf])
-            push!(alg_acc, accs[alg][mf])
+            push!(alg_nll, last(nlls[alg][mf]))
+            push!(alg_acc, last(accs[alg][mf]))
         end
     end
 end
@@ -144,7 +148,20 @@ savefig(p1, joinpath(plot_dir, savename("nll", @dict(n_hidden, activation, alpha
 savefig(p2, joinpath(plot_dir, savename("err", @dict(n_hidden, activation, alpha, L, eta), "png")))
 display(plot(p1, p2))
 
+## Convergence plots
+plt_nll = plot(yaxis="NLL", xaxis="Iterations")
+plt_acc = plot(yaxis="Class. Error", xaxis="Iterations")
+for alg in bnn_algs
+    for mf in algs_to_mf[alg]
+        if !isnothing(nlls[alg][mf])
+            N = length(nlls[alg][mf])
+            plot!(plt_nll, range(0, n_iter-1, length=N), nlls[alg][mf], color=alg_col[alg], label="")
+            plot!(plt_acc, range(0, n_iter-1, length=N), 1.0 .- accs[alg][mf], color=alg_col[alg], label="")
+        end
+    end
+end
 
+display(plot(plt_nll, plt_acc))
 ## 
 for (i, n_particles) in enumerate(n_ps)
     for mf in mfs

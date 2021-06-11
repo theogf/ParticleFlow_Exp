@@ -58,8 +58,10 @@ function run_bnn(exp_p)
         @savename L n_iter eta batchsize mf σ_init natmu α opt_det opt_stoch
     )
     if isdir(save_path) && !overwrite
-        warn("Simulation seems to have been run already! Skipping this one out")
-        return nothing
+        if "model_iter_$(n_iter-1).bson" ∈ readdir(save_path)
+            @warn("Simulation seems to have been successfully run already! Skipping this one out")
+            return nothing
+        end
     end
     ## Define prior
     function logpdf(α::Real, θ::AbstractVector)

@@ -35,9 +35,9 @@ function run_slang(exp_p)
     end
     iter = 0
     @functor SLANG
-    alg = SLANG(L, length(θ), alpha, beta, α) |> device
+    alg = SLANG(use_gpu ? CUDA.CURAND.default_rng() : Random.GLOBAL_RNG, L, length(θ), alpha, beta, α) |> device
     save_params(alg, 0)
-    for _ in 1:n_iter
+    @showprogress for _ in 1:n_iter
         # p = ProgressMeter.Progress(length(train_loader))
         x, y = Random.nth(train_loader, rand(1:n_batch)) |> device
         step!(alg, re, meta_loss(x, y))

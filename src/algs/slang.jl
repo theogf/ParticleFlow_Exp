@@ -35,7 +35,8 @@ Base.:*(X::AbstractMatrix, A::SumLowRank) = X * A.L1 + X * A.L2
 Base.size(A::SumLowRank) = size(A.L1)
 
 
-struct SLANG{Tμ,TU,Td,T}
+struct SLANG{RNG,Tμ,TU,Td,T}
+    rng::RNG
     L::Int # Rank
     μ::Tμ # Mean
     U::TU # Low-Rank covariance
@@ -45,8 +46,12 @@ struct SLANG{Tμ,TU,Td,T}
     λ::T
 end
 
+function SLANG(rng, L, dim, α=1.0, β=1.0, λ=1.0)
+    return SLANG(rng, L, randn(dim), randn(dim, L), rand(dim), α, β, λ)
+end
+
 function SLANG(L, dim, α=1.0, β=1.0, λ=1.0)
-    return SLANG(L, randn(dim), randn(dim, L), rand(dim), α, β, λ)
+    return SLANG(Random.GLOBAL_RNG, L, dim, α, β, λ)
 end 
 
 function Random.rand(rng::AbstractRNG, model::SLANG)
@@ -60,8 +65,8 @@ end
 
 function fast_inverse(g, U, d)
     invD = Diagonal(inv.(d))
-    A = inv(I + U' * invD * U)
-    y = invD * g - (invD * (U * (A * (U' * (invD * g)))))
+    invA = I + U' * invD * U
+    y = invD * g - (invD * ((U / invA) * (U' * (invD * g))))
     return y
 end
 
@@ -73,8 +78,8 @@ function fast_sample(rng::AbstractRNG, μ, U, d)
     A = cholesky(W).L
     B = cholesky(I + W).L
     C = A' \ ((B - I) / A)
-    K = inv(C + W)
-    y = invDsqrt .* ϵ - (V * (K * (transpose(V) * ϵ)))
+    invK = C + W
+    y = invDsqrt .* ϵ - ((V / invK) * (transpose(V) * ϵ))
     return μ + y
 end
 
@@ -112,18 +117,18 @@ function diag_AAt(A)
 end
 
 function step!(alg::SLANG, to_network, loss)
-    θ = fast_sample(alg.μ, alg.U, alg.d)
+    @timeit to "sample" θ = fast_sample(alg.rng, alg.μ, alg.U, alg.d)
     δ = 1 - alg.β
-    G = transpose(first(Flux.Zygote.jacobian(θ) do x
-        nn = to_network(x)
-        return loss(nn)
-    end))
-    V = fast_eig(δ, alg.U, alg.β, G, alg.L)
+    @timeit to "gradient" G = transpose(first(Flux.Zygote.jacobian(θ) do x
+            nn = to_network(x)
+            return loss(nn)
+        end))
+    @timeit to "fast_eig" V = fast_eig(δ, alg.U, alg.β, G, alg.L)
     Δ = δ * diag_AAt(alg.U) + alg.β * diag_AAt(G) - diag_AAt(V)
     alg.U .= V
     @. alg.d = δ * alg.d + Δ + alg.β * alg.λ # Weird dimensions here
     ĝ = vec(sum(G, dims=2)) + alg.λ * alg.μ
-    Δμ = fast_inverse(ĝ, alg.U, alg.d)
+    @timeit to "inv" Δμ = fast_inverse(ĝ, alg.U, alg.d)
     @. alg.μ -= alg.α * Δμ
     return nothing
 end

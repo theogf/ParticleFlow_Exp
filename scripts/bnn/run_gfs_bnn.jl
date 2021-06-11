@@ -26,7 +26,7 @@ exp_ps = Dict(
     :natmu => false,
     :σ_init => 1.0,
     :mf => [:full, :none],
-    :overwrite => true,
+    :overwrite => false,
     :α => 1.0, #[0.001, 0.01, 0.1, 1.0, 10.0] # Prior variance
 )
 

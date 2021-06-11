@@ -98,3 +98,5 @@ struct MyLinearKernel <: KernelFunctions.SimpleKernel end
 KernelFunctions.kappa(::MyLinearKernel, xᵀy::Real) = xᵀy + 1
 
 KernelFunctions.metric(::MyLinearKernel) = KernelFunctions.DotProduct()
+
+CuMatrix{T}(Q::LinearAlgebra.AbstractQ{S}) where {T,S} = CuArray{T}(lmul!(Q, CuArray{S}(I, size(Q, 1), min(size(Q.factors)...))))

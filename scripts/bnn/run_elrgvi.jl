@@ -19,7 +19,7 @@ using CUDA
 #     end
 # end
 
-include(srcdir("bnn", "slang.jl"))
+include(srcdir("bnn", "elrgvi.jl"))
 # @everywhere include(srcdir("bnn", "swag.jl"))
 GC.gc(true)
 CUDA.reclaim()
@@ -34,15 +34,15 @@ exp_ps = Dict(
     :use_gpu => false,
     :seed => 42,
     :α => [0.01, 0.05, 0.1, 1.0, 5.0, 10, 50, 100],
-    :alpha => 0.01,
-    :beta => 0.01,
+    :opt => :RMSProp,
+    :eta => 1f-2,
 )
 
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
 const to = TimerOutput()
 
-@timeit to "Full" run_slang(ps[1])
+@timeit to "Full" run_elrgvi(ps[1])
 reset_timer!(to)
 
 # for (i, p) in enumerate(ps)
