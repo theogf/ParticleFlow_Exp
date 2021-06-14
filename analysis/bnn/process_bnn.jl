@@ -19,7 +19,7 @@ end
 ## Load data and filter it
 dataset = "MNIST"
 model = "BNN"
-n_hidden = 100
+n_hidden = 200
 activation = :tanh
 exp_params = Dict(
     :batchsize => 128,

@@ -1,3 +1,5 @@
+using ChainRulesCore
+
 invquad(A::AbstractMatrix, x::AbstractVecOrMat) = dot(x, A \ x)
 XXt(X::AbstractVecOrMat) = X * X'
 # gradcol(alg::VIScheme, f::Function, X::AbstractMatrix) = gradcol(ad(alg), f, X)
@@ -99,4 +101,18 @@ KernelFunctions.kappa(::MyLinearKernel, xᵀy::Real) = xᵀy + 1
 
 KernelFunctions.metric(::MyLinearKernel) = KernelFunctions.DotProduct()
 
-CuMatrix{T}(Q::LinearAlgebra.AbstractQ{S}) where {T,S} = CuArray{T}(lmul!(Q, CuArray{S}(I, size(Q, 1), min(size(Q.factors)...))))
+CuMatrix{T}(Q::CUDA.CUSOLVER.CuQRPackedQ{S}) where {T,S} = CuArray{T}(lmul!(Q, CuArray{S}(I, size(Q, 1), min(size(Q.factors)...))))
+
+function LinearAlgebra.logdet(A::CUDA.CuMatrix)
+    d_A = copy(A)
+    _, info = CUDA.CUSOLVER.potrfBatched!('L', [d_A])
+    L = LinearAlgebra.Cholesky(d_A, 'L', first(info)).L
+    return 2 * sum(log, diag(L))
+end
+
+function LinearAlgebra.inv(A::CUDA.CuMatrix)
+    d_A = copy(A)
+    _, info = CUDA.CUSOLVER.potrfBatched!('L', [d_A])
+    L = LinearAlgebra.Cholesky(d_A, 'L', first(info)).L
+    return (I / L) / L'
+end
