@@ -14,7 +14,8 @@ function run_lowrank_target(exp_p)
 
     ## Create target distribution
     @unpack n_iters, n_runs, natmu, K, dof, eta, opt_det, opt_stoch, comp_hess = exp_p
-    n_particles = K + 1
+    n_particles = exp_p[:n_particles]
+    K_given = n_particles
     mode = get!(exp_p, :mode, :save)
 
     ## Adapt the running given the setup:
@@ -41,8 +42,8 @@ function run_lowrank_target(exp_p)
             elseif alg == :svgd_linear || alg == :svgd_rbf
                 @savename(opt_det)
             end
-            if isfile(datadir("results", "lowrank", file_prefix * alg_string * ".bson"))
-                if filesize(datadir("results", "lowrank", file_prefix * alg_string * ".bson")) > 0
+            if isfile(datadir("results", "lowrank", @savename(K), file_prefix * alg_string * ".bson"))
+                if filesize(datadir("results", "lowrank", @savename(K), file_prefix * alg_string * ".bson")) > 0
                     if !get!(exp_p, :overwrite, false)
                         @warn "Simulation has been run already - Passing simulation"
                         exp_p[alg] = false
@@ -56,7 +57,8 @@ function run_lowrank_target(exp_p)
 
     parameters = BSON.load(datadir("exp_raw", "lowrank", @savename(K) * ".bson"))
     @unpack μ_target, Σ_target = parameters
-    d_target = MvTDist(dof, μ_target, PDMat(Σ_target))
+    # d_target = MvTDist(dof, μ_target, PDMat(Σ_target))
+    d_target = MvNormal(μ_target, PDMat(Σ_target))
     ## Create the model
     function logπ_lowrank_st(θ)
         return logpdf(d_target, θ)
@@ -73,9 +75,9 @@ function run_lowrank_target(exp_p)
         μ_init = μs_init[i]
         Σ_init = Σs_init[i]
         L_init = cholesky(Σ_init).U
-        L_init_LR_less_diag = Matrix(L_init - Diagonal(L_init) / sqrt(2))[:, 1:K]
+        L_init_LR_less_diag = Matrix(L_init - Diagonal(L_init) / sqrt(2))[:, 1:K_given]
         p_init = MvNormal(μ_init, Σ_init)
-        x_init = rand(p_init, n_particles)
+        x_init = rand(p_init, n_particles+1)
 
         ## Create dictionnaries of parameters
         general_p = Dict(
@@ -105,7 +107,7 @@ function run_lowrank_target(exp_p)
             :opt => @eval($opt_stoch($eta)),
             :callback => wrap_cb(),
             :mf => false,
-            :init => (copy(μ_init), cov_to_lowrank(Σ_init, K)),
+            :init => (copy(μ_init), cov_to_lowrank(Σ_init, K_given)),
         )
         params[:dsvi] = Dict(
             :run => exp_p[:dsvi],
@@ -124,7 +126,7 @@ function run_lowrank_target(exp_p)
             :opt => @eval($opt_stoch($eta)),
             :callback => wrap_cb(),
             :mf => false,
-            :init => (copy(μ_init), cov_to_lowrank_plus_diag(Σ_init, K)...),
+            :init => (copy(μ_init), cov_to_lowrank_plus_diag(Σ_init, K_given)...),
         )
         params[:iblr] = Dict(
             :run => exp_p[:iblr],
@@ -177,7 +179,7 @@ function run_lowrank_target(exp_p)
         end
         if exp_p[alg] && mode == :save
             DrWatson.save(
-                datadir("results", "lowrank", file_prefix * alg_string * ".bson"),
+                datadir("results", "lowrank", @savename(K), file_prefix * alg_string * ".bson"),
                 merge(exp_p, @dict(vals, alg)))
         end
     end

@@ -123,14 +123,14 @@ end
 ## Create a collection of low-rank target distributions
 lowrank_dir = datadir("exp_raw", "lowrank")
 
-n_dim = 20 # Total number of dimensions
+n_dim = 500 # Total number of dimensions
 dof = 3.0
 ϵ = 1e-8 # Noise for the null distributions
-for K in [1, 2, 5, 10, 20] # Actual rank
+for K in [2, 5, 10, 20, 30, 40] # Actual rank
     file_name = @savename(K) * ".bson"
-    if isfile(joinpath(lowrank_dir, file_name)) # If file exists already we skip the process
-        continue
-    end
+    # if isfile(joinpath(lowrank_dir, file_name)) # If file exists already we skip the process
+        # continue
+    # end
     λ = abs.(randn(K) .+ 2.0)
     Λ = Diagonal(vcat(λ, ϵ * ones(n_dim - K)))
     Q, _ = qr(rand(n_dim, n_dim)) # Create random unitary matrix

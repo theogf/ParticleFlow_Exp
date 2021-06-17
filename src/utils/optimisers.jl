@@ -57,14 +57,14 @@ DimWiseADADelta(ρ = 0.9, ϵ=1e-9) = DimWiseADADelta(ρ, ϵ, IdDict())
 
 function Optimise.apply!(o::DimWiseADADelta, x, Δ)
   ρ = o.rho
-  acc = get!(o.state, x) do 
+  acc, Δacc = get!(o.state, x) do 
       return zeros(size(x, 1)), zeros(size(x, 1))
   end
-  acc .= ρ * acc + (1 - ρ) * vec(mean(Δ; dims=1)).^2
+  acc .= ρ * acc + (1 - ρ) * vec(mean(Δ; dims=2)).^2
   # DON'T remove epsilon from numerator
   # or even out of the square roots
-  Δ = Diagonal(sqrt.(Δacc + o.ϵ) ./ sqrt.(acc + o.ϵ)) * Δ
-  Δacc .= ρ * Δacc + (1 - ρ) * vec(mean(Δ; dims=1)).^2
+  Δ = sqrt.(Δacc .+ o.ϵ) ./ sqrt.(acc .+ o.ϵ) .* Δ
+  Δacc .= ρ * Δacc + (1 - ρ) * vec(mean(Δ; dims=2)).^2
   return Δ
 end
 
@@ -81,7 +81,7 @@ function Optimise.apply!(o::DimWiseADAGrad, x, Δ)
   acc = get!(o.acc, x) do 
       fill!(zeros(size(x, 1)), o.ϵ)
   end
-  acc .+= vec(mean(Δ; dims=1)).^2
+  acc .+= vec(mean(Δ; dims=2)).^2
   return Δ = Diagonal(η ./ (sqrt.(acc) + ϵ)) * Δ
 end
 
@@ -98,11 +98,7 @@ function Optimise.apply!(o::DimWiseRMSProp, x, Δ)
   η = o.eta
   γ = o.gamma
   acc = get!(o.state, x) do
-    if x isa CuArray
-      gpu(fill!(zeros(size(x, 1)), o.ϵ))
-    else
-      fill!(zeros(size(x, 1)), o.ϵ)
-    end
+      fill!(similar(x, size(x, 1)), o.ϵ)
   end
   acc .= γ * acc + (1 - γ) * diag_ABt(Δ, Δ)
   return Diagonal(η ./ (sqrt.(acc .+ o.ϵ))) * Δ

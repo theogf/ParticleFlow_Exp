@@ -4,6 +4,7 @@ using BSON
 using Random
 using MLDatasets
 using ProgressMeter
+using LinearAlgebra
 
 function get_data(dataset, batchsize)
     if dataset == "MNIST"
@@ -188,3 +189,18 @@ function simplebnn(nhidden, ninput, noutput, activation=tanh)
 end
 
 
+CuMatrix{T}(Q::CUDA.CUSOLVER.CuQRPackedQ{S}) where {T,S} = CuArray{T}(lmul!(Q, CuArray{S}(I, size(Q, 1), min(size(Q.factors)...))))
+
+function LinearAlgebra.logdet(A::CUDA.CuMatrix)
+    d_A = copy(A)
+    _, info = CUDA.CUSOLVER.potrfBatched!('L', [d_A])
+    L = LinearAlgebra.Cholesky(d_A, 'L', first(info)).L
+    return 2 * sum(log, diag(L))
+end
+
+function LinearAlgebra.inv(A::CUDA.CuMatrix)
+    d_A = copy(A)
+    _, info = CUDA.CUSOLVER.potrfBatched!('L', [d_A])
+    L = LinearAlgebra.Cholesky(d_A, 'L', first(info)).L
+    return (I / L) / L'
+end

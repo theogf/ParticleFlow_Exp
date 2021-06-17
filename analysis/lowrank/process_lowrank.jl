@@ -4,7 +4,6 @@ include(projectdir("analysis", "post_process.jl"))
 
 
 ## Load data
-all_res = collect_results(datadir("results", "lowrank"));
 text_natmu = Dict(
         true => " - NG",
         false => "",
@@ -25,28 +24,31 @@ lowrank_alg_line_order_dict = Dict(x=>i for (i,x) in enumerate(lowrank_alg_line_
 function plot_lowrank(
     K, 
     eta=1e-2;
-    all_res = all_res,
     show_std_dev = false,
     show_lgd = true,
     use_quantile = true,
+    dof = 5.0,
 )
+    all_res = collect_results(datadir("results", "lowrank", @savename(K)));
     res = @linq all_res |>
         where(:K .== K) |>
         where(:eta .== eta) |>
-        where(:n_iters .>= 10000) |>
-        # where(:n_particles .== 0) |>
-        where(:n_runs .== 10)
+        where(:n_iters .>= 1000) |>
+        where(:dof .== dof) |>
+        where(:n_particles .>= 20) #|>
+        # where(:n_runs .== 10)
     @info "Total of $(nrow(res)) for given parameters"
     if nrow(res) == 0
         @warn "Results for K=$K not available yet"
-        return nothing
+        return nothing, nothing, nothing
     end
     d_res = Dict()
     for alg in lowrank_algs
         d_res[alg] = @linq res |> where(:alg .=== alg) # endswith.(:path, Regex("$(alg).*bson")))
     end
     params_truth = BSON.load(datadir("exp_raw", "lowrank", savename(@dict(K), "bson")))
-    truth = MvTDist(params_truth[:dof], params_truth[:μ_target], PDMat(params_truth[:Σ_target]))
+    global truth = MvNormal(params_truth[:μ_target], PDMat(params_truth[:Σ_target]))
+    # truth = MvTDist(dof, params_truth[:μ_target], PDMat(params_truth[:Σ_target]))
     # Plotting
     
     ylog = :log
@@ -86,17 +88,18 @@ function plot_lowrank(
         @info "Processing $(alg)"
         d = d_res[alg]
         for row in eachrow(d)
-            vals = row.vals 
+            if alg != :gpf
+                # continue
+            end
+            global vals = row.vals 
             if alg == :gf && row.natmu == true
                 continue
             elseif alg ∈ [:gf, :dsvi, :fcs] && row.opt_stoch != :RMSProp
                 continue
-            # elseif alg == :svgd
-                # continue
-            elseif alg == :svgd && row.opt_det != :DimWiseRMSProp
+            elseif alg ∈ (:svgd_linear, :svgd_rbf) && row.opt_det != :DimWiseRMSProp
                continue
-            elseif alg == :gpf && row.opt_det != :DimWiseRMSProp
-                continue
+            # elseif alg == :gpf && row.opt_det != :DimWiseRMSProp
+                # continue
             elseif alg == :iblr && row.comp_hess == :rep
                 continue
             end
@@ -163,8 +166,8 @@ function plot_lowrank(
 end
 mkpath(plotsdir("lowrank"))
 plt = Dict()
-Ks = [1, 2, 5, 10, 20]
-η = 0.1
+Ks = [2, 5, 10, 20]
+η = 0.01
 for K in Ks
     plt[K] = Dict()
     p, plt[K][:μ], plt[K][:Σ] = plot_lowrank(K, η; show_std_dev=true, show_lgd=false, use_quantile=true)

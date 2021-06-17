@@ -18,10 +18,11 @@ end
 @everywhere include(srcdir("lowrank", "lowrank.jl"))
 # Create a list of parameters
 exp_ps = Dict(
-    :n_iters => 10000, # Number of iterations to run
+    :n_iters => 5000, # Number of iterations to run
     :n_runs => 10, # Number of repeated runs
-    :K => [1, 2, 5, 10, 20],
-    :dof => 3.0,
+    :K => [10, 20, 30, 40],
+    :n_particles => 20,
+    :dof => 5.0,
     :gpf => true, # Run GaussParticle Flow
     :gf => true, # Run Gauss Flow
     :dsvi => !true, # Run Doubly Stochastic VI
@@ -32,11 +33,11 @@ exp_ps = Dict(
     :natmu => false, # [true, false], # Use preconditionning on b
     :seed => 42, # Seed for experiments
     :cb_val => nothing, # Callback values
-    :eta => 0.1,
+    :eta => 0.01,
     :opt_det => :DimWiseRMSProp,
     :opt_stoch => :RMSProp,# :RMSProp],
     :comp_hess => :rep,
-    :overwrite => :true,
+    :overwrite => false,
     :mode => :save,
 )
 ps = dict_list(exp_ps)

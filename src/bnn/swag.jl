@@ -7,9 +7,9 @@ function run_SWAG(exp_p)
     @unpack use_gpu, dataset, activation, n_hidden, batchsize = exp_p # Load all variables from the dict exp_p
     device = use_gpu ? gpu : cpu
     model = "BNN_" * @savename(activation, n_hidden)
-    modelfile = datadir("bnn_models", model, "model.bson")
+    modelfile = datadir("exp_raw", "bnn", "models", dataset, @savename(activation, n_hidden) * ".bson")
     m = BSON.load(modelfile)[:nn] |> device
-
+    ps = Flux.params(m)
     ## Loading parameters for SWAG
     @unpack n_period, n_epoch, eta, α = exp_p
     save_path = datadir("results", "bnn", dataset, "swag_" * model, @savename n_epoch n_period batchsize α eta)
@@ -34,7 +34,7 @@ function run_SWAG(exp_p)
         for (x, y) in train_loader
             x, y = x |> device, y |> device
             gs = Flux.gradient(ps) do
-                ŷ = m(x)
+                ŷ = m(reshape(x, 28 * 28, :))
                 loss(ŷ, y) - logprior(ps, α)
             end
             Flux.Optimise.update!(opt, ps, gs)

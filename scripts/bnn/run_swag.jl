@@ -1,6 +1,5 @@
 using DrWatson
 @quickactivate
-using Pkg; Pkg.update()
 
 using CUDA
 # using Distributed
@@ -34,17 +33,19 @@ exp_ps = Dict(
     :seed => 42,
     :n_period => 10,
     :eta => 1f-2,#[1f-1, 5f-2, 1f-2], # 0.001 in Float32
-    :α => [0.01, 0.05, 0.1, 1.0, 5.0, 10, 50, 100],
+    :α => 1.0, #[0.01, 0.05, 0.1, 1.0, 5.0, 10, 50, 100],
 )
 
-ps = dict_list(exp_ps)
+exp_dicts = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
 
 # pmap(run_SWAG, ps)
 # run_SWAG(ps[4])
 
-for (i, p) in enumerate(ps)
-    @info "Running dict $(i)/$(length(ps)) : $(savename(p))"
+for (i, p) in enumerate(exp_dicts)
+    @info "Running dict $(i)/$(length(exp_dicts)) : $(savename(p))"
+    GC.gc()
+    CUDA.reclaim()
     run_SWAG(p)
 end
 

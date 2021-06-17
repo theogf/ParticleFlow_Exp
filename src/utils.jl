@@ -52,7 +52,7 @@ function cov_to_lowrank_plus_diag(S, K)
     return L, D
 end
 
-function cov_to_lowrank(S::Matrix, K)
+function cov_to_lowrank(S::AbstractMatrix, K)
     Q = svd(S)
     L = Q.U[:, 1:K] * Diagonal(sqrt.(Q.S[1:K]))
     return Matrix(L)
@@ -101,18 +101,3 @@ KernelFunctions.kappa(::MyLinearKernel, xᵀy::Real) = xᵀy + 1
 
 KernelFunctions.metric(::MyLinearKernel) = KernelFunctions.DotProduct()
 
-CuMatrix{T}(Q::CUDA.CUSOLVER.CuQRPackedQ{S}) where {T,S} = CuArray{T}(lmul!(Q, CuArray{S}(I, size(Q, 1), min(size(Q.factors)...))))
-
-function LinearAlgebra.logdet(A::CUDA.CuMatrix)
-    d_A = copy(A)
-    _, info = CUDA.CUSOLVER.potrfBatched!('L', [d_A])
-    L = LinearAlgebra.Cholesky(d_A, 'L', first(info)).L
-    return 2 * sum(log, diag(L))
-end
-
-function LinearAlgebra.inv(A::CUDA.CuMatrix)
-    d_A = copy(A)
-    _, info = CUDA.CUSOLVER.potrfBatched!('L', [d_A])
-    L = LinearAlgebra.Cholesky(d_A, 'L', first(info)).L
-    return (I / L) / L'
-end
