@@ -48,7 +48,7 @@ function plot_lowrank(
         d_res[alg] = @linq res |> where(:alg .=== alg) # endswith.(:path, Regex("$(alg).*bson")))
     end
     params_truth = BSON.load(datadir("exp_raw", "lowrank", savename(@dict(K), "bson")))
-    global truth = MvNormal(params_truth[:μ_target], PDMat(params_truth[:Σ_target]))
+    truth = MvNormal(params_truth[:μ_target], PDMat(params_truth[:Σ_target]))
     # truth = MvTDist(dof, params_truth[:μ_target], PDMat(params_truth[:Σ_target]))
     # Plotting
     
@@ -66,7 +66,7 @@ function plot_lowrank(
         yaxis = ylog,# ? (!show_std_dev ? :log : :linear) : :linear,
         legend = false,
     )
-    annotate!(p_μ, 5e-2, 1e-10, Plots.text(latexstring("K = $(K)"), :left, 18))
+    annotate!(p_μ, 1e-1, 10^(1.2), Plots.text(latexstring("K = $(K)"), :left, 18))
     p_Σ = Plots.plot(
         title = cond == 1 ? L"\|C^t- \Sigma\|" : "",
         titlefontsize = tfsize,
@@ -92,7 +92,7 @@ function plot_lowrank(
             if alg != :gpf
                 # continue
             end
-            global vals = row.vals 
+            vals = row.vals 
             if alg == :gf && row.natmu == true
                 continue
             elseif alg ∈ [:gf, :dsvi, :fcs] && row.opt_stoch != :RMSProp
@@ -182,7 +182,7 @@ for K in Ks
     !isnothing(p) ? savefig(plotsdir("lowrank", savename(@dict(K), ".png"))) : nothing
 end
 ## Working with the plots 
-lloc = (0.1, 0.0)
+lloc = (-0.1, 0.0)
 lfsize = 16.0
 p_legend1 = Plots.plot(
         showaxis=false,

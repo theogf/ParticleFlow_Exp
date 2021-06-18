@@ -19,7 +19,7 @@ end
 ## Load data and filter it
 dataset = "MNIST"
 model = "BNN"
-n_hidden = 200
+n_hidden = 100
 activation = :tanh
 exp_params = Dict(
     :batchsize => 128,
@@ -28,7 +28,7 @@ exp_params = Dict(
     :eta => 0.01,
     :α => 1.0,
     :natmu => false,
-    :L => 10,
+    :L => 2,
     :n_iter => 5001,
     :opt_det => :DimWiseRMSProp,
     :opt_stoch => :RMSProp,
@@ -56,12 +56,12 @@ opt_pred = cpu(Flux.softmax(nn_forward(X_test, θ)))
 opt_ps, opt_ids = max_ps_ids(opt_pred)
 
 bnn_algs = [
+    :swag,
     :gpf,
     :gf,
     :dsvi,
     :svgd_linear,
     :svgd_rbf,
-    :swag,
     :elrgvi,
     :slang,
 ]
@@ -113,7 +113,7 @@ plot!([0.0, 1.0], identity,
 # plot!(log.(1.0.-xvcontinuous), 
         # x->0,#-exp(x)+1,
         linestyle = :dash, color = :black, label = "")
-# plot!(opt_conf, opt_acc, marker = :o, label = "ML", msw = msw, color = colors[7])
+# plot!(opt_conf,   opt_acc, marker = :o, label = "ML", msw = msw, color = colors[7])
 @unpack eta, L = exp_params
 alpha= exp_params[:α]
 for alg in bnn_algs
@@ -151,7 +151,7 @@ display(plot(p1, p2))
 ## Convergence plots
 plt_nll = plot(yaxis="NLL", xaxis="Iterations")
 plt_acc = plot(yaxis="Class. Error", xaxis="Iterations")
-for alg in bnn_algs
+for alg in bnn_algs[bnn_algs .!= :swag]
     for mf in algs_to_mf[alg]
         if !isnothing(nlls[alg][mf])
             N = length(nlls[alg][mf])

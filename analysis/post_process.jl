@@ -45,6 +45,7 @@ alg_col = Dict(
     :iblr => colors[8],
     :svgd_linear => colors[5],
     :svgd_rbf => colors[6],
+    :swag => colors[7],
 )
 
 alg_ls = Dict(
@@ -55,6 +56,7 @@ alg_ls = Dict(
     :fcs => :solid,
     :svgd_linear => :solid,
     :svgd_rbf => :solid,
+    :swag => :solid
 )
 
 
@@ -81,12 +83,19 @@ alg_lw = Dict(
     :fcs => 4.5,
     :svgd_linear => 3.0,
     :svgd_rbf => 3.0,
+    :swag => 3.0,
 )
 
 
 #Takes an array of MVHistory and the true distribution and returns the average error and the variance of the error
 function process_means(hs, truth; metric = (x, y) -> norm(x - y), use_quantile=false)
-    vals = getproperty.(getindex.(hs, :mu), :values)
+    vals = map(hs) do h
+        x = if haskey(h, :mu)
+            h[:mu].values
+        else
+            [0.0]
+        end
+    end
     global debug_vals = vals
     T = floor(Int, median(length.(vals)))
     Δm = zeros(T)
@@ -113,7 +122,13 @@ function process_means(hs, truth; metric = (x, y) -> norm(x - y), use_quantile=f
 end
 
 function process_fullcovs(hs, truth; metric = (x, y) -> norm(x -y), use_quantile=false)
-    vals = getproperty.(getindex.(hs, :sig), :values)
+    vals = map(hs) do h
+        x = if haskey(h, :sig)
+            h[:sig].values
+        else
+            [0.0]
+        end
+    end
     T = floor(Int, median(length.(vals)))
     # This removes all the incomplete runs which might create bugs in the estimation
     incomplete_runs = findall(x->length(x) != T, vals)

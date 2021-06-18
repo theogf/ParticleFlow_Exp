@@ -66,21 +66,29 @@ function extract_info(::Union{Val{:gf},Val{:dsvi}}, alg_dir, mf, exp_params)
 end
 function extract_info(::Val{:swag}, alg_dir, mf, exp_params)
     @unpack L, batchsize, eta, n_epoch, n_period, α = exp_params
-    eta = 0.5
-    target_dir = joinpath(alg_dir, @savename batchsize eta n_epoch n_period α)
+    eta = 0.00001
+    α= 1.0
+    rho = 0.9
+    target_dir = joinpath(alg_dir, @savename batchsize eta rho n_epoch n_period α)
     if !isdir(target_dir)
         return nothing, nothing, nothing, nothing
     end
     res = collect_results(target_dir)
-    thinning = 10
+    first_vals = res[res.i .== maximum(res.i), :].parameters[1]
+    x = reduce(vcat, vec.(first_vals))
+    # return p = get_mean_pred(x)
+
+    thinning = 11
     res = ([reduce(vcat, vec.(x)) for x in res.parameters[1:thinning:end]])
     SWA_sqrt_diag = StatsBase.std(res)
     SWA = mean(res[end-L+1:end])
-    @show length(SWA)
     SWA_D = reduce(hcat, res[end-L+1:end] .- Ref(SWA))
     q_SWA = AVI.FCSMvNormal(SWA, SWA_D / sqrt(2f0), SWA_sqrt_diag / (sqrt(2f0 * (L - 1))))
     mean_preds = get_mean_pred(rand(q_SWA, n_MC))
-    return treat_mean_preds(mean_preds)
+    # mean_preds = get_mean_pred(repeat(SWA, 1, 2))#q_SWA, n_MC))
+    vals = treat_mean_preds(mean_preds)
+    # return SWA
+    return [vals[1]], [vals[2]], [vals[3]], [vals[4]]
 end
 
 function extract_info(::Union{Val{:elrgvi},Val{:slang}}, alg_dir, mf, exp_params)
