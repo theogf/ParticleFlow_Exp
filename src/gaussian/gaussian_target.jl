@@ -4,6 +4,7 @@ using Flux
 using Zygote
 include(srcdir("train_model.jl"))
 include(srcdir("utils", "tools.jl"))
+include(srcdir("utils.jl"))
 function run_gaussian_target(exp_p)
     @unpack seed = exp_p
     Random.seed!(seed)

@@ -1,6 +1,6 @@
 # Make sure that all packages are up to date
 using DrWatson;
-@quickactivate "ParticleFlow"
+@quickactivate
 # using Pkg; Pkg.update()
 include(srcdir("gaussian", "gaussian_target.jl"))
 
@@ -14,7 +14,7 @@ end
 
 # Load all needed packages on every worker
 @everywhere using DrWatson
-@everywhere quickactivate("ParticleFlow")
+@everywhere @quickactivate
 @everywhere include(srcdir("gaussian", "gaussian_target.jl"))
 # Create a list of parameters
 exp_ps = Dict(
@@ -28,15 +28,16 @@ exp_ps = Dict(
     :dsvi => !true, # Run Doubly Stochastic VI
     :fcs => !true, # Run Factorized Structure Covariance
     :iblr => !true, # Run i Bayesian Rule
-    :svgd => true, # Run linear SVGD
+    :svgd_linear => true, # Run linear SVGD
+    :svgd_rbf => false,
     :natmu => false, # Use preconditionning on b
     :seed => 42, # Seed for experiments
     :cb_val => nothing, # Callback values
     :eta => 0.01,
-    :opt_det => :Descent,
+    :opt_det => :DimWiseRMSProp,
     :opt_stoch => :RMSProp,
     :comp_hess => :rep,
-    :overwrite => :true,
+    :overwrite => true,
     :mode => :save,
 )
 ps = dict_list(exp_ps)
