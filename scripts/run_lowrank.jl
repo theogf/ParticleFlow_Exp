@@ -20,7 +20,7 @@ end
 exp_ps = Dict(
     :n_iters => 5000, # Number of iterations to run
     :n_runs => 10, # Number of repeated runs
-    :K => [10, 20, 30, 40],
+    :K => 30,#,[10, 20, 30, 40],
     :n_particles => 20,
     :dof => 5.0,
     :gpf => true, # Run GaussParticle Flow

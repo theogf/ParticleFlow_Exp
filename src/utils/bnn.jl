@@ -1,4 +1,5 @@
 using Flux
+using CUDA
 using DataFrames
 using BSON
 using Random

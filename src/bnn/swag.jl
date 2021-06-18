@@ -23,16 +23,16 @@ function run_SWAG(exp_p)
     logprior(θ::AbstractArray{<:Real}) = sum(abs2, θ)
     logprior(θ, α) = - sum(logprior, θ) / α^2
 
-    loss(ŷ, y) = Flux.Losses.logitcrossentropy(ŷ, y)
 
     ## Define list of arguments and load the data
     train_loader, test_loader = get_data(dataset, batchsize)
+    n_data = size(train_loader.data[1], 3)
+    loss(ŷ, y) = n_data * Flux.Losses.logitcrossentropy(ŷ, y)
     iter = 0
-    opt = RMSProp(1f-2)
+    opt = RMSProp(1f-3)
     ## First train the NN to a MAP over 100 epochs
     @info "Training NN"
-    @showprogress for _ in 1:100
-        # p = ProgressMeter.Progress(length(train_loader))
+    @showprogress for i in 1:100
         for (x, y) in train_loader
             x, y = x |> device, y |> device
             gs = Flux.gradient(ps) do
@@ -40,8 +40,8 @@ function run_SWAG(exp_p)
                 loss(ŷ, y) - logprior(ps, α)
             end
             Flux.Optimise.update!(opt, ps, gs)
-            # ProgressMeter.next!(p)   # comment out for no progress bar
         end
+        @info string("Epoch $i/100, loss : ", loss(m(reshape(device(test_loader.data[1]), 28 * 28, :)), device(test_loader.data[2])))
     end
     ## Then start saving samples with SGD with learning rate 0.5
     save_params(ps, 0)

@@ -25,7 +25,7 @@ include(srcdir("bnn", "swag.jl"))
 exp_ps = Dict(
     :n_epoch => 50,
     :batchsize => 128,
-    :n_hidden => 800, #[100, 200, 400, 800],
+    :n_hidden => 100, #[100, 200, 400, 800],
     :activation => [:tanh, :relu],
     :model => "BNN",
     :dataset => "MNIST",

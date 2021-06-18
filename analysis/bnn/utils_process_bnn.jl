@@ -65,18 +65,20 @@ function extract_info(::Union{Val{:gf},Val{:dsvi}}, alg_dir, mf, exp_params)
     return accs, nlls, confs, conf_accs
 end
 function extract_info(::Val{:swag}, alg_dir, mf, exp_params)
-    @unpack L, batchsize, n_iter, natmu, opt_det, opt_stoch, α, σ_init = exp_params
-    target_dir = joinpath(alg_dir, @savename L batchsize mf n_iter natmu opt_det opt_stoch α σ_init)
+    @unpack L, batchsize, eta, n_epoch, n_period, α = exp_params
+    eta = 0.5
+    target_dir = joinpath(alg_dir, @savename batchsize eta n_epoch n_period α)
     if !isdir(target_dir)
         return nothing, nothing, nothing, nothing
     end
     res = collect_results(target_dir)
     thinning = 10
-    res = ([vcat(vec.(x)...) for x in res.parameters[1:thinning:end]])
-    SWA_sqrt_diag = Diagonal(StatsBase.std(res))
-    SWA = mean(res[end-K+1:end])
-    SWA_D = reduce(hcat, res[end-K+1:end] .- Ref(SWA))
-    q_SWA = AVI.FCSMvNormal(SWA, SWA_D / sqrt(2f0), SWA_sqrt_diag / (sqrt(2f0 * (K - 1))))
+    res = ([reduce(vcat, vec.(x)) for x in res.parameters[1:thinning:end]])
+    SWA_sqrt_diag = StatsBase.std(res)
+    SWA = mean(res[end-L+1:end])
+    @show length(SWA)
+    SWA_D = reduce(hcat, res[end-L+1:end] .- Ref(SWA))
+    q_SWA = AVI.FCSMvNormal(SWA, SWA_D / sqrt(2f0), SWA_sqrt_diag / (sqrt(2f0 * (L - 1))))
     mean_preds = get_mean_pred(rand(q_SWA, n_MC))
     return treat_mean_preds(mean_preds)
 end

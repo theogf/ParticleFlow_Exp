@@ -225,7 +225,7 @@ end
 
 
 p = plot(
-    plt[2][:μ], plt[2][:Σ], plt[5][:μ], plt[5][:Σ], plt[10][:μ], plt[10][:Σ], p_legend1, p_legend2;
+    plt[10][:μ], plt[10][:Σ], plt[20][:μ], plt[20][:Σ], plt[30][:μ], plt[30][:Σ], p_legend1, p_legend2;
     dpi = 300,
     layout = @layout([A B;C D;E F;G{0.2h} H]),
     size = (600, 800),
