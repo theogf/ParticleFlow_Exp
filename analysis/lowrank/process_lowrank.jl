@@ -28,6 +28,7 @@ function plot_lowrank(
     show_lgd = true,
     use_quantile = true,
     dof = 5.0,
+    n_particles=20,
 )
     all_res = collect_results(datadir("results", "lowrank", @savename(K)));
     res = @linq all_res |>
@@ -35,7 +36,7 @@ function plot_lowrank(
         where(:eta .== eta) |>
         where(:n_iters .>= 1000) |>
         where(:dof .== dof) |>
-        where(:n_particles .>= 20) #|>
+        where(:n_particles .== n_particles) #|>
         # where(:n_runs .== 10)
     @info "Total of $(nrow(res)) for given parameters"
     if nrow(res) == 0
@@ -167,10 +168,11 @@ end
 mkpath(plotsdir("lowrank"))
 plt = Dict()
 Ks = [2, 5, 10, 20]
+Ks = [10, 20, 30, 40]
 η = 0.01
 for K in Ks
     plt[K] = Dict()
-    p, plt[K][:μ], plt[K][:Σ] = plot_lowrank(K, η; show_std_dev=true, show_lgd=false, use_quantile=true)
+    p, plt[K][:μ], plt[K][:Σ] = plot_lowrank(K, η; n_particles=20, show_std_dev=true, show_lgd=false, use_quantile=true)
     try
         display(p)
     catch e

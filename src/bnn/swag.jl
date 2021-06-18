@@ -28,8 +28,10 @@ function run_SWAG(exp_p)
     ## Define list of arguments and load the data
     train_loader, test_loader = get_data(dataset, batchsize)
     iter = 0
-    save_params(ps, 0)
-    for _ in 1:n_epoch
+    opt = RMSProp(1f-2)
+    ## First train the NN to a MAP over 100 epochs
+    @info "Training NN"
+    @showprogress for _ in 1:100
         # p = ProgressMeter.Progress(length(train_loader))
         for (x, y) in train_loader
             x, y = x |> device, y |> device
@@ -38,6 +40,22 @@ function run_SWAG(exp_p)
                 loss(ŷ, y) - logprior(ps, α)
             end
             Flux.Optimise.update!(opt, ps, gs)
+            # ProgressMeter.next!(p)   # comment out for no progress bar
+        end
+    end
+    ## Then start saving samples with SGD with learning rate 0.5
+    save_params(ps, 0)
+    @info "Start sampling"
+    sgd_opt = Descent(eta)
+    for _ in 1:n_epoch
+        # p = ProgressMeter.Progress(length(train_loader))
+        for (x, y) in train_loader
+            x, y = x |> device, y |> device
+            gs = Flux.gradient(ps) do
+                ŷ = m(reshape(x, 28 * 28, :))
+                loss(ŷ, y) - logprior(ps, α)
+            end
+            Flux.Optimise.update!(sgd_opt, ps, gs)
             # ProgressMeter.next!(p)   # comment out for no progress bar
             iter += 1
             if mod(iter, n_period) == 0
