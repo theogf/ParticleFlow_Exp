@@ -13,7 +13,7 @@ text_natmu = Dict(
 ## Treat one convergence file
 function plot_gaussian(
     n_dim, 
-    cond,
+    κ,
     eta=1e-3;
     all_res = all_res,
     show_std_dev = false,
@@ -23,22 +23,22 @@ function plot_gaussian(
     res = @linq all_res |>
         where(:n_dim .== n_dim) |>
         where(:eta .== eta) |>
-        where(:n_iters .> 20000) |>
+        where(:n_iters .>= 20000) |>
         where(:n_particles .== 0) |>
-        where(:cond .== cond) |>
+        where(:cond .== κ) |>
         where(:n_runs .== 10)
     @info "Total of $(nrow(res)) for given parameters"
     if nrow(res) == 0
-        @warn "Results for n_dim=$n_dim, cond=$cond not available yet"
+        @warn "Results for n_dim=$n_dim, cond=$κ not available yet"
         return nothing
     end
-    d_res = Dict()
+    global d_res = Dict()
     # nrow(res) == 1 || error("Number of rows is not unique or is empty")
     for alg in algs
         # d_res[alg] = @linq res |> where(endswith.(:path, Regex("$(alg).*bson")))
         d_res[alg] = @linq res |> where(:alg .=== alg) # endswith.(:path, Regex("$(alg).*bson")))
     end
-    d_vals = Dict()
+    cond = κ
     params_truth = BSON.load(datadir("exp_raw", "gaussian", savename(@dict(cond, n_dim), "bson")))
     truth = MvNormal(params_truth[:μ_target], params_truth[:Σ_target])
     # Plotting
@@ -85,10 +85,13 @@ function plot_gaussian(
                 continue
             elseif alg ∈ [:gf, :dsvi, :fcs] && row.opt_stoch != :RMSProp
                 continue
-            elseif alg == :svgd && row.opt_det != :RMSProp
+            elseif alg ∈ [:svgd_linear, :svgd_rbf] && row.opt_det != :Descent
                 continue
             elseif alg == :iblr && row.comp_hess == :rep
                 continue
+            end
+            if alg == :svgd_linear # there is some weird bug where the first two runs return nothing
+                vals = vals[haskey.(vals, :mu)]
             end
             m, m_v = process_means(vals, mean(truth), use_quantile=use_quantile)
             C, C_v = process_fullcovs(vals, vec(cov(truth)), use_quantile=use_quantile)
@@ -154,7 +157,7 @@ function plot_gaussian(
 end
 mkpath(plotsdir("gaussian"))
 ps = Dict()
-D = 50
+D = 20
 for n_dim in D, #[5,  10, 20, 50, 100], 
     cond in [1, 10, 100]
     ps[cond] = Dict()
@@ -168,7 +171,7 @@ for n_dim in D, #[5,  10, 20, 50, 100],
     !isnothing(p) ? savefig(plotsdir("gaussian", savename(@dict(n_dim, cond), ".png"))) : nothing
 end
 ## Working with the plots 
-lloc = (0.1, 0.0)
+lloc = :best#(-0.2, 0.3)
 lfsize = 16.0
 p_legend1 = Plots.plot(
         showaxis=false,
@@ -178,6 +181,7 @@ p_legend1 = Plots.plot(
         legendfontsize=lfsize,
         fg_legend=:white,
         bg_legend=:white,
+        margin=0px,
     )
 for alg in algs[1:3]
     plot!(
@@ -198,6 +202,7 @@ p_legend2 = Plots.plot(
         legendfontsize=lfsize,
         fg_legend=:white,
         bg_legend=:white,
+        margin=0px,
     )
 for alg in algs[4:end]
     plot!(
@@ -208,12 +213,12 @@ for alg in algs[4:end]
         label=alg_lab[alg],
     )
 end
-
+p_legend2
 
 p = plot(
     ps[1][:μ], ps[1][:Σ], ps[10][:μ], ps[10][:Σ], ps[100][:μ], ps[100][:Σ], p_legend1, p_legend2;
     dpi = 300,
-    layout = @layout([A B;C D;E F;G{0.2h} H]),
+    layout = @layout([A B;C D;E F;G{0.25h} H]),
     size = (600, 800),
 )
 display(p)

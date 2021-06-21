@@ -7,6 +7,8 @@ pyplot()
 using Flux
 using StatsBase, LinearAlgebra
 using MLDataUtils
+using DataFrames
+using Latexify
 using ProgressMeter
 using Plots
 using CUDA
@@ -19,7 +21,7 @@ end
 ## Load data and filter it
 dataset = "MNIST"
 model = "BNN"
-n_hidden = 100
+n_hidden = 200
 activation = :tanh
 exp_params = Dict(
     :batchsize => 128,
@@ -62,8 +64,8 @@ bnn_algs = [
     :dsvi,
     :svgd_linear,
     :svgd_rbf,
-    :elrgvi,
-    :slang,
+    # :elrgvi,
+    # :slang,
 ]
 
 algs_to_mf = Dict(
@@ -104,11 +106,11 @@ end
 xvals = [0.5, 0.95, 0.99, 0.999, 0.9999]
 xvcontinuous = range(0.3, 0.99, length = 100)
 logxvals = log.(1.0 .- xvals)
-p = plot(xflip = false, legendfontsize = 13.5, legend = :topleft, title = "BNN - $(n_hidden) - $(activation)", xlabel = "Confidence (max prob)", ylabel = "Accuracy")
+p = plot(xflip = false, legendfontsize = 13.5, legend = false, title = "BNN - $(n_hidden) - $(activation)", xlabel = "Confidence (max prob)", ylabel = "Accuracy")
 # xticks!(logxvals, string.(xvals))
 msw = 0.5
 ms = 8.0
-lw = 5.0
+lw = 0.0 # 5.0
 plot!([0.0, 1.0], identity,
 # plot!(log.(1.0.-xvcontinuous), 
         # x->0,#-exp(x)+1,
@@ -128,16 +130,23 @@ mkpath(plot_dir)
 savefig(joinpath(plot_dir, savename("confidence_bnn", @dict(n_hidden, activation, alpha, eta, L), "png")))
 display(p)
 
+
 ## Work with the NLL and ACC
 alg_labels = String[]
 alg_nll = Float64[]
 alg_acc = Float64[]
+alg_name = String[]
+alg_type = String[]
+eces = Float64[]
 for alg in bnn_algs
     for mf in algs_to_mf[alg]
         if !isnothing(nlls[alg][mf])
             push!(alg_labels, "$(alg) - $(mf_lab[mf])")
             push!(alg_nll, last(nlls[alg][mf]))
             push!(alg_acc, last(accs[alg][mf]))
+            push!(alg_name, string(alg))
+            push!(alg_type, string(mf))
+            push!(eces, sum(abs2, conf_accs[alg][mf][end] - confs[alg][mf][end]))
         end
     end
 end
@@ -147,6 +156,13 @@ p2 = bar(alg_labels, 1 .- alg_acc, ylabel="Class. Error", label="", lw=0.0)
 savefig(p1, joinpath(plot_dir, savename("nll", @dict(n_hidden, activation, alpha, L, eta), "png")))
 savefig(p2, joinpath(plot_dir, savename("err", @dict(n_hidden, activation, alpha, L, eta), "png")))
 display(plot(p1, p2))
+
+### Create a dataframe out of the result
+
+d = DataFrame([alg_name, alg_type, alg_nll, alg_acc, eces], [:name, :mf_type, :nll, :acc, :ece])
+open(plotsdir("bnn", "tex_results_L=$(L)_" * model * ".tex"), "w") do io
+    print(io, latexify(d; env=:table, fmt=x->round(x, sigdigits=3)))
+end
 
 ## Convergence plots
 plt_nll = plot(yaxis="NLL", xaxis="Iterations")
@@ -163,38 +179,38 @@ end
 
 display(plot(plt_nll, plt_acc))
 ## 
-for (i, n_particles) in enumerate(n_ps)
-    for mf in mfs
-        nll[:gpf][mf][i] = [nlls[:gpf][mf][(α, n_particles)] for α in αs]
-    end
-    nll[:advi][i] = [nlls[:advi][(α, n_particles)] for α in αs]
-    nll[:swag][i] = [nlls[:swag][(α, n_particles)] for α in αs]
-    for mf in mfs
-        acc[:gpf][mf][i] = [accs[:gpf][mf][(α, n_particles)] for α in αs]
-    end
-    acc[:advi][i] = [accs[:advi][(α, n_particles)] for α in αs]
-    acc[:swag][i] = [accs[:swag][(α, n_particles)] for α in αs]
-end
-for (i, n_particles) in enumerate(n_ps)
-    p = plot(xlabel = "α", legend = :topright, xaxis = :log, yaxis = "Neg. Log-Likelihood")#, title = "# particles : $n_particles")
-    for mf in mfs
-        plot!(αs, nll[:gpf][mf][i], label = "GPF - $(mfdict[mf])", linestyle = gpfl[mf], color = gpfc[mf])
-    end
-    plot!(αs, nll[:advi][i], label = "GVA", color = colors[2])
-    plot!(αs, nll[:swag][i], label = "SWAG", color = colors[4], linestyle = :dash)
-    savefig(plotsdir("bnn", savename("nll_lenet_mnist", @dict(n_particles), "png")))
-    display(p)
+# for (i, n_particles) in enumerate(n_ps)
+#     for mf in mfs
+#         nll[:gpf][mf][i] = [nlls[:gpf][mf][(α, n_particles)] for α in αs]
+#     end
+#     nll[:advi][i] = [nlls[:advi][(α, n_particles)] for α in αs]
+#     nll[:swag][i] = [nlls[:swag][(α, n_particles)] for α in αs]
+#     for mf in mfs
+#         acc[:gpf][mf][i] = [accs[:gpf][mf][(α, n_particles)] for α in αs]
+#     end
+#     acc[:advi][i] = [accs[:advi][(α, n_particles)] for α in αs]
+#     acc[:swag][i] = [accs[:swag][(α, n_particles)] for α in αs]
+# end
+# for (i, n_particles) in enumerate(n_ps)
+#     p = plot(xlabel = "α", legend = :topright, xaxis = :log, yaxis = "Neg. Log-Likelihood")#, title = "# particles : $n_particles")
+#     for mf in mfs
+#         plot!(αs, nll[:gpf][mf][i], label = "GPF - $(mfdict[mf])", linestyle = gpfl[mf], color = gpfc[mf])
+#     end
+#     plot!(αs, nll[:advi][i], label = "GVA", color = colors[2])
+#     plot!(αs, nll[:swag][i], label = "SWAG", color = colors[4], linestyle = :dash)
+#     savefig(plotsdir("bnn", savename("nll_lenet_mnist", @dict(n_particles), "png")))
+#     display(p)
 
-    p = plot(xlabel = "α", legend = :bottomright, xaxis = :log, yaxis = "Accuracy")#, title = "# particles : $n_particles")
-    for mf in mfs
-        plot!(αs, acc[:gpf][mf][i], label = "GPF - $(mfdict[mf])", linestyle = gpfl[mf], color = gpfc[mf])
-    end
-    plot!(αs, acc[:advi][i], label = "GVA", color = colors[2])
-    plot!(αs, acc[:swag][i], label = "SWAG", color = colors[4], linestyle = :dash)
-    display(p)
-    savefig(plotsdir("bnn", savename("accuracy_lenet_mnist", @dict(n_particles), "png")))
+#     p = plot(xlabel = "α", legend = :bottomright, xaxis = :log, yaxis = "Accuracy")#, title = "# particles : $n_particles")
+#     for mf in mfs
+#         plot!(αs, acc[:gpf][mf][i], label = "GPF - $(mfdict[mf])", linestyle = gpfl[mf], color = gpfc[mf])
+#     end
+#     plot!(αs, acc[:advi][i], label = "GVA", color = colors[2])
+#     plot!(αs, acc[:swag][i], label = "SWAG", color = colors[4], linestyle = :dash)
+#     display(p)
+#     savefig(plotsdir("bnn", savename("accuracy_lenet_mnist", @dict(n_particles), "png")))
 
-end
+# end
 
 
 ##

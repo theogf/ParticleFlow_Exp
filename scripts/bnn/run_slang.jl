@@ -28,22 +28,20 @@ exp_ps = Dict(
     :batchsize => 128,
     :n_hidden => [100, 200, 400, 800],
     :activation => [:tanh, :relu],
-    :L => [2, 20, 50],
+    :L => [2, 5, 10],
     :model => "BNN",
     :dataset => "MNIST",
     :use_gpu => false,
     :seed => 42,
-    :α => [0.01, 0.05, 0.1, 1.0, 5.0, 10, 50, 100],
+    :α => 1f0,#[0.01, 0.05, 0.1, 1.0, 5.0, 10, 50, 100],
     :alpha => 0.01,
     :beta => 0.01,
 )
 
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
-const to = TimerOutput()
 
-@timeit to "Full" run_slang(ps[1])
-reset_timer!(to)
+run_slang(ps[1])
 
 # for (i, p) in enumerate(ps)
 #     @info "Running dict $(i)/$(length(ps)) : $(savename(p))"

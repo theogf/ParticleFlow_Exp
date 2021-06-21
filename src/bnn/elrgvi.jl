@@ -8,7 +8,7 @@ function run_elrgvi(exp_p)
     ## Loading the model and creating the appropriate function
     @unpack use_gpu, n_iter, dataset, activation, n_hidden, batchsize = exp_p # Load all variables from the dict exp_p
     device = use_gpu ? gpu : cpu
-    global DEFAULT_RNG = use_gpu ? CUDA.CURAND.default_rng() : Random.GLOBAL_RNG
+    const DEFAULT_RNG = use_gpu ? CUDA.CURAND.default_rng() : Random.GLOBAL_RNG
     model = "BNN_" * @savename(activation, n_hidden)
     modelfile = datadir("exp_raw", "bnn", "models", dataset, @savename(activation, n_hidden) * ".bson")
     m = BSON.load(modelfile)[:nn] |> device
@@ -35,7 +35,7 @@ function run_elrgvi(exp_p)
     train_loader, test_loader = get_data(dataset, batchsize)
     n_data = train_loader.imax
     n_batch = length(train_loader)
-    m = Chain(LowRankGaussianDenseLayer.(m, L)...) |> device
+    global m = Chain(LowRankGaussianDenseLayer.(m, L)...) |> device
     ps = Flux.params(m)
     ## Define prior
     logprior(θ::AbstractArray{<:Real}) = sum(abs2, θ)
@@ -44,21 +44,27 @@ function run_elrgvi(exp_p)
     loss(ŷ, y) = Flux.Losses.logitcrossentropy(ŷ, y)
     function neg_elbo(l, x, y)
         KL = LRKLdivergence(l, α)
-        ml_loss = n_data / batchsize * loss(l(reshape(x, 28 * 28, :)), y)
+        ml_loss = n_data * loss(l(reshape(x, 28 * 28, :)), y)
         return KL + ml_loss
     end
-    save_params(m, 0)
     x, y = first(train_loader) |> device
     neg_elbo(m, x, y)
+    save_params(m, 0)
     optimiser = @eval $(opt)($eta)
+    # @btime begin
+    #     gradient($ps) do 
+    #     loss($m(reshape($x, 28 * 28, :)), $y)
+    # end
+    # end
     @showprogress for _ in 1:n_iter
         x, y = Random.nth(train_loader, rand(1:n_batch)) |> device
         # @timeit to "Gradients" 
-        grads = gradient(ps) do 
+        grads = gradient(ps) do
+            # allocated_negelbo(m, x, y)
             neg_elbo(m, x, y)
         end
         iter += 1
-        Flux.Optimise.update!(optimiser, ps, grads)
+        Flux.Optimise.update!(optimiser, Flux.params(m), grads)
         if mod(iter, 250) == 0
             @info "Saving at iteration $iter"
             save_params(m, iter)

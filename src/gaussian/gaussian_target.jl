@@ -153,7 +153,7 @@ function run_gaussian_target(exp_p)
             :run => exp_p[:svgd_linear],
             :n_particles => n_particles,
             :max_iters => n_iters,
-            :opt => @eval($opt_det($eta)),
+            :opt => Flux.Optimise.Optimiser(IncreasingRate(1.0, 1e-4), @eval($opt_det($eta))),
             :callback => wrap_cb(),
             :mf => false,
             :init => copy(x_init),

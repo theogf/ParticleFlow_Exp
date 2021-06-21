@@ -230,6 +230,7 @@ p = plot(
     layout = @layout([A B;C D;E F;G{0.2h} H]),
     size = (600, 800),
 )
+t
 display(p)
 savefig(plotsdir("lowrank", "full_plots_η=$η.png"))
 savefig(plotsdir("lowrank", "full_plots_η=$η.svg"))

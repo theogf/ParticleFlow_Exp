@@ -25,14 +25,14 @@ include(srcdir("bnn", "swag.jl"))
 exp_ps = Dict(
     :n_epoch => 50,
     :batchsize => 128,
-    :n_hidden => 100, #[100, 200, 400, 800],
-    :activation => [:tanh],# [:tanh, :relu],
+    :n_hidden => [100, 200, 400, 800],
+    :activation => [:tanh, :relu],
     :model => "BNN",
     :dataset => "MNIST",
     :use_gpu => true,
     :seed => 42,
     :n_period => 10,
-    :eta => 1f-5,#[1f-1, 5f-2, 1f-2], # 0.001 in Float32
+    :eta => 1f-6,#[1f-1, 5f-2, 1f-2], # 0.001 in Float32
     :rho => 0.9,
     :α => 1.0, #[0.01, 0.05, 0.1, 1.0, 5.0, 10, 50, 100],
 )

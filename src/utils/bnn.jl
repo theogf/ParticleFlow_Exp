@@ -203,5 +203,5 @@ function LinearAlgebra.inv(A::CUDA.CuMatrix)
     d_A = copy(A)
     _, info = CUDA.CUSOLVER.potrfBatched!('L', [d_A])
     L = LinearAlgebra.Cholesky(d_A, 'L', first(info)).L
-    return (I / L) / L'
+    return (cu(Matrix{Float32}(I(size(L, 1)))) / L) / L'
 end

@@ -27,8 +27,8 @@ alg_lab = Dict(
     :dsvi => "DSVI",
     :fcs => "FCS",
     :iblr => "IBLR",
-    :svgd_linear => "Linear SVGD",
-    :svgd_rbf => "RBF SVGD"
+    :svgd_linear => "SVGD (Linear)",
+    :svgd_rbf => "SVGD (Sq. Exp.)"
 )
 
 mf_lab = Dict(
@@ -97,7 +97,7 @@ function process_means(hs, truth; metric = (x, y) -> norm(x - y), use_quantile=f
         end
     end
     global debug_vals = vals
-    T = floor(Int, median(length.(vals)))
+    T = floor(Int, maximum(length.(vals)))
     Δm = zeros(T)
     varm = use_quantile ? zeros(T, 2) : zeros(T)
     incomplete_runs = findall(x->length(x)!=T, vals)
@@ -129,10 +129,12 @@ function process_fullcovs(hs, truth; metric = (x, y) -> norm(x -y), use_quantile
             [0.0]
         end
     end
-    T = floor(Int, median(length.(vals)))
+    global debug_vals = vals
+    T = floor(Int, maximum(length.(vals)))
+    # @infiltrate
     # This removes all the incomplete runs which might create bugs in the estimation
-    incomplete_runs = findall(x->length(x) != T, vals)
-    deleteat!(vals, incomplete_runs)
+    # incomplete_runs = findall(x->length(x) != T, vals)
+    # deleteat!(vals, incomplete_runs)
     if first(vals) isa AbstractVector{<:AbstractVector}
         nan_runs = findall(x->any(y->any(isnan, y), x), vals)
         deleteat!(vals, nan_runs)
@@ -172,7 +174,7 @@ function process_means_plus_covs(hs, truth, metric = (x, y) -> norm(x - y))
 end
 
 function process_time(ts::AbstractVector{<:AbstractVector})
-    t_norm = median(length.(ts))
+    t_norm = maximum(length.(ts))
     incomplete_runs = findall(x->length(x)!=t_norm, ts)
     deleteat!(ts, incomplete_runs)
     mean(ts), var(ts)

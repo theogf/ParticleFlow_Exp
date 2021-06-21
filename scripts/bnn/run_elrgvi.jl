@@ -24,27 +24,31 @@ include(srcdir("bnn", "elrgvi.jl"))
 GC.gc(true)
 CUDA.reclaim()
 exp_ps = Dict(
-    :n_iter => 5001,
+    :n_iter => 10,
     :batchsize => 128,
     :n_hidden => [100, 200, 400, 800],
     :activation => [:tanh, :relu],
-    :L => [2, 5, 10, 50],
+    :L => [2, 5, 10],
     :model => "BNN",
     :dataset => "MNIST",
     :use_gpu => false,
     :seed => 42,
-    :α => 1.0,
+    :α => 1f0,
     :opt => :RMSProp,
     :eta => 1f-2,
 )
 
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
+CUDA.allowscalar(true)
+# ProfileView.@profview run_elgrvi(ps[1])
+@time 
+@analyze_dispatch run_elrgvi(ps[1])
 
-# ProfileView.@profview 
-# @time run_elrgvi(ps[1])
 
-for (i, p) in enumerate(ps)
+for (i, p) in enumerate(ps[2:end])
     @info "Running dict $(i)/$(length(ps)) : $(savename(p))"
+    GC.gc()
+    # CUDA.reclaim()
     @time run_elrgvi(p)
 end

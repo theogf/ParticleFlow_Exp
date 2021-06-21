@@ -66,7 +66,7 @@ function extract_info(::Union{Val{:gf},Val{:dsvi}}, alg_dir, mf, exp_params)
 end
 function extract_info(::Val{:swag}, alg_dir, mf, exp_params)
     @unpack L, batchsize, eta, n_epoch, n_period, α = exp_params
-    eta = 0.00001
+    eta = 1e-6
     α= 1.0
     rho = 0.9
     target_dir = joinpath(alg_dir, @savename batchsize eta rho n_epoch n_period α)

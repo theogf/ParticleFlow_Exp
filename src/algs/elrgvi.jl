@@ -37,29 +37,29 @@ function (l::LowRankGaussianDenseLayer{A})(x::AbstractArray) where {A}
     B = size(x, 2)
     Fμ = Dense(to_weights_and_bias(l, l.μ)..., identity) # NN from the mean
     Wσ, bσ = to_weights_and_bias(l, l.σ)
-    Fσ = Dense(abs2.(Wσ), abs2.(bσ), identity) ## NN from the diagonal covariance
+    Fσ² = Dense(abs2.(Wσ), abs2.(bσ), identity) ## NN from the diagonal covariance
     Fvs = [Dense(to_weights_and_bias(l, v)..., identity) for v in eachcol(l.v)] # NNs from the Low-Rank
     Yμ = Fμ(x) # Output from the mean
-    Yσ = sqrt.(Fσ(x.^2)) # Output from the diagonal covariance
+    Yσ = sqrt.(Fσ²(x.^2)) # Output from the diagonal covariance
     ϵ_v = similar(l.v, 1, B)
     Yv = sum(Fvs) do Fv
         randn!(DEFAULT_RNG, ϵ_v) .* Fv(x)
     end # Sum of the Low-Rank contributions
-    ϵ = randn(DEFAULT_RNG, l.out, B)
+    ϵ = randn(DEFAULT_RNG, Float32, l.out, B)
     return l.a.(Yμ + ϵ .* Yσ + sqrt(l.α) * Yv) # Summed output
 end
 
 function LRKLdivergence(l::Chain, γ::Real)
-    sum(Base.Fix2(LRKLdivergence, γ), l)
+    sum(x->LRKLdivergence(x, γ), l)
 end
 
 function LRKLdivergence(l::LowRankGaussianDenseLayer, γ::Real)
     D = (l.in + 1) * l.out
-    return 0.5 * (sum(abs2, l.σ) / γ - sum(log ∘ abs2, l.σ)
-                    + l.α / γ * sum(abs2, l.v) + sum(abs2, l.μ) / γ
-                    - logdet(I + l.α * l.v' * (inv.(l.σ .^ 2) .* l.v))
-                    + D * (log(γ) - 1)
-                )
+    v1 = sum(abs2, l.σ) / γ - sum(log ∘ abs2, l.σ)
+    v2 = l.α / γ * sum(abs2, l.v) + sum(abs2, l.μ) / γ
+    v3 = - logdet(I + l.α * l.v' * (inv.(l.σ .^ 2) .* l.v))
+    v4 = D * (log(γ) - 1)
+    return 0.5 * (v1 + v2 + v3 + v4)
 end
 
 function pred_mean_and_var(l, x; T=100)

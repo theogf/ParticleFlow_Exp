@@ -117,18 +117,18 @@ function diag_AAt(A)
 end
 
 function step!(alg::SLANG, to_network, loss)
-    @timeit to "sample" θ = fast_sample(alg.rng, alg.μ, alg.U, alg.d)
+    θ = fast_sample(alg.rng, alg.μ, alg.U, alg.d)
     δ = 1 - alg.β
-    @timeit to "gradient" G = transpose(first(Flux.Zygote.jacobian(θ) do x
+    G = transpose(first(Flux.Zygote.jacobian(θ) do x
             nn = to_network(x)
             return loss(nn)
         end))
-    @timeit to "fast_eig" V = fast_eig(δ, alg.U, alg.β, G, alg.L)
+    V = fast_eig(δ, alg.U, alg.β, G, alg.L)
     Δ = δ * diag_AAt(alg.U) + alg.β * diag_AAt(G) - diag_AAt(V)
     alg.U .= V
-    @. alg.d = δ * alg.d + Δ + alg.β * alg.λ # Weird dimensions here
+    @. alg.d = δ * alg.d + Δ + alg.β * alg.λ
     ĝ = vec(sum(G, dims=2)) + alg.λ * alg.μ
-    @timeit to "inv" Δμ = fast_inverse(ĝ, alg.U, alg.d)
+    Δμ = fast_inverse(ĝ, alg.U, alg.d)
     @. alg.μ -= alg.α * Δμ
     return nothing
 end
