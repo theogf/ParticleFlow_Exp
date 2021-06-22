@@ -24,6 +24,7 @@ function preload(dataset::String, folder::String)
     isfile(datadir("exp_raw", folder, dataset * ".csv")) ? nothing : resolve(dataset, @__FILE__) # Check the dataset have been loaded and download it if not
 end
 
+## Easy transformations from mean covaraince to adapted parametrizaiton
 function meancov_to_gf(μ, Σ, mf=false)
     S = mf == Inf ? sqrt.(diag(Σ)) : Matrix(cholesky(Σ).L)
     return (copy(μ), S)

@@ -82,19 +82,10 @@ end
 thinning = 2
 N = length(ds[1:thinning:end])
 
-# for (j,d) in enumerate(ds[1:thinning:end])
-#     for i in 1:3
-#         lines!(ax, eachrow(is_std(d, i))..., color = cmap[j], linewidth = 5.0, linestyle = line_style[d1])
-#     end
-# end
-# for (j,x) in enumerate(xs[1:thinning:end])
-#     scatter!(ax, eachrow(x)..., color = cmap[j], strokewidth=0.0, markersize = 15.0)
-# end
+
 gscale = 1.5
-# arrows!(ax, xstart[1,:], xstart[2,:], gstart[1,:] * gscale, gstart[2,:] * gscale, linewidth = 3.0, arrowsize = 0.13, linecolor = colormarker, arrowcolor = colormarker)
 swidth = 1.5
 scatter!(ax, eachrow(xstart)..., color = cmap[1], strokewidth=swidth, markersize = 15.0, strokecolor = :white)
-# arrows!(ax, xint[1,:], xint[2,:], gint[1,:] * gscale, gint[2,:] * gscale, linewidth = 3.0, arrowsize = 0.13, linecolor = colormarker, arrowcolor = colormarker)
 scatter!(ax, eachrow(xint)..., color = cmap[2], strokewidth=swidth, markersize = 15.0, strokecolor = :white)
 scatter!(ax, eachrow(xfinal)..., color = cmap[3], strokewidth=swidth, markersize = 15.0, strokecolor = :white)
 arrows!(ax, [first(mean(dstart))], [last(mean(dstart))],  [first(mean(gstart, dims = 2))] * gscale, [last(mean(gstart, dims = 2))] * gscale, linewidth = 7.0, arrowsize = 0.4, linecolor = cmap[1], arrowcolor = cmap[1])
@@ -106,5 +97,3 @@ text!(ax, "p(x)", position = Point2f0(m2.-[-1.5,-3.5]), textsize = ts, align =(:
 hidedecorations!(ax)
 hidespines!(ax)
 save(joinpath(@__DIR__, "..", "plots", "frontpage.png"), scene)
-# cp(joinpath("/home", "theo", "experiments", "ParticleFlow", "julia", "plots", "frontpage.png"), joinpath("/home", "theo", "Tex Projects", "GaussianParticleFlow", "figures", "frontpage.png"), force =true)
-# scene
