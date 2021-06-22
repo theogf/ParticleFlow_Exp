@@ -30,7 +30,7 @@ exp_params = Dict(
     :eta => 0.01,
     :α => 1.0,
     :natmu => false,
-    :L => 2,
+    :L => 5,
     :n_iter => 5001,
     :opt_det => :DimWiseRMSProp,
     :opt_stoch => :RMSProp,
@@ -58,13 +58,12 @@ opt_pred = cpu(Flux.softmax(nn_forward(X_test, θ)))
 opt_ps, opt_ids = max_ps_ids(opt_pred)
 
 bnn_algs = [
-    :swag,
     :gpf,
     :gf,
     :dsvi,
-    :svgd_linear,
     :svgd_rbf,
-    # :elrgvi,
+    :swag,
+    :elrgvi,
     # :slang,
 ]
 
@@ -103,32 +102,35 @@ end
 
 
 ## Plotting of confidence histogram
-xvals = [0.5, 0.95, 0.99, 0.999, 0.9999]
-xvcontinuous = range(0.3, 0.99, length = 100)
-logxvals = log.(1.0 .- xvals)
-p = plot(xflip = false, legendfontsize = 13.5, legend = false, title = "BNN - $(n_hidden) - $(activation)", xlabel = "Confidence (max prob)", ylabel = "Accuracy")
+plt_none = plot(xflip = false, legendfontsize = 13.5, legend = :topleft, title = "L = $L", xlabel = "Confidence (max prob)", ylabel = "Accuracy")
+plt_mf = plot(xflip = false, legendfontsize = 13.5, legend = :topleft, title = "Mean-Field", xlabel = "Confidence (max prob)", ylabel = "Accuracy")
 # xticks!(logxvals, string.(xvals))
 msw = 0.5
 ms = 8.0
 lw = 0.0 # 5.0
-plot!([0.0, 1.0], identity,
-# plot!(log.(1.0.-xvcontinuous), 
-        # x->0,#-exp(x)+1,
-        linestyle = :dash, color = :black, label = "")
+plot!(plt_none, [0.0, 1.0], identity, linestyle = :dash, color = :black, label = "")
+plot!(plt_mf, [0.0, 1.0], identity, linestyle = :dash, color = :black, label = "")
 # plot!(opt_conf,   opt_acc, marker = :o, label = "ML", msw = msw, color = colors[7])
 @unpack eta, L = exp_params
 alpha= exp_params[:α]
 for alg in bnn_algs
     for mf in algs_to_mf[alg]
         if !isnothing(confs[alg][mf])
-            plot!(last(confs[alg][mf]), last(conf_accs[alg][mf]), marker = :circle, label = "$(alg) - $(mf_lab[mf])", color = alg_col[alg], linestyle = alg_mf_line[mf], msw = msw, linewidth = lw, ms = ms)
+            if mf == :full
+                scatter!(plt_mf, last(confs[alg][mf]), last(conf_accs[alg][mf]), marker = alg_markers[alg], label = alg_lab[alg], color = alg_col[alg], linestyle = alg_mf_line[mf], msw = msw, linewidth = lw, ms = ms)
+            else
+                scatter!(plt_none, last(confs[alg][mf]), last(conf_accs[alg][mf]), marker = alg_markers[alg], label = ece_labs[(alg, mf)], color = alg_col[alg], linestyle = alg_mf_line[mf], msw = msw, linewidth = lw, ms = ms)
+            end
         end
     end
 end
 plot_dir = plotsdir("bnn")
 mkpath(plot_dir)
-savefig(joinpath(plot_dir, savename("confidence_bnn", @dict(n_hidden, activation, alpha, eta, L), "png")))
-display(p)
+savefig(plt_none, joinpath(plot_dir, savename("confidence_bnn_none_", @dict(n_hidden, activation, alpha, eta, L), "png")))
+savefig(plt_none, joinpath(plot_dir, savename("confidence_bnn_none_", @dict(n_hidden, activation, alpha, eta, L), "eps")))
+savefig(plt_mf, joinpath(plot_dir, savename("confidence_bnn_full_", @dict(n_hidden, activation, alpha, eta, L), "png")))
+savefig(plt_mf, joinpath(plot_dir, savename("confidence_bnn_full_", @dict(n_hidden, activation, alpha, eta, L), "eps")))
+display(plot(plt_none, plt_mf))
 
 
 ## Work with the NLL and ACC
@@ -165,19 +167,34 @@ open(plotsdir("bnn", "tex_results_L=$(L)_" * model * ".tex"), "w") do io
 end
 
 ## Convergence plots
-plt_nll = plot(yaxis="NLL", xaxis="Iterations")
-plt_acc = plot(yaxis="Class. Error", xaxis="Iterations")
+plt_nll = Dict()
+plt_nll[:full] = plot(legend=:topright, title="Mean-Field", yaxis="NLL", xaxis="Iterations")
+plt_nll[:none] = plot(legend=:topright, title="L=$L", yaxis="NLL", xaxis="Iterations")
+plt_acc = Dict()
+plt_acc[:full] = plot(title="Mean-Field", yaxis="Class. Error", xaxis="Iterations")
+plt_acc[:none] = plot(title="L=$L", yaxis="Class. Error", xaxis="Iterations")
 for alg in bnn_algs[bnn_algs .!= :swag]
     for mf in algs_to_mf[alg]
         if !isnothing(nlls[alg][mf])
             N = length(nlls[alg][mf])
-            plot!(plt_nll, range(0, n_iter-1, length=N), nlls[alg][mf], color=alg_col[alg], label="")
-            plot!(plt_acc, range(0, n_iter-1, length=N), 1.0 .- accs[alg][mf], color=alg_col[alg], label="")
+            if mf == :full
+                plot!(plt_nll[mf], range(0, n_iter-1, length=N), nlls[alg][mf], color=alg_col[alg], label=alg_lab[alg])
+                plot!(plt_acc[mf], range(0, n_iter-1, length=N), 1.0 .- accs[alg][mf], color=alg_col[alg], label=alg_lab[alg])
+            else
+                plot!(plt_nll[:none], range(0, n_iter-1, length=N), nlls[alg][mf], color=alg_col[alg], label=ece_labs[(alg, mf)])
+                plot!(plt_acc[:none], range(0, n_iter-1, length=N), 1.0 .- accs[alg][mf], color=alg_col[alg], label=ece_labs[(alg, mf)])
+            end
         end
     end
 end
-
-display(plot(plt_nll, plt_acc))
+for mf in [:full, :none]
+    savefig(plt_nll[mf], joinpath(plot_dir, savename("convergence_nll_$(string(mf))_", @dict(L, activation, alpha, eta, n_hidden), "png")))
+    savefig(plt_nll[mf], joinpath(plot_dir, savename("convergence_nll_$(string(mf))_", @dict(L, activation, alpha, eta, n_hidden), "eps")))
+    savefig(plt_acc[mf], joinpath(plot_dir, savename("convergence_acc_$(string(mf))_", @dict(L, activation, alpha, eta, n_hidden), "png")))
+    savefig(plt_acc[mf], joinpath(plot_dir, savename("convergence_acc_$(string(mf))_", @dict(L, activation, alpha, eta, n_hidden), "eps")))
+    display(plot(plt_nll[mf], plt_acc[mf]))
+end
+# display(plot(plt_nll, plt_acc))
 ## 
 # for (i, n_particles) in enumerate(n_ps)
 #     for mf in mfs

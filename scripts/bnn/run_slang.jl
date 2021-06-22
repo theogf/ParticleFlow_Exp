@@ -24,26 +24,26 @@ include(srcdir("bnn", "slang.jl"))
 GC.gc(true)
 CUDA.reclaim()
 exp_ps = Dict(
-    :n_iter => 10,
+    :n_iter => 5001,
     :batchsize => 128,
-    :n_hidden => [100, 200, 400, 800],
-    :activation => [:tanh, :relu],
-    :L => [2, 5, 10],
+    :n_hidden => 200,#[100, 200, 400, 800],
+    :activation => :tanh, #[:tanh, :relu],
+    :L => [5, 10],
     :model => "BNN",
     :dataset => "MNIST",
     :use_gpu => false,
     :seed => 42,
     :α => 1f0,#[0.01, 0.05, 0.1, 1.0, 5.0, 10, 50, 100],
-    :alpha => 0.01,
-    :beta => 0.01,
+    :alpha => 1f-2,
+    :beta => 1f-2,
 )
 
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
 
-run_slang(ps[1])
+# run_slang(ps[1])
 
-# for (i, p) in enumerate(ps)
-#     @info "Running dict $(i)/$(length(ps)) : $(savename(p))"
-#     run_slang(p)
-# end
+for (i, p) in enumerate(ps)
+    @info "Running dict $(i)/$(length(ps)) : $(savename(p))"
+    run_slang(p)
+end

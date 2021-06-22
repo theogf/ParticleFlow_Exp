@@ -1,7 +1,7 @@
 using DrWatson
 @quickactivate
 include(projectdir("analysis", "post_process.jl"))
-
+using Plots: px
 
 ## Load data
 all_res = collect_results(datadir("results", "gaussian"));
@@ -172,22 +172,26 @@ for n_dim in D, #[5,  10, 20, 50, 100],
 end
 ## Working with the plots 
 lloc = :best#(-0.2, 0.3)
-lfsize = 16.0
+lfsize = 14.0
 p_legend1 = Plots.plot(
         showaxis=false,
         legend=lloc,
         hidedecorations=true,
         grid=false,
         legendfontsize=lfsize,
+        legendtitle="Particle Methods",
+        legendtitlefontsize=lfsize+1,
         fg_legend=:white,
         bg_legend=:white,
         margin=0px,
     )
-for alg in algs[1:3]
+
+for alg in vcat(:gpf_notnatmu, :gpf_natmu, algs[end-1:end])
     plot!(
         p_legend1,
         [],
         [],
+        linestyle=alg_ls[alg],
         color=alg_col[alg],
         label=alg_lab[alg],
     )
@@ -200,15 +204,18 @@ p_legend2 = Plots.plot(
         hidedecorations=true,
         grid=false,
         legendfontsize=lfsize,
+        legendtitle="Stochastic Methods",
+        legendtitlefontsize=lfsize+1,
         fg_legend=:white,
         bg_legend=:white,
         margin=0px,
     )
-for alg in algs[4:end]
+for alg in algs[2:end-2]
     plot!(
         p_legend2,
         [],
         [],
+        linestyle=alg == :gf ? :solid : alg_ls[alg],
         color=alg_col[alg],
         label=alg_lab[alg],
     )

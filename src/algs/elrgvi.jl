@@ -1,5 +1,4 @@
 using Flux
-using ProgressMeter
 using LinearAlgebra
 using Distributions
 using StatsBase
@@ -15,6 +14,7 @@ struct LowRankGaussianDenseLayer{A,Tμ,Tv,Tσ}
     α::Real
 end
 
+## Base constructor
 function LowRankGaussianDenseLayer{T}(in, out, a, K, α=Float32(1/K)) where {T}
     μ = randn(T, (in + 1) * out)
     σ = rand(T, (in + 1) * out)
@@ -22,6 +22,7 @@ function LowRankGaussianDenseLayer{T}(in, out, a, K, α=Float32(1/K)) where {T}
     LowRankGaussianDenseLayer(K, in, out, μ, v, σ, a, α)
 end
 
+## Convert a dense layer to a ELRGVI layer (does not use existing parameters)
 function LowRankGaussianDenseLayer(l::Dense, K, α=Float32(1/K))
     T = eltype(l.W)
     LowRankGaussianDenseLayer{T}(reverse(size(l.W))..., l.σ, K, α)
@@ -29,10 +30,12 @@ end
 
 Flux.@functor LowRankGaussianDenseLayer
 
+## Convert the array to the weight matrix and bias vector
 function to_weights_and_bias(l::LowRankGaussianDenseLayer, x::AbstractVector)
     return @views reshape(x[1:(l.out * l.in)], l.out, l.in), x[(l.out * l.in + 1):end]
 end
 
+## Apply the layer on some input
 function (l::LowRankGaussianDenseLayer{A})(x::AbstractArray) where {A}
     B = size(x, 2)
     Fμ = Dense(to_weights_and_bias(l, l.μ)..., identity) # NN from the mean
@@ -49,10 +52,12 @@ function (l::LowRankGaussianDenseLayer{A})(x::AbstractArray) where {A}
     return l.a.(Yμ + ϵ .* Yσ + sqrt(l.α) * Yv) # Summed output
 end
 
+## Compute KL divergence on chain of ELRGVI layers
 function LRKLdivergence(l::Chain, γ::Real)
     sum(x->LRKLdivergence(x, γ), l)
 end
 
+## Compute KL divergence on a ELGRVI layer
 function LRKLdivergence(l::LowRankGaussianDenseLayer, γ::Real)
     D = (l.in + 1) * l.out
     v1 = sum(abs2, l.σ) / γ - sum(log ∘ abs2, l.σ)
@@ -62,23 +67,38 @@ function LRKLdivergence(l::LowRankGaussianDenseLayer, γ::Real)
     return 0.5 * (v1 + v2 + v3 + v4)
 end
 
-function pred_mean_and_var(l, x; T=100)
-    return vec.(mean_and_var([l(x) for _ in 1:T]))
+## Compute mean and variance over multiple runs
+# function pred_mean_and_var(l, x; T=100)
+    # return vec.(mean_and_var([l(x) for _ in 1:T]))
+# end
+
+function pred_mean_and_var(l, x; f=identity, T=100, device=cpu)
+    return mean_and_var([cpu(f(device(network_sample(l))(x))) for _ in 1:T])
 end
 
-function pred_mean_and_var2(l, x; T=100)
-    return vec.(mean_and_var([network_sample(l)(x) for _ in 1:T]))
-end
-
+## Sample one NN from a sample of each layer
 function network_sample(c::Chain)
-    Chain(network_sample.(c)...)
+    return Chain(network_sample.(c)...)
 end
+
+function sample_from_nn(c::Chain, n::Int=1)
+    return mapreduce(Base.Fix2(sample_from_nn, n), vcat, c)
+end
+
+function sample_from_nn(l::LowRankGaussianDenseLayer, n::Int=1)
+    return l.μ .+ sqrt(l.α) * l.v * randn(Float32, size(l.v, 2), n) + abs.(l.σ) .* randn(Float32, length(l.σ), n)
+end
+
+## Sample one dense layer from a sample of one layer
 function network_sample(l::LowRankGaussianDenseLayer)
-    θ = rand(MvNormal(l.μ, Symmetric(l.α * l.v * l.v') + Diagonal(l.σ.^2)))
+    # θ = rand(MvNormal(l.μ, Symmetric(l.α * l.v * l.v') + Diagonal(l.σ.^2)))
+    θ = l.μ + sqrt(l.α) * l.v * randn(Float32, size(l.v, 2)) + abs.(l.σ) .* randn(Float32, length(l.σ))
     Dense(to_weights_and_bias(l, θ)..., l.a)
 end
 
 ## Run a test
+# To run the test uncomment the following
+# using Plots
 function test_elrgvi()
     function plot_results()
         x_test = range(-7, 7, length=100)'
@@ -99,7 +119,6 @@ function test_elrgvi()
     n_hidden = 10
     K = 10
     l = Chain(LowRankGaussianDenseLayer(1, n_hidden, relu, K), LowRankGaussianDenseLayer(n_hidden, 1, identity, K))
-    # l = Chain(Dense(1, 5, relu), Dense(5, 1, identity))
     ps = params(l)
     opt = ADAM(0.01)
     T = 2000
@@ -118,6 +137,4 @@ function test_elrgvi()
     plot_results()
 end
 
-
-## Plotting test
 

@@ -23,12 +23,24 @@ algs = [
 
 alg_lab = Dict(
     :gpf => "GPF",
+    :gpf_notnatmu => "GPF",
+    :gpf_natmu => "GPF - Nat. Grad.",
     :gf => "GF",
     :dsvi => "DSVI",
     :fcs => "FCS",
     :iblr => "IBLR",
     :svgd_linear => "SVGD (Linear)",
-    :svgd_rbf => "SVGD (Sq. Exp.)"
+    :svgd_rbf => "SVGD (Sq. Exp.)",
+    :elrgvi => "ELRGVI",
+)
+ece_labs = Dict(
+    (:gpf, :none) => "GPF",
+    (:gpf, :partial) => "GPF (Layers)",
+    (:gf, :none) => "GF",
+    (:dsvi, :full) => "DSVI",
+    (:svgd_rbf, :none) => "SVGD (Sq. Exp.)",
+    (:elrgvi, :none) => "ELRGVI",
+    (:swag, :none) => "SWAG"
 )
 
 mf_lab = Dict(
@@ -39,6 +51,8 @@ mf_lab = Dict(
 
 alg_col = Dict(
     :gpf => colors[1],
+    :gpf_notnatmu => colors[1],
+    :gpf_natmu => colors[1],
     :gf => colors[2],
     :dsvi => colors[3],
     :fcs => colors[4],
@@ -46,13 +60,25 @@ alg_col = Dict(
     :svgd_linear => colors[5],
     :svgd_rbf => colors[6],
     :swag => colors[7],
+    :elrgvi => colors[9],
+)
+# Choose from [:none, :auto, :circle, :rect, :star5, :diamond, :hexagon, :cross, :xcross, :utriangle, :dtriangle, :rtriangle, :ltriangle, :pentagon, :heptagon, :octagon, :star4, :star6, :star7, :star8, :vline, :hline, :+, :x].
+alg_markers = Dict(
+    :gpf => :circle,
+    :gf => :rect,
+    :dsvi => :star5,
+    :svgd_rbf => :xcross,
+    :swag => :cross,
+    :elrgvi => :diamond,
 )
 
 alg_ls = Dict(
     :gpf => :dash,
+    :gpf_notnatmu => :solid,
+    :gpf_natmu => :dash, 
     :gf => :dash,
     :dsvi => :solid,
-    :iblr => :solid,
+    :iblr => :dash,
     :fcs => :solid,
     :svgd_linear => :solid,
     :svgd_rbf => :solid,

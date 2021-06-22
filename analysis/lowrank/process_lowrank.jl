@@ -57,9 +57,9 @@ function plot_lowrank(
     ymax = 1e2
     tfsize = 21.0
     p_μ = Plots.plot(
-        title = cond == 1 ? L"\|m^t - \mu\|" : "",
+        title = K == 10 ? L"\|m^t - \mu\|" : "",
         titlefontsize = tfsize,
-        xlabel = cond == 100 ? "Time [s]" : "",
+        xlabel = K == 30 ? "Time [s]" : "",
         ylabel = "",
         xaxis = :log,
         # ylims = (ymin, ymax),
@@ -68,9 +68,9 @@ function plot_lowrank(
     )
     annotate!(p_μ, 1e-1, 10^(1.2), Plots.text(latexstring("K = $(K)"), :left, 18))
     p_Σ = Plots.plot(
-        title = cond == 1 ? L"\|C^t- \Sigma\|" : "",
+        title = K == 10 ? L"\|C^t- \Sigma\|" : "",
         titlefontsize = tfsize,
-        xlabel = cond == 100 ? "Time [s]" : "",
+        xlabel = K == 30 ? "Time [s]" : "",
         ylabel = "",
         xaxis = :log,
         # ylims = (ymin, ymax),
@@ -168,7 +168,7 @@ end
 mkpath(plotsdir("lowrank"))
 plt = Dict()
 Ks = [2, 5, 10, 20]
-Ks = [10, 20, 30, 40]
+Ks = [10, 20, 30]
 η = 0.01
 for K in Ks
     plt[K] = Dict()
@@ -182,8 +182,8 @@ for K in Ks
     !isnothing(p) ? savefig(plotsdir("lowrank", savename(@dict(K), ".png"))) : nothing
 end
 ## Working with the plots 
-lloc = (-0.1, 0.0)
-lfsize = 16.0
+lloc = :best
+lfsize = 14.0
 p_legend1 = Plots.plot(
         showaxis=false,
         legend=lloc,
@@ -192,8 +192,11 @@ p_legend1 = Plots.plot(
         legendfontsize=lfsize,
         fg_legend=:white,
         bg_legend=:white,
+        legendtitle="Particle Methods",
+        legendtitlefontsize=lfsize+1,
+        margin=0px
     )
-for alg in lowrank_algs[1:2]
+for alg in vcat(lowrank_algs[1], lowrank_algs[end-1:end])
     plot!(
         p_legend1,
         [],
@@ -212,8 +215,10 @@ p_legend2 = Plots.plot(
         legendfontsize=lfsize,
         fg_legend=:white,
         bg_legend=:white,
+        legendtitle="Stochastic Methods",
+        legendtitlefontsize=lfsize+1,
     )
-for alg in lowrank_algs[3:end]
+for alg in lowrank_algs[2:3]
     plot!(
         p_legend2,
         [],
@@ -227,10 +232,10 @@ end
 p = plot(
     plt[10][:μ], plt[10][:Σ], plt[20][:μ], plt[20][:Σ], plt[30][:μ], plt[30][:Σ], p_legend1, p_legend2;
     dpi = 300,
-    layout = @layout([A B;C D;E F;G{0.2h} H]),
+    layout = @layout([A B;C D;E F;G{0.22h} H]),
     size = (600, 800),
 )
-t
+
 display(p)
 savefig(plotsdir("lowrank", "full_plots_η=$η.png"))
 savefig(plotsdir("lowrank", "full_plots_η=$η.svg"))

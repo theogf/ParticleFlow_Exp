@@ -10,11 +10,11 @@ function run_slang(exp_p)
     model = "BNN_" * @savename(activation, n_hidden)
     modelfile = datadir("exp_raw", "bnn", "models", dataset, @savename(activation, n_hidden) * ".bson")
     m = BSON.load(modelfile)[:nn] |> device
-    global θ, re = Flux.destructure(m)
+    θ, re = Flux.destructure(m)
 
     ## Loading parameters for SLANG
     @unpack L, alpha, beta, α = exp_p
-    save_path = datadir("results", "bnn", dataset, "slang_" * model, @savename n_iter L batchsize α alpha beta)
+    save_path = datadir("results", "bnn", dataset, model, "slang", @savename n_iter L batchsize α alpha beta)
     ispath(save_path) ? nothing : mkpath(save_path)
 
     function save_params(alg::SLANG, i)
@@ -33,14 +33,13 @@ function run_slang(exp_p)
             n_data / batchsize * loss(nn(reshape(x, 28 * 28, :)), y)
         end
     end
-    global mm = meta_loss
     iter = 0
     @functor SLANG
-    global alg = SLANG(use_gpu ? CUDA.CURAND.default_rng() : Random.GLOBAL_RNG, L, length(θ), alpha, beta, α) |> device
+    alg = SLANG(use_gpu ? CUDA.CURAND.default_rng() : Random.GLOBAL_RNG, L, length(θ), alpha, beta, α) |> device
     save_params(alg, 0)
-    for _ in 1:n_iter
+    @showprogress for _ in 1:n_iter
         # p = ProgressMeter.Progress(length(train_loader))
-        global x, y = Random.nth(train_loader, rand(1:n_batch)) |> device
+        x, y = Random.nth(train_loader, rand(1:n_batch)) |> device
         step!(alg, re, meta_loss(x, y))
         iter += 1
         if mod(iter, 250) == 0

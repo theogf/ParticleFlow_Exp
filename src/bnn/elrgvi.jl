@@ -8,7 +8,7 @@ function run_elrgvi(exp_p)
     ## Loading the model and creating the appropriate function
     @unpack use_gpu, n_iter, dataset, activation, n_hidden, batchsize = exp_p # Load all variables from the dict exp_p
     device = use_gpu ? gpu : cpu
-    const DEFAULT_RNG = use_gpu ? CUDA.CURAND.default_rng() : Random.GLOBAL_RNG
+    global DEFAULT_RNG = use_gpu ? CUDA.CURAND.default_rng() : Random.GLOBAL_RNG
     model = "BNN_" * @savename(activation, n_hidden)
     modelfile = datadir("exp_raw", "bnn", "models", dataset, @savename(activation, n_hidden) * ".bson")
     m = BSON.load(modelfile)[:nn] |> device

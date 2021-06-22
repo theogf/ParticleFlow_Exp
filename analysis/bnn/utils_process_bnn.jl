@@ -1,3 +1,5 @@
+include(srcdir("algs", "elrgvi.jl"))
+
 function max_ps_ids(X)
     maxs = findmax.(eachcol(X))
     return first.(maxs), last.(maxs)
@@ -91,6 +93,33 @@ function extract_info(::Val{:swag}, alg_dir, mf, exp_params)
     return [vals[1]], [vals[2]], [vals[3]], [vals[4]]
 end
 
-function extract_info(::Union{Val{:elrgvi},Val{:slang}}, alg_dir, mf, exp_params)
+function extract_info(::Val{:slang}, alg_dir, mf, exp_params)
     return nothing, nothing, nothing, nothing
+end
+
+function extract_info(::Val{:elrgvi}, alg_dir, mf, exp_params)
+    @unpack L, batchsize, eta, n_iter, natmu, opt_det, opt_stoch, α, σ_init = exp_params
+    opt = opt_stoch
+    target_dir = joinpath(alg_dir, @savename L batchsize n_iter opt eta α)
+    if !isdir(target_dir)
+        return nothing, nothing, nothing, nothing
+    end
+    res = collect_results(target_dir)
+    s = sortperm(res.i)
+    accs, nlls, confs, conf_accs = [], [], [], [], []
+    nn = Chain(LowRankGaussianDenseLayer.(m, L)...)
+    for ps in res.parameters[s]
+        l1, l2, l3 = ps
+        μ1, v1, σ1 = l1
+        μ2, v2, σ2 = l2
+        μ3, v3, σ3 = l3
+        nn[1].μ .= μ1; nn[1].v .= v1; nn[1].σ .= σ1
+        nn[2].μ .= μ2; nn[2].v .= v2; nn[2].σ .= σ2
+        nn[3].μ .= μ3; nn[3].v .= v3; nn[3].σ .= σ3
+        mean_preds = get_mean_pred(sample_from_nn(nn, n_MC))
+        # mean_preds = get_mean_pred(network_sample(q, n_MC))
+        acc, nll, conf, conf_acc = treat_mean_preds(mean_preds)
+        push!(accs, acc); push!(nlls, nll); push!(confs, conf); push!(conf_accs, conf_acc)
+    end
+    return accs, nlls, confs, conf_accs
 end

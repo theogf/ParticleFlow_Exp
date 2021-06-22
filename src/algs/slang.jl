@@ -46,11 +46,12 @@ struct SLANG{RNG,Tμ,TU,Td,T}
     λ::T
 end
 
-function SLANG(rng, L, dim, α=1.0, β=1.0, λ=1.0)
-    return SLANG(rng, L, randn(dim), randn(dim, L), rand(dim), α, β, λ)
+function SLANG(rng, L, dim, α=1f0, β=1f0, λ=1f0)
+    T = promote_type(typeof(α), typeof(β), typeof(λ))
+    return SLANG(rng, L, randn(dim), randn(dim, L), rand(dim), T(α), T(β), T(λ))
 end
 
-function SLANG(L, dim, α=1.0, β=1.0, λ=1.0)
+function SLANG(L, dim, α=1f0, β=1f0, λ=1f0)
     return SLANG(Random.GLOBAL_RNG, L, dim, α, β, λ)
 end 
 
