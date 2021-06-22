@@ -1,24 +1,38 @@
-# Source code for the experiments of the "Gaussian Particle Flow" paper submitted for AISTATS 2021.
+# Flexible and Efficient Inference with Particles for the Variational Gaussian Approximation
+
+Repo containing experiments for the ICML submission : "Flexible and Efficient Inference with Particles for the Variational Gaussian Approximation"
+
+![](frontpage.png)
 
 ## Installation
 
-- Make sure to install `julia` version `1.5.2` : https://julialang.org/downloads/
-
-- Download this repository (use the zip option)
-- Go in the folder, open a terminal and run `julia` followed by the following commands (note that `]` allows you to go in package mode)
-
+First of all [install julia](https://julialang.org/downloads/) with **version at least 1.5**.
+Download this repository (there should be a `gpf_icml.zip` file) and unzip it somewhere.
+With a terminal go to the repo and run `julia`.
+Then make the following calls:
 ```julia
-] activate .
-] instantiate
-] dev ./AdvancedVI
+using Pkg
+Pkg.activate(".")
+Pkg.instantiate()
+Pkg.develop(path"./AdvancedVI")
 ```
 
-- The `AdvancedVI` package is a fork of the original `Turing.jl` package.
+To download the relevant datasets from Section 4.3, you can simply call
+```julia
+include("scripts/download_and_convert.jl")
+```
+
+You are now all set!
 
 ## Running the scripts
 
-Once everything has been installed you can run the scripts by either running `julia` from the terminal and run the scripts via `include("scripts/run_gaussians.jl")` for example. The scripts are going to run over the different given parameters and save the resutls in `data/results` . You can then view the results by calling `include("analysis/gaussian/process_gaussians.jl")` for example.
+Once again open a Julia session and run on of the scripts present in `scripts` by calling `include("scripts/{ name of file}")`.
+You can set the desired parameters (they are commented) to try different setting.
 
-## Datasets
+## Reproducing the plots
 
-The used datasets will automatically be downloaded from their source, via `DataDeps.jl`  but feel free to add anything you want in `data/exp_raw`!
+This is a bit more tricky, you will have to go to the `analysis` folder and play with the different parameters in place given the simulations you have run.
+## Exploring the code
+
+The source code for each algorithm was directly included in an existing package [`AdvancedVI.jl`](https://github.com/TuringLang/AdvancedVI.jl) from TuringLang of which a branch is locally copied in this repo.
+Each algorithm is contained in a file in `AdvancedVI/src/`, the relevant function to look at is `optimize!` and eventually `grad!`

@@ -1,172 +1,233 @@
 using DrWatson
 @quickactivate
 include(projectdir("analysis", "post_process.jl"))
-
+using Plots: px
 
 ## Load data
-all_res = collect_results(datadir("results", "gaussian"))
+all_res = collect_results(datadir("results", "gaussian"));
+text_natmu = Dict(
+        true => " - NG",
+        false => "",
+)
 
 ## Treat one convergence file
-gdim = 80;
-n_p = 0;
-full_cov = true
-res = @linq all_res |>
-      where(:dim .== gdim) |>
-      where(:n_iters .== 3000) |>
-      where(:n_particles .== (iszero(n_p) ? gdim + 1 : n_p)) |>
-      where(:full_cov .== full_cov)
-@assert nrow(res) == 1 "Number of rows is not unique or is empty"
-
-truth = first(res.d_target)
-# Plotting
-
-p_μ = Plots.plot(
-    title = "Convergence Mean",
-    xlabel = "Time [s]",
-    ylabel = L"\|\mu - \mu_{true}\|",
-    xaxis = :log,
+function plot_gaussian(
+    n_dim, 
+    κ,
+    eta=1e-3;
+    all_res = all_res,
+    show_std_dev = false,
+    show_lgd = true,
+    use_quantile = true,
 )
-p_Σ = Plots.plot(
-    title = "Convergence Covariance",
-    xlabel = "Time [s]",
-    ylabel = L"\|\Sigma - \Sigma_{true}\|",
-    xaxis = :log,
-)
-for (i, alg) in enumerate(algs)
-    @info "Processing $(alg)"
-    t_alg = Symbol("t_", alg)
-    t_var_alg = Symbol("t_var_", alg)
-    m_alg = Symbol("m_", alg)
-    m_var_alg = Symbol("m_var_", alg)
-    v_alg = Symbol("v_", alg)
-    v_var_alg = Symbol("v_var_", alg)
-    @eval $(t_alg), $(t_var_alg) = process_time(first(res.$(alg)))
-    @eval $(m_alg), $(m_var_alg) = process_means(first(res.$(alg)), truth.m)
-    @eval $(v_alg), $(v_var_alg) =
-        process_fullcovs(first(res.$(alg)), vec(truth.C.L * truth.C.U))
-    @eval Plots.plot!(
-        p_μ,
-        $(t_alg),
-        $(m_alg),
-        ribbon = sqrt.($(m_var_alg)),
-        label = $(labels[alg]),
-        color = colors[$i],
-    )
-    @eval Plots.plot!(
-        p_Σ,
-        $(t_alg),
-        $(v_alg),
-        ribbon = sqrt.($(v_var_alg)),
-        label = $(labels[alg]),
-        color = colors[$i],
-    )
-end
-display(Plots.plot(p_μ, p_Σ, legend = false))
-
-## Treating all dimensions at once
-
-fullcov = false
-n_particles = 0
-overwrite = true
-
-res = @linq all_res |>
-      where(:n_iters .== 3000) |>
-      where(:n_runs .== 10) |>
-      where(:full_cov .== fullcov)
-
-
-res = if n_particles == 0
-    @linq res |> where(:n_particles .== :dim .+ 1)
-else
-    @linq res |> where(:n_particles .== n_particles)
-end
-dims = Float64.(Vector(res.dim))
-s = sortperm(dims)
-# Plot combined results
-p_t =
-    Plots.plot(title = "",#Time vs dims",
-    xlabel = "D", ylabel = "Time [s]", legend = false, yaxis = :log)
-p_μ = Plots.plot(
-    title = "",#Mean error vs dims",
-    xlabel = "D",
-    ylabel = L"\|\mu -\mu_{true}\|²",
-    legend = false,
-)
-p_Σ = Plots.plot(
-    title = "",#Cov error vs dims",
-    xlabel = "D",
-    ylabel = L"\|\Sigma -\Sigma_{true}\|²",
-    legend = false,
-)
-p_W = Plots.plot(
-    title = "",#Wasserstein distance",
-    xlabel = "D",
-    ylabel = "W₂",
-    legend = false,
-)
-ft = Dict(:mean=>Dict(), :var=>Dict())
-fm = Dict(:mean=>Dict(), :var=>Dict())
-fw = Dict(:mean=>Dict(), :var=>Dict())
-for (i, alg) in enumerate(algs)
-    @info "Processing $(alg)"
-    ft[:mean][alg] = []
-    ft[:var][alg] = []
-    fm[:mean][alg] = []
-    fm[:var][alg] = []
-    fw[:mean][alg] = []
-    fw[:var][alg] = []
-    for j = 1:nrow(res)
-        truth = res.d_target[j]
-        @info "Row $j (dim = $(res.dim[j]))"
-        @info res.path[j]
-        t_alg, t_var_alg = process_time(res.$(alg)[j])
-        m_alg, m_var_alg = process_means(res.$(alg)[j], truth.m)
-        v_alg, v_var_alg = process_fullcovs(res.$(alg)[j], vec(truth.C.L * truth.C.U))
-        push!(ft[:mean][alg], last(t_alg))
-        push!(ft[:var][alg], last(t_var_alg))
-        push!(fm[:mean][alg], last(m_alg))
-        push!(fm[:var][alg], last(m_var_alg))
-        push!(fv[:mean][alg], last(v_alg))
-        push!(fv[:var][alg], last(v_var_alg))
+    res = @linq all_res |>
+        where(:n_dim .== n_dim) |>
+        where(:eta .== eta) |>
+        where(:n_iters .>= 20000) |>
+        where(:n_particles .== 0) |>
+        where(:cond .== κ) |>
+        where(:n_runs .== 10)
+    @info "Total of $(nrow(res)) for given parameters"
+    if nrow(res) == 0
+        @warn "Results for n_dim=$n_dim, cond=$κ not available yet"
+        return nothing
     end
-    #
-    Plots.plot!(
-        p_t,
-        dims[s],
-        ft[:mean][alg][s],
-        #ribbon = sqrt.($(ft_var_alg)[s]),# removed because of logscale
-        label = labels[alg],
-        color = dcolors[alg],
+    global d_res = Dict()
+    # nrow(res) == 1 || error("Number of rows is not unique or is empty")
+    for alg in algs
+        # d_res[alg] = @linq res |> where(endswith.(:path, Regex("$(alg).*bson")))
+        d_res[alg] = @linq res |> where(:alg .=== alg) # endswith.(:path, Regex("$(alg).*bson")))
+    end
+    cond = κ
+    params_truth = BSON.load(datadir("exp_raw", "gaussian", savename(@dict(cond, n_dim), "bson")))
+    truth = MvNormal(params_truth[:μ_target], params_truth[:Σ_target])
+    # Plotting
+    
+    ylog = :log
+    ymin = eps(Float64)
+    ymax = 1e2
+    tfsize = 21.0
+    p_μ = Plots.plot(
+        title = cond == 1 ? L"\|m^t - \mu\|" : "",
+        titlefontsize = tfsize,
+        xlabel = cond == 100 ? "Time [s]" : "",
+        ylabel = "",
+        xaxis = :log,
+        ylims = (ymin, ymax),
+        yaxis = ylog,# ? (!show_std_dev ? :log : :linear) : :linear,
+        legend = false,
     )
-    Plots.plot!(
-        p_μ,
-        dims[s],
-        fm[:mean][alg][s],
-        ribbon = sqrt.(fm[:var][alg][s]),
-        label = labels[alg],
-        color = dcolors[alg],
+    annotate!(p_μ, 5e-2, 1e-10, Plots.text(latexstring("\\kappa = $cond"), :left, 18))
+    p_Σ = Plots.plot(
+        title = cond == 1 ? L"\|C^t- \Sigma\|" : "",
+        titlefontsize = tfsize,
+        xlabel = cond == 100 ? "Time [s]" : "",
+        ylabel = "",
+        xaxis = :log,
+        ylims = (ymin, ymax),
+        yaxis = ylog,# ? (!show_std_dev ? :log : :linear) : :linear,
+        legend = false,
     )
-    Plots.plot!(
-        p_Σ,
-        dims[s],
-        fv[:mean][alg][s],
-        ribbon = sqrt.(fv[:var][alg][s]),
-        label = labels[alg],
-        color = dcolors[alg],
+    p_legend = Plots.plot(
+        showaxis=false,
+        hidedecorations=true,
+        grid=false,
+        legendfontsize=10.0
+    )
+    p_title = plot(title="D=$n_dim, κ=$(cond)", grid=false, showaxis=false)
+
+    for (i, alg) in enumerate(alg_line_order)
+        @info "Processing $(alg)"
+        d = d_res[alg]
+        for row in eachrow(d)
+            vals = row.vals 
+            if alg == :gf && row.natmu == true
+                continue
+            elseif alg ∈ [:gf, :dsvi, :fcs] && row.opt_stoch != :RMSProp
+                continue
+            elseif alg ∈ [:svgd_linear, :svgd_rbf] && row.opt_det != :Descent
+                continue
+            elseif alg == :iblr && row.comp_hess == :rep
+                continue
+            end
+            if alg == :svgd_linear # there is some weird bug where the first two runs return nothing
+                vals = vals[haskey.(vals, :mu)]
+            end
+            m, m_v = process_means(vals, mean(truth), use_quantile=use_quantile)
+            C, C_v = process_fullcovs(vals, vec(cov(truth)), use_quantile=use_quantile)
+            t, t_v = process_time(vals, Val(alg))
+            if use_quantile
+                Plots.plot!(
+                    p_μ,
+                    t,
+                    m,
+                    fillrange= show_std_dev ? m_v : nothing,
+                    fillalpha=0.3,
+                    label=string(alg_lab[alg], text_natmu[row.natmu]),
+                    color=alg_col[alg],
+                    linestyle=alg_line[row.natmu]
+                )
+                Plots.plot!(
+                    p_Σ,
+                    t,
+                    C,
+                    fillrange = show_std_dev ? C_v : nothing,
+                    fillalpha=0.3,
+                    label = string(alg_lab[alg], text_natmu[row.natmu]),
+                    color = alg_col[alg],
+                    linestyle = alg_line[row.natmu],
+                )
+            else
+                Plots.plot!(
+                    p_μ,
+                    t,
+                    m,
+                    ribbon = show_std_dev ? sqrt.(m_v) : nothing,
+                    label = string(alg_lab[alg], text_natmu[row.natmu]),
+                    color = alg_col[alg],
+                    linestyle = alg_line[row.natmu],
+                )
+                Plots.plot!(
+                    p_Σ,
+                    t,
+                    C,
+                    ribbon = show_std_dev ? sqrt.(C_v) : nothing,
+                    label = string(alg_lab[alg], text_natmu[row.natmu]),
+                    color = alg_col[alg],
+                    linestyle = alg_line[row.natmu],
+                )
+            end
+            Plots.plot!(
+                p_legend,
+                [],
+                [],
+                label = string(alg_lab[alg], text_natmu[row.natmu]),
+                color = alg_col[alg],
+                linestyle = alg_line[row.natmu],
+            )
+        end
+    end
+    if show_lgd
+        p = Plots.plot(p_title, p_legend, p_μ, p_Σ, layout=@layout([A{0.01h}; [B C D]]))
+    else
+        p = Plots.plot(p_title, p_μ, p_Σ, layout=@layout([A{0.01h}; [B C]]))
+    end
+    display(p)
+    return p, p_μ, p_Σ
+end
+mkpath(plotsdir("gaussian"))
+ps = Dict()
+D = 20
+for n_dim in D, #[5,  10, 20, 50, 100], 
+    cond in [1, 10, 100]
+    ps[cond] = Dict()
+    p, ps[cond][:μ], ps[cond][:Σ] = plot_gaussian(n_dim, cond, 0.01; show_std_dev=true, show_lgd=false, use_quantile=true)
+    try
+        display(p)
+    catch e
+        @warn "Plot was empty for n_dim=$n_dim and cond=$cond"
+        continue
+    end
+    !isnothing(p) ? savefig(plotsdir("gaussian", savename(@dict(n_dim, cond), ".png"))) : nothing
+end
+## Working with the plots 
+lloc = :best#(-0.2, 0.3)
+lfsize = 14.0
+p_legend1 = Plots.plot(
+        showaxis=false,
+        legend=lloc,
+        hidedecorations=true,
+        grid=false,
+        legendfontsize=lfsize,
+        legendtitle="Particle Methods",
+        legendtitlefontsize=lfsize+1,
+        fg_legend=:white,
+        bg_legend=:white,
+        margin=0px,
+    )
+
+for alg in vcat(:gpf_notnatmu, :gpf_natmu, algs[end-1:end])
+    plot!(
+        p_legend1,
+        [],
+        [],
+        linestyle=alg_ls[alg],
+        color=alg_col[alg],
+        label=alg_lab[alg],
     )
 end
-pleg = Plots.plot(
-    [[], [], []],
-    [[], [], []],
-    ribbon = [],
-    label = reshape(getindex.(Ref(labels), algs), 1, :),
-    color = reshape(getindex.(Ref(dcolors), algs), 1, :),
-    framestyle = :none,
-    legend = :top,
+p_legend1
+
+p_legend2 = Plots.plot(
+        legend=lloc,
+        showaxis=false,
+        hidedecorations=true,
+        grid=false,
+        legendfontsize=lfsize,
+        legendtitle="Stochastic Methods",
+        legendtitlefontsize=lfsize+1,
+        fg_legend=:white,
+        bg_legend=:white,
+        margin=0px,
+    )
+for alg in algs[2:end-2]
+    plot!(
+        p_legend2,
+        [],
+        [],
+        linestyle=alg == :gf ? :solid : alg_ls[alg],
+        color=alg_col[alg],
+        label=alg_lab[alg],
+    )
+end
+p_legend2
+
+p = plot(
+    ps[1][:μ], ps[1][:Σ], ps[10][:μ], ps[10][:Σ], ps[100][:μ], ps[100][:Σ], p_legend1, p_legend2;
+    dpi = 300,
+    layout = @layout([A B;C D;E F;G{0.25h} H]),
+    size = (600, 800),
 )
-p = Plots.plot(p_t, p_μ, p_Σ, pleg)
-plotname = @savename fullcov n_particles
-savepath = plotsdir("gaussian")
-mkpath(savepath)
-savefig(joinpath(savepath, "plots_vs_dim_" * plotname * ".png"))
 display(p)
+savefig(plotsdir("gaussian", "full_plots_D=$(D)_stoch.png"))
+savefig(plotsdir("gaussian", "full_plots_D=$(D)_stoch.svg"))

@@ -1,2 +1,4 @@
-data/*
-plots/*
+data/
+plots/
+copy_plots
+.vscode/settings.json

@@ -1,9 +1,12 @@
 using Flux
+using CUDA
 using DataFrames
 using BSON
 using Random
 using MLDatasets
 using ProgressMeter
+using LinearAlgebra
+
 function get_data(dataset, batchsize)
     if dataset == "MNIST"
         return get_MNIST_data(batchsize)
@@ -18,8 +21,8 @@ function get_MNIST_data(batchsize)
     xtrain, ytrain = MLDatasets.MNIST.traindata(Float32, dir = datadir("data_raw", "MNIST"))
     xtest, ytest = MLDatasets.MNIST.testdata(Float32, dir = datadir("data_raw", "MNIST"))
 
-    xtrain = reshape(xtrain, 28, 28, 1, :)
-    xtest = reshape(xtest, 28, 28, 1, :)
+    xtrain = reshape(xtrain, 28, 28, :)
+    xtest = reshape(xtest, 28, 28, :)
 
     ytrain, ytest = Flux.onehotbatch(ytrain, 0:9), Flux.onehotbatch(ytest, 0:9)
 
@@ -71,12 +74,12 @@ function MNIST_BNN(; imgsize=(28,28,1), nclasses= 10)
               )
 end
 
-function CIFAR_BNN(; imgsize=(32,32,3), nclasses= 10)
+function std_BNN(; imgsize=(32, 32, 3), n_units=100, n_classes=10)
         return Chain(
                 x -> reshape(x, prod(imgsize), :),
-                Dense(prod(imgsize), 500, relu),
-                Dense(500, 400, relu),
-                Dense(400, nclasses)
+                Dense(prod(imgsize), n_units, relu),
+                Dense(n_units, n_units, relu),
+                Dense(n_units, n_classes)
               )
 end
 
@@ -172,3 +175,33 @@ end
 
 
 # train_and_save("CIFAR_BNN", "CIFAR10", n_epoch = 100)
+
+"""
+    simplebnn(nhidden, ninput, noutput, activation=tanh)
+
+Create a simple Bayesian neural network with 2 hidden layers with `nhidden` units.
+"""
+function simplebnn(nhidden, ninput, noutput, activation=tanh)
+    return Chain(
+            Dense(ninput, nhidden, activation),
+            Dense(nhidden, nhidden, activation),
+            Dense(nhidden, noutput, identity)
+    )
+end
+
+
+CuMatrix{T}(Q::CUDA.CUSOLVER.CuQRPackedQ{S}) where {T,S} = CuArray{T}(lmul!(Q, CuArray{S}(I, size(Q, 1), min(size(Q.factors)...))))
+
+function LinearAlgebra.logdet(A::CUDA.CuMatrix)
+    d_A = copy(A)
+    _, info = CUDA.CUSOLVER.potrfBatched!('L', [d_A])
+    L = LinearAlgebra.Cholesky(d_A, 'L', first(info)).L
+    return 2 * sum(log, diag(L))
+end
+
+function LinearAlgebra.inv(A::CUDA.CuMatrix)
+    d_A = copy(A)
+    _, info = CUDA.CUSOLVER.potrfBatched!('L', [d_A])
+    L = LinearAlgebra.Cholesky(d_A, 'L', first(info)).L
+    return (cu(Matrix{Float32}(I(size(L, 1)))) / L) / L'
+end

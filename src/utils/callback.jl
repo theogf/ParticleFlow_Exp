@@ -2,8 +2,8 @@
 using BSON
 
 
-cb_tic(h, i::Int) = push!(h, :t_tic, Float64(time_ns()) / 1e9)
-cb_toc(h, i::Int) = push!(h, :t_toc, Float64(time_ns()) / 1e9)
+cb_tic(h, ::Int) = push!(h, :t_tic, Float64(time_ns()) / 1e9)
+cb_toc(h, ::Int) = push!(h, :t_toc, Float64(time_ns()) / 1e9)
 
 no_cb(xs...) = nothing
 
@@ -35,20 +35,15 @@ end
 cb_var(h, i::Int, q::TransformedDistribution) = cb_var(h, i, q.dist)
 
 # Store mean and covariance
-function cb_var(h, i::Int, q::Union{AVI.AbstractSamplesMvNormal,AVI.SteinDistribution})
+function cb_var(h, i::Int, q::Union{AVI.AbstractPosteriorMvNormal})
     push!(h, :mu, i, Vector(mean(q)))
     push!(h, :sig, i, Vector(cov(q)[:]))
 end
 
-function cb_var(h, i::Int, q::AVI.MFSamplesMvNormal)
+function cb_var(h, i::Int, q::AVI.BlockMFSamplesMvNormal)
     push!(h, :mu, i, Vector(mean(q)))
     push!(h, :sig, i, Vector(vcat(vec.(blocks(cov(q)))...)))
     push!(h, :indices, i, Vector(q.id))
-end
-
-function cb_var(h, i::Int, q::TuringDenseMvNormal)
-    push!(h, :mu, i, q.m)
-    push!(h, :sig, i, Matrix(q.C)[:])
 end
 
 # Second callback is for NN which require to write on file to avoid allocation
@@ -57,7 +52,7 @@ end
 function wrap_heavy_cb(; cb_hp = nothing, cb_val = nothing, path = nothing)
     return function base_heavy_cb(h::MVHistory)
         return function (i, q, hp)
-            if mod(i, 1000) == 0
+            if mod(i, 250) == 0
                 cb_tic(h, i)
                 if !isnothing(hp) && !isnothing(cb_hp)
                     cb_hp(h, i, hp)
@@ -76,19 +71,19 @@ end
 cb_heavy_var(h, i::Int, q::TransformedDistribution, path::String) = cb_heavy_var(h, i, q.dist, path)
 
 # Store particles
-function cb_heavy_var(h, i::Int, q::Union{AVI.AbstractSamplesMvNormal, AVI.SteinDistribution}, path::String)
-    @info "Saving model at iteration $i in $path"
+function cb_heavy_var(h, i::Int, q::Union{AVI.AbstractSamplesMvNormal, AVI.EmpiricalDistribution}, path::String)
+    # @info "Saving model at iteration $i in $path"
     isdir(path) ? nothing : mkpath(path)
     new_path = joinpath(path, string("model_iter_", i, ".bson"))
     q = cpu(q)
-    particles = Float32.(q.x)
-    tagsave(new_path, @dict i particles; safe=false, storepatch = false)
+    particles = cpu(Float32.(q.x))
+    save(new_path, @dict i particles)
 end
 
 function cb_heavy_var(h, i::Int, q, path::String)
-    @info "Saving model at iteration $i in $path"
+    # @info "Saving model at iteration $i in $path"
     isdir(path) ? nothing : mkpath(path)
     new_path = joinpath(path, string("model_iter_", i, ".bson"))
     q = cpu(q)
-    tagsave(new_path, @dict i q; safe=false, storepatch = false)
+    save(new_path, @dict i q)
 end

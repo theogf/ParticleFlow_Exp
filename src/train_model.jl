@@ -1,9 +1,8 @@
 using AdvancedVI;
 const AVI = AdvancedVI;
-using Turing
 using BlockDiagonals
 using Flux
-using Distributions, DistributionsAD
+using Distributions
 using Bijectors: TransformedDistribution
 using KernelFunctions
 using ValueHistories
@@ -19,175 +18,244 @@ include(joinpath("utils", "tools.jl"))
 # Main function, take dicts of parameters
 # run the inference and return MVHistory objects for each alg.
 no_run = Dict(:run => false)
+algs = [
+    :gpf,
+    :gf,
+    :dsvi,
+    :fcs,
+    :iblr,
+    :svgd_linear,
+    :svgd_rbf,
+]
 
-function train_model(logπ, general_p, gflow_p, advi_p, stein_p;)
+
+function train_model(logπ, general_p, params)
     ## Initialize algorithms
-    gflow_vi, gflow_q = init_gflow(gflow_p, general_p)
-    advi_vi, advi_q, advi_init = init_advi(advi_p, general_p)
-    stein_vi, stein_q = init_stein(stein_p, general_p)
+    algs = [
+        :gpf,
+        :gf,
+        :dsvi,
+        :fcs,
+        :iblr,
+        :svgd_linear,
+        :svgd_rbf,
+    ]
+    vi_alg = Dict{Symbol,Any}()
+    q = Dict{Symbol,Any}()
+    h = Dict{Symbol,Any}()
     device = general_p[:gpu] ? gpu : cpu
-    ## Set up storage arrays
-    gflow_h = MVHistory()
-    advi_h = MVHistory()
-    stein_h = MVHistory()
+    mode = get!(general_p, :mode, :save)
 
-    ## Run algorithms
-    if !isnothing(gflow_vi)
-        try
-            @info "Running Gaussian Flow Particles"
-            push!(gflow_h, :t_start, Float64(time_ns()) / 1e9)
-            AVI.vi(
-                logπ,
-                gflow_vi,
-                gflow_q |> device,
-                optimizer = gflow_p[:opt] |> device,
-                hyperparams = deepcopy(general_p[:hyper_params]),
-                hp_optimizer = deepcopy(general_p[:hp_optimizer]),
-                callback = gflow_p[:callback](gflow_h),
-            )
-        catch err
-            if err isa InterruptException || get!(general_p, :unsafe, true)
-                rethrow(err)
+    for alg in algs
+        # Initialize setup
+        vi_alg[alg], q[alg] = init_alg(Val(alg), params[alg], general_p)
+        h[alg] = MVHistory()
+        ## Run algorithm
+        if !isnothing(vi_alg[alg])
+            try
+                @info "Running $(AVI.alg_str(vi_alg[alg]))"
+                push!(h[alg], :t_start, Float64(time_ns()) / 1e9)
+                AVI.vi(
+                    logπ,
+                    vi_alg[alg],
+                    q[alg] |> device,
+                    optimizer = params[alg][:opt] |> device,
+                    hyperparams = deepcopy(general_p[:hyper_params]),
+                    hp_optimizer = deepcopy(general_p[:hp_optimizer]),
+                    callback = params[alg][:callback](h[alg]),
+                )
+                if mode == :display
+                    @info "Alg. $alg :\nmu = $(mean(q[alg])),\ndiag_sig = $(var(q[alg]))"
+                end
+            catch err
+                if err isa InterruptException || !get!(general_p, :unsafe, false)
+                    rethrow(err)
+                end
             end
         end
     end
-    if !isnothing(advi_vi)
-        try
-            @info "Running ADVI"
-            push!(advi_h, :t_start, Float64(time_ns()) / 1e9)
-            AVI.vi(
-                logπ,
-                advi_vi,
-                advi_q, #|> device,
-                advi_init, #|> device,
-                optimizer = advi_p[:opt],# |> device,
-                hyperparams = deepcopy(general_p[:hyper_params]),
-                hp_optimizer = deepcopy(general_p[:hp_optimizer]),
-                callback = advi_p[:callback](advi_h),
-            )
-        catch err
-            if err isa InterruptException || get!(general_p, :unsafe, true)
-                rethrow(err)
-            end
-        end
-    end
-    if !isnothing(stein_vi)
-        try
-            @info "Running Stein VI"
-            push!(stein_h, :t_start, Float64(time_ns()) / 1e9)
-            AVI.vi(
-                logπ,
-                stein_vi,
-                stein_q,
-                optimizer = stein_p[:opt],
-                hyperparams = deepcopy(general_p[:hyper_params]),
-                hp_optimizer = deepcopy(general_p[:hp_optimizer]),
-                callback = stein_p[:callback](stein_h),
-            )
-        catch err
-            if err isa InterruptException || get!(general_p, :unsafe, true)
-                rethrow(err)
-            end
-        end
-    end
-    return gflow_h, advi_h, stein_h
+    return h, params
 end
 
 # Allows to save the histories into a desired file
-function save_histories(gflow_h, advi_h, stein_h, general_p)
-    names = ("gauss", "advi", "stein")
-    for (h, name) in zip((gflow_h, advi_h, stein_h), names)
-        if length(keys(h)) != 0
-            @info "Saving histories of algorithm $name"
-            save_results(h, name, general_p)
+function save_histories(h, general_p)
+    for (alg, hist) in h
+        if length(keys(hist)) != 0
+            @info "Saving histories of algorithm $alg"
+            save_results(hist, alg, general_p)
         end
     end
 end
 
 # Initialize distribution and algorithm for Gaussian Particles model
-function init_gflow(gflow_p, general_p)
+function init_alg(::Val{:gpf}, params, general_p)
     n_dim = general_p[:n_dim]
-    gflow_vi = if gflow_p[:run]
-        AVI.PFlowVI(gflow_p[:max_iters], gflow_p[:cond1], gflow_p[:cond2])
+    alg_vi = if params[:run]
+        AVI.GaussPFlow(params[:max_iters], params[:natmu], false)
     else
         return nothing, nothing
     end
-    isnothing(gflow_p[:init]) || size(gflow_p[:init]) == (n_dim, gflow_p[:n_particles]) # Check that the size of the inital particles respect the model
-    gflow_q = if gflow_p[:mf] isa AbstractVector
-        MFSamplesMvNormal(
-            isnothing(gflow_p[:init]) ?
-                rand(MvNormal(ones(n_dim)), gflow_p[:n_particles]) : gflow_p[:init],
-            gflow_p[:mf],
+    isnothing(params[:init]) || size(params[:init]) == (n_dim, params[:n_particles]) # Check that the size of the inital particles respect the model
+    alg_q = if params[:mf] isa AbstractVector
+        BlockMFSamplesMvNormal(
+            isnothing(params[:init]) ?
+                rand(MvNormal(ones(n_dim)), params[:n_particles]) : params[:init],
+            params[:mf],
         )
-    elseif gflow_p[:mf] == Inf
-        FullMFSamplesMvNormal(
-            isnothing(gflow_p[:init]) ?
-                rand(MvNormal(ones(n_dim)), gflow_p[:n_particles]) : gflow_p[:init]
+    elseif params[:mf] == Inf
+        MFSamplesMvNormal(
+            isnothing(params[:init]) ?
+                rand(MvNormal(ones(n_dim)), params[:n_particles]) : params[:init]
         )
     else
         SamplesMvNormal(
-            isnothing(gflow_p[:init]) ?
-                rand(MvNormal(ones(n_dim)), gflow_p[:n_particles]) : gflow_p[:init],
+            isnothing(params[:init]) ?
+                rand(MvNormal(ones(n_dim)), params[:n_particles]) : params[:init],
         )
     end
 
-    return gflow_vi, gflow_q # Return alg. and distr.
+    return alg_vi, alg_q # Return alg. and distr.
 end
 
-# Initialize distribution and algorithm for ADVI model
-function init_advi(advi_p, general_p)
+# Initialize distribution and algorithm for Gaussian Particles model
+function init_alg(::Val{:gf}, params, general_p)
     n_dim = general_p[:n_dim]
-    advi_vi = if advi_p[:run]
-        AVI.ADVI(advi_p[:n_samples], advi_p[:max_iters])
-    else
-        return nothing, nothing, nothing
-    end
-    mf = get!(advi_p, :mf, false)
-    mu_init, L_init =
-        isnothing(advi_p[:init]) ? (zeros(n_dim), Matrix(I(n_dim))) : advi_p[:init] # Check that the size of the inital particles respect the model
-    L_init = if mf isa AbstractVector
-        BlockDiagonal([L_init[(mf[i]+1):mf[i+1], (mf[i]+1):mf[i+1]] for i in 1:length(mf)-1])
-    elseif mf == Inf
-        vec(L_init)
-    else
-        L_init
-    end
-    device = general_p[:gpu] ? gpu : cpu
-    advi_q =
-    if mf == Inf
-        AVI.transformed(
-        TuringDiagMvNormal(mu_init, L_init),
-        AVI.Bijectors.Identity{1}(),
-    ) |> device
-    else
-        AVI.transformed(
-        TuringDenseMvNormal(mu_init, L_init * L_init'),
-        AVI.Bijectors.Identity{1}(),
-    )
-    end
-    if L_init isa BlockDiagonal
-        return advi_vi, advi_q, vcat(mu_init, vec.(LowerTriangular.(blocks(L_init)))...)
-    elseif mf == Inf
-        return advi_vi, advi_q, device(vcat(mu_init, log.(L_init)))
-    else
-        return advi_vi, advi_q, vcat(mu_init, L_init[:]) # Return alg., distr. and var. params.
-    end
-
-end
-
-# Initialize distribution and algorithm for SVGD model
-function init_stein(stein_p, general_p)
-    n_dim = general_p[:n_dim]
-    stein_vi = if stein_p[:run]
-        AVI.SteinVI(stein_p[:max_iters], stein_p[:kernel])
+    alg_vi = if params[:run]
+        AVI.GaussFlow(
+            general_p[:gpu] ? CUDA.CURAND.default_rng() : Random.GLOBAL_RNG,
+            general_p[:gpu] ? gpu : cpu,
+            params[:max_iters],
+            params[:n_samples],
+            params[:natmu],
+            false,
+        )
     else
         return nothing, nothing
     end
-    isnothing(stein_p[:init]) || size(stein_p[:init]) == (n_dim, stein_p[:n_particles]) # Check that the size of the inital particles respect the model
-    stein_q = AVI.SteinDistribution(
-        isnothing(stein_p[:init]) ?
-            rand(MvNormal(ones(n_dim)), stein_p[:n_particles]) : stein_p[:init],
-    )
+    alg_q = if params[:mf] isa AbstractVector
+        AVI.BlockMFLowRankMvNormal(
+            (isnothing(params[:init]) ?
+                rand(MvNormal(ones(n_dim)), params[:n_samples]) :
+                params[:init])...,
+            params[:mf],
+        )
+    elseif params[:mf] == Inf
+        AVI.MFMvNormal(
+            (isnothing(params[:init]) ?
+                (zeros(n_dim), ones(n_dim)) :
+                params[:init])...,
+        )
+    else
+        AVI.LowRankMvNormal(
+            (isnothing(params[:init]) ?
+                (zeros(n_dim), Matrix{Float32}(I(n_dim))) :
+                params[:init])...
+        )
+    end
 
-    return stein_vi, stein_q # return alg. and distr.
+    return alg_vi, alg_q # Return alg. and distr.
+end
+
+# Initialize distribution and algorithm for ADVI model
+function init_alg(::Val{:dsvi}, params, general_p)
+    n_dim = general_p[:n_dim]
+    alg_vi = if params[:run]
+        AVI.DSVI(
+            general_p[:gpu] ? CUDA.CURAND.default_rng() : Random.GLOBAL_RNG,
+            general_p[:gpu] ? gpu : cpu,
+            params[:max_iters],
+            params[:n_samples],
+            )
+    else
+        return nothing, nothing
+    end
+    alg_q = if params[:mf] == Inf
+        AVI.MFMvNormal(
+            (isnothing(params[:init]) ?
+                (zeros(n_dim), ones(n_dim)) :
+                params[:init])...
+        )
+    else
+        AVI.CholMvNormal(
+            (isnothing(params[:init]) ?
+                (zeros(n_dim), cholesky(I(n_dim)).L) :
+                params[:init])...
+        )
+    end
+
+    return alg_vi, alg_q # Return alg. and distr.
+end
+
+function init_alg(::Val{:fcs}, params, general_p)
+    n_dim = general_p[:n_dim]
+    alg_vi = if params[:run]
+        AVI.FCS(params[:max_iters], params[:n_samples])
+    else
+        return nothing, nothing
+    end
+    !isa(params[:mf], AbstractVector) || params[:mf] != Inf || error("FCS cannot be used with Mean-Field")
+    alg_q = AVI.FCSMvNormal(
+            (isnothing(params[:init]) ?
+            (zeros(n_dim), cholesky(I(n_dim)).L / sqrt(2), ones(n_dim) / sqrt(2)) :
+            params[:init])...
+        )
+
+    return alg_vi, alg_q # Return alg. and distr.
+end
+
+function init_alg(::Val{:iblr}, params, general_p)
+    n_dim = general_p[:n_dim]
+    alg_vi = if params[:run]
+        AVI.IBLR(params[:max_iters], params[:n_samples], params[:comp_hess])
+    else
+        return nothing, nothing
+    end
+    alg_q = if params[:mf] == Inf
+        AVI.DiagPrecisionMvNormal(
+            (isnothing(params[:init]) ?
+                (zeros(n_dim), ones(n_dim)) :
+                params[:init])...
+        )
+    else
+        AVI.PrecisionMvNormal(
+            (isnothing(params[:init]) ?
+                (zeros(n_dim), Matrix{Float32}(I(n_dim))) :
+                params[:init])...
+        )
+    end
+
+    return alg_vi, alg_q # Return alg. and distr.
+end
+
+function init_alg(svgd::Union{Val{:svgd_linear}, Val{:svgd_rbf}}, params, general_p)
+    n_dim = general_p[:n_dim]
+    kernel = if svgd isa Val{:svgd_linear}
+        :linear
+    elseif svgd isa Val{:svgd_rbf}
+        :rbf 
+    end
+    alg_vi = if params[:run]
+        if kernel == :linear
+            AVI.SVGD(
+                general_p[:gpu] ? gpu : cpu,
+                LinearKernel(;c=1),
+                params[:max_iters],
+            )
+        else
+            AVI.SVGD(
+                general_p[:gpu] ? gpu : cpu,
+                general_p[:gpu] ? gpu(compose(SqExponentialKernel(), GPUScaleTransform(1.0))) : compose(SqExponentialKernel(), ScaleTransform(1.0)),
+                params[:max_iters],
+            )
+        end
+    else
+        return nothing, nothing
+    end
+    isnothing(params[:init]) || size(params[:init]) == (n_dim, params[:n_particles]) # Check that the size of the inital particles respect the model
+    alg_q = AVI.EmpiricalDistribution(
+                isnothing(params[:init]) ?
+                rand(MvNormal(ones(n_dim)), params[:n_particles]) : 
+                params[:init],
+        )
+    return alg_vi, alg_q # Return alg. and distr.
 end

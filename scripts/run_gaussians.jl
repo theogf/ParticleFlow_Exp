@@ -1,51 +1,47 @@
 # Make sure that all packages are up to date
 using DrWatson;
-@quickactivate
-using Pkg; Pkg.update()
+@quickactivate "ParticleFlow"
+# using Pkg; Pkg.update()
 include(srcdir("gaussian", "gaussian_target.jl"))
 
-
-# Set to true or false to use parallelism or not
-do_parallel = true
-
 # Use parallelism
-if do_parallel
-    using Distributed
-    nthreads = 6 # Number of threads to use
-    if nprocs() < nthreads
-        addprocs(nthreads-nprocs()+1) # Add the threads as workers
-    end
+using Distributed
+nthreads = 60 # Number of threads to use
+nthreads = min(nthreads, Sys.CPU_THREADS - 2)
+if nprocs() < nthreads
+    addprocs(nthreads - nprocs() + 1) # Add the threads as workers
 end
 
 # Load all needed packages on every worker
-if do_parallel
-    @everywhere using DrWatson
-    @everywhere quickactivate(@__DIR__)
-    @everywhere include(srcdir("gaussian", "gaussian_target.jl"))
-end
-
+@everywhere using DrWatson
+@everywhere quickactivate("ParticleFlow")
+@everywhere include(srcdir("gaussian", "gaussian_target.jl"))
 # Create a list of parameters
 exp_ps = Dict(
-    :n_iters => 3000, # Number of iterations to run
-    :n_runs => 5, # Number of repeated runs
-    :dim => vcat(2:9, 10:9:99, 100:100:500), # Dimension of the target
-    :n_particles => [0, 10, 20, 50, 100], # Number of particles used, nothing will give dim + 1
-    :full_cov => true,# false], # If the covariance is identity or a full covariance with varying eigenvalues
-    :gpf => true, # Run GaussParticle Flow
-    :advi => true, # Run Black Box VI
-    :steinvi => true, # Run Stein VI
-    :cond1 => false, # Use preconditionning on b
-    :cond2 => false, # Use preconditionning on A
+    :n_iters => 50000, # Number of iterations to run
+    :n_runs => 10, # Number of repeated runs
+    :n_dim => [20, 50], #[50, 100], #[5, 10, 20], #50, 100], # Dimension of the target
+    :n_particles => 0,#, 10, 20, 50, 100], # Number of particles used, nothing will give dim + 1
+    :cond => [1, 10, 100],
+    :gpf => !true, # Run GaussParticle Flow
+    :gf => true, # Run Gauss Flow
+    :dsvi => true, # Run Doubly Stochastic VI
+    :fcs => true, # Run Factorized Structure Covariance
+    :iblr => !true, # Run i Bayesian Rule
+    :svgd => !true, # Run linear SVGD
+    :natmu => [true, false], # Use preconditionning on b
     :seed => 42, # Seed for experiments
     :cb_val => nothing, # Callback values
-    # :opt => Flux.Optimise.Optimiser(ClipNorm(10.0), Descent(1.0)),#ADAGrad(0.1), # Common optimizer
-    :opt => Flux.Optimise.Optimiser(ClipNorm(10), Descent(0.1)), # Common optimizer
+    :eta => 0.01,
+    :opt_det => :Descent,
+    :opt_stoch => :RMSProp,# :RMSProp],
+    :comp_hess => :rep,
+    :overwrite => :true,
+    :mode => :save,
 )
 ps = dict_list(exp_ps)
 @info "Will now run $(dict_list_count(exp_ps)) simulations"
-
 # run for each dict the simulation
-if do_parallel
-    pmap(run_gaussian_target, ps)
-else
-    map(run_gaussian_target, ps)
+# run_gaussian_target(ps[1])
+# map(run_gaussian_target, ps)
+pmap(run_gaussian_target, ps)
