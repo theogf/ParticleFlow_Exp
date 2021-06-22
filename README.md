@@ -1,3 +1,5 @@
+This repo is for a submission under review
+
 # Flexible and Efficient Inference with Particles for the Variational Gaussian Approximation
 
 Repo containing experiments for the ICML submission : "Flexible and Efficient Inference with Particles for the Variational Gaussian Approximation"
