@@ -13,11 +13,11 @@ Then make the following calls:
 ```julia
 using Pkg
 Pkg.activate(".")
+Pkg.develop(;path="./AdvancedVI")
 Pkg.instantiate()
-Pkg.develop(path"./AdvancedVI")
 ```
 
-To download the relevant datasets from Section 4.3, you can simply call
+To download the relevant datasets from the experiments section, you can simply call
 ```julia
 include("scripts/download_and_convert.jl")
 ```
