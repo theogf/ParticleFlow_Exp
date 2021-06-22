@@ -1,37 +1,38 @@
-# Running the code on EC2
+# Flexible and Efficient Inference with Particles for the Variational Gaussian Approximation
 
-Start an ec2 ubuntu instance with an associated ssh key 
-(you will get prompted for one, create one if you don't have one yet)
+Repo containing experiments for the ICML submission : "Flexible and Efficient Inference with Particles for the Variational Gaussian Approximation"
 
-If you download a new .pem file in the above steps reduce the permissions with
+![](frontpage.png)
 
-```bash
-chmod 600 $PATH_TO_FILE.pem
+## Installation
+
+First of all [install julia](https://julialang.org/downloads/) with **version at least 1.5**.
+Download this repository (there should be a `gpf_icml.zip` file) and unzip it somewhere.
+With a terminal go to the repo and run `julia`.
+Then make the following calls:
+```julia
+using Pkg
+Pkg.activate(".")
+Pkg.instantiate()
+Pkg.develop(path"./AdvancedVI")
 ```
 
-This will avoid an error when running the ssh command below
-
-
-
-```bash
-# for example ssh -i .ssh/ec2.pem ubuntu@ec2-52-58-52-178.eu-central-1.compute.amazonaws.com
-ssh -i $PATH_TO_FILE.pem ubuntu@$EC2URL
-git clone https://github.com/theogf/ParticleFlow_Exp.git
-# login with github credentials when prompted
-wget https://julialang-s3.julialang.org/bin/linux/x64/1.5/julia-1.5.1-linux-x86_64.tar.gz
-tar zxvf julia-1.5.1-linux-x86_64.tar.gz
-sudo ln -s $(pwd)/julia-1.5.1/bin/julia /bin/julia
-cd ParticleFlow_Exp/julia
-git clone https://github.com/theogf/AdvancedVI.jl --branch gaussparticleflow --single-branch dev/AdvancedVI
-# login with github credentials if prompted
-julia -e 'using Pkg; Pkg.add("DrWatson"); Pkg.activate("."); Pkg.develop(path="./dev/AdvancedVI"); Pkg.instantiate()'
+To download the relevant datasets from Section 4.3, you can simply call
+```julia
+include("scripts/download_and_convert.jl")
 ```
 
-Now run a script, for example
+You are now all set!
 
-```bash
-julia avi/run_gaussians.jl 
-```
+## Running the scripts
 
-And any files saved can be copied out with scp as usual.
+Once again open a Julia session and run on of the scripts present in `scripts` by calling `include("scripts/{ name of file}")`.
+You can set the desired parameters (they are commented) to try different setting.
 
+## Reproducing the plots
+
+This is a bit more tricky, you will have to go to the `analysis` folder and play with the different parameters in place given the simulations you have run.
+## Exploring the code
+
+The source code for each algorithm was directly included in an existing package [`AdvancedVI.jl`](https://github.com/TuringLang/AdvancedVI.jl) from TuringLang of which a branch is locally copied in this repo.
+Each algorithm is contained in a file in `AdvancedVI/src/`, the relevant function to look at is `optimize!` and eventually `grad!`
