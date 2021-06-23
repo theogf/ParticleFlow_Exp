@@ -20,9 +20,9 @@ end
 exp_ps = Dict(
     :n_iters => 30000, # Number of iterations to run
     :n_runs => 10, # Number of repeated runs
-    :n_dim => 20, #[50, 100], #[5, 10, 20], #50, 100], # Dimension of the target
-    :n_particles => 0,#, 10, 20, 50, 100], # Number of particles used, nothing will give dim + 1
-    :cond => [1, 10, 100],
+    :n_dim => 20, # Dimension of the target
+    :n_particles => 0, # Number of particles used, nothing will give dim + 1
+    :cond => [1, 10, 100], # Condition number
     :gpf => !true, # Run GaussParticle Flow
     :gf => !true, # Run Gauss Flow
     :dsvi => !true, # Run Doubly Stochastic VI

@@ -2,7 +2,6 @@ using ChainRulesCore
 
 invquad(A::AbstractMatrix, x::AbstractVecOrMat) = dot(x, A \ x)
 XXt(X::AbstractVecOrMat) = X * X'
-# gradcol(alg::VIScheme, f::Function, X::AbstractMatrix) = gradcol(ad(alg), f, X)
 function gradcol(::Val{:ForwardDiff}, f, X)
     ForwardDiff.gradient(x->sum(f, eachcol(x)), X)
 end
@@ -69,7 +68,7 @@ function cov_to_inv_lowrank_plus_diag(S, K)
 end
 
 
-## Making the ScaleTransform GPU compatible
+## Making the ScaleTransform GPU compatible, same for LinearKernel
 using Functors
 using KernelFunctions
 struct GPUScaleTransform{T<:Real,V<:AbstractVector{T}} <: KernelFunctions.Transform
