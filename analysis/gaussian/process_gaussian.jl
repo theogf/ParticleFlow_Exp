@@ -2,7 +2,7 @@ using DrWatson
 @quickactivate
 include(projectdir("analysis", "post_process.jl"))
 using Plots: px
-
+default(linewidth=2)
 ## Load data
 all_res = collect_results(datadir("results", "gaussian"));
 text_natmu = Dict(
@@ -48,7 +48,7 @@ function plot_gaussian(
     ymax = 1e2
     tfsize = 21.0
     p_μ = Plots.plot(
-        title = cond == 1 ? L"\|m^t - \mu\|" : "",
+        title = cond == 1 ? L"||m^t - \mu||_2" : "",
         titlefontsize = tfsize,
         xlabel = cond == 100 ? "Time [s]" : "",
         ylabel = "",
@@ -59,7 +59,7 @@ function plot_gaussian(
     )
     annotate!(p_μ, 5e-2, 1e-10, Plots.text(latexstring("\\kappa = $cond"), :left, 18))
     p_Σ = Plots.plot(
-        title = cond == 1 ? L"\|C^t- \Sigma\|" : "",
+        title = cond == 1 ? L"||C^t- \Sigma||_2" : "",
         titlefontsize = tfsize,
         xlabel = cond == 100 ? "Time [s]" : "",
         ylabel = "",
@@ -105,7 +105,7 @@ function plot_gaussian(
                     fillalpha=0.3,
                     label=string(alg_lab[alg], text_natmu[row.natmu]),
                     color=alg_col[alg],
-                    linestyle=alg_line[row.natmu]
+                    linestyle= alg == :gf ? :solid : alg_line[row.natmu]
                 )
                 Plots.plot!(
                     p_Σ,
@@ -115,7 +115,7 @@ function plot_gaussian(
                     fillalpha=0.3,
                     label = string(alg_lab[alg], text_natmu[row.natmu]),
                     color = alg_col[alg],
-                    linestyle = alg_line[row.natmu],
+                    linestyle = alg == :gf ? :solid : alg_line[row.natmu],
                 )
             else
                 Plots.plot!(

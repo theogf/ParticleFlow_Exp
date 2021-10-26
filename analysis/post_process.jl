@@ -147,7 +147,7 @@ function process_means(hs, truth; metric = (x, y) -> norm(x - y), use_quantile=f
     return Δm, varm
 end
 
-function process_fullcovs(hs, truth; metric = (x, y) -> norm(x -y), use_quantile=false)
+function process_fullcovs(hs, truth; metric = (x, y) -> norm(x - y), use_quantile=false)
     vals = map(hs) do h
         x = if haskey(h, :sig)
             h[:sig].values

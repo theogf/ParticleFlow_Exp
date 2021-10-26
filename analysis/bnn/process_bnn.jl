@@ -102,8 +102,8 @@ end
 
 
 ## Plotting of confidence histogram
-plt_none = plot(xflip = false, legendfontsize = 13.5, legend = :topleft, title = "L = $L", xlabel = "Confidence (max prob)", ylabel = "Accuracy")
-plt_mf = plot(xflip = false, legendfontsize = 13.5, legend = :topleft, title = "Mean-Field", xlabel = "Confidence (max prob)", ylabel = "Accuracy")
+plt_none = plot(;xflip = false, legendfontsize = 13.5, legend = :topleft, title = "L = $L", xlabel = "Confidence (max prob)", ylabel = "Accuracy")
+plt_mf = plot(;xflip = false, legendfontsize = 13.5, legend = :topleft, title = "Mean-Field", xlabel = "Confidence (max prob)", ylabel = "Accuracy")
 # xticks!(logxvals, string.(xvals))
 msw = 0.5
 ms = 8.0
